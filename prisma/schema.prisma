@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String             @id @default(cuid())
+  name                String?
+  username            String             @unique
+  surname             String?
+  email               String?            @unique
+  emailVerified       DateTime?
+  hashedPassword      String?
+  image               String?
+  sessions            Session[]
+  accounts            Account[]
+  completedOnboarding Boolean            @default(false)
+  createdGroups       Group[]            @relation("CreatedBy")
+  subscriptions       Subscription[]
+  pomodoroSettings    PomodoroSettings[]
+  activities            Activity[]
+  message Message[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String   @unique
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum UserPermission {
+  ADMIN
+  CAN_EDIT
+  READ_ONLY
+  OWNER
+}
+
+model Group {
+  id           String         @id @default(cuid())
+  name         String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  creatorId    String?
+  creator      User?          @relation("CreatedBy", fields: [creatorId], references: [id], onDelete: Cascade)
+  image        String?
+  color        GroupIconColor @default(BLUE)
+  inviteCode   String         @unique
+  adminCode    String         @unique
+  canEditCode  String         @unique
+  readOnlyCode String         @unique
+  subscribers  Subscription[]
+  chat Chat[]
+
+  @@index([creatorId])
+}
+
+enum GroupIconColor {
+  PURPLE
+  RED
+  GREEN
+  BLUE
+  PINK
+  YELLOW
+  LIME
+  EMERALD
+  INDIGO
+  FUCHSIA
+  ORANGE
+  CYAN
+}
+
+model Subscription {
+  userId   String
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId  String
+  group    Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userRole UserPermission @default(READ_ONLY)
+
+  @@id([userId, groupId])
+  @@index([groupId])
+  @@index([userId])
+}
+
+model PomodoroSettings {
+  id                 String              @id @default(cuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workDuration       Int                 @default(25)
+  shortBreakDuration Int                 @default(5)
+  longBreakDuration  Int                 @default(15)
+  longBreakInterval  Int                 @default(2)
+  rounds             Int                 @default(3)
+  soundEffect        PomodoroSoundEffect @default(BELL)
+  soundEffectVolume  Float               @default(0.5)
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String  @unique
+  timeSpent Int      @default(0) // store time in seconds
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PomodoroSoundEffect {
+  ANALOG
+  BIRD
+  CHURCH_BELL
+  DIGITAL
+  FANCY
+  BELL
+}
+
+model Chat {
+  id String @id @default(cuid())
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId String 
+  messages Message[]
+}
+
+
+model Message {
+  id        String   @id @default(uuid())
+   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId String
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String
+  content String
+  createdAt DateTime @default(now())
+  // additionalResources additionalResource[]
+  edited Boolean @default(false)
+  updatedAt DateTime? @updatedAt
+
+}

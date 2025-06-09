@@ -1,0 +1,17 @@
+import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export async function GET() {
+  const activities = await prisma.activity.findMany();
+  return NextResponse.json(activities);
+}
+
+export async function POST(request: Request) {
+  const { name } = await request.json();
+  const newActivity = await prisma.activity.create({
+    data: { name, timeSpent: 0 },
+  });
+  return NextResponse.json(newActivity);
+}

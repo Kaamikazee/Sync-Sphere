@@ -1,103 +1,220 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect, useCallback, useRef } from "react";
+import io, { Socket } from "socket.io-client";
+
+interface Activity {
+  id: string;
+  name: string;
+  timeSpent: number; // in seconds
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Create a global socket variable.
+// (In a production app, consider using a dedicated module to create and export the socket.)
+let socket: Socket | null = null;
+
+function useSocket() {
+  useEffect(() => {
+    if (!socket) {
+      socket = io("http://localhost:5555");
+    }
+  }, []);
+}
+
+/*  
+  Timer Component
+  ----------------
+  The Timer now receives an onUpdate callback that accepts the latest elapsed time and
+  the activity's id. Whenever the timer updates its state (every second) or receives a socket
+  update from the server ("timerUpdated"), it invokes onUpdate with the new value.
+*/
+
+const Timer: React.FC<{
+  activity: Activity;
+  onUpdate: (newTime: number, id: string) => void;
+}> = ({ activity, onUpdate }) => {
+  const [time, setTime] = useState(activity.timeSpent);
+  const [running, setRunning] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  // baselineRef will hold the activity's timeSpent at the moment the timer is started.
+  const baselineRef = useRef<number>(activity.timeSpent);
+
+  useEffect(() => {
+    const handleStart = (data: { activityId: string; startTime: number; baseline: number }) => {
+      if (data.activityId !== activity.id) return;
+      baselineRef.current = data.baseline;
+      setTime(data.baseline);
+      setStartTime(data.startTime);
+      setRunning(true);
+    };
+    socket.on("activityStarted", handleStart);
+    return () => { socket.off("activityStarted", handleStart); };
+  }, [activity.id]);
+
+   
+  
+
+  useEffect(() => {
+    if (!running) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const newTime = baselineRef.current + elapsed;
+      setTime(newTime);
+      onUpdate(newTime, activity.id);
+      // Broadcast this tick (only one client needs to—but it's simplest if all do)
+      socket.emit("updateTimer", { activityId: activity.id, elapsedTime: newTime });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [running, startTime, activity.id, onUpdate]);
+
+  useEffect(() => {
+    const handleTick = (data: { activityId: string; elapsedTime: number }) => {
+      if (data.activityId !== activity.id) return;
+      setTime(data.elapsedTime);
+      onUpdate(data.elapsedTime, activity.id);
+    };
+    socket.on("timerUpdated", handleTick);
+    return () => { socket.off("timerUpdated", handleTick); };
+  }, [activity.id, onUpdate]);
+
+  // 4) Listen for remote stops
+  useEffect(() => {
+    const handleStop = (data: { activityId: string; elapsedTime: number }) => {
+      if (data.activityId !== activity.id) return;
+      setRunning(false);
+      setTime(data.elapsedTime);
+      onUpdate(data.elapsedTime, activity.id);
+    };
+    socket.on("activityStopped", handleStop);
+    return () => { socket.off("activityStopped", handleStop); };
+  }, [activity.id, onUpdate]);
+
+
+
+  const handleStart = () => {
+    baselineRef.current = activity.timeSpent;
+    const now = Date.now();
+    setStartTime(now);
+    setRunning(true);
+    socket.emit("startActivity", {
+      activityId: activity.id,
+      startTime: now,
+      baseline: activity.timeSpent,
+    });
+  };
+
+  const handleStop = () => {
+    setRunning(false);
+    socket.emit("stopActivity", { activityId: activity.id, elapsedTime: time });
+    onUpdate(time, activity.id);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div>
+      <p>Time Spent: {time} seconds</p>
+      <button onClick={handleStart} disabled={running}>Start</button>
+      <button onClick={handleStop} disabled={!running}>Stop</button>
     </div>
   );
-}
+};
+
+/*  
+  ActivityForm Component
+  -------------------------
+  A simple form to add a new activity. When a new activity is added,
+  it gets pushed to the parent’s state.
+*/
+const ActivityForm: React.FC<{ onAdd: (activity: Activity) => void }> = ({ onAdd }) => {
+  const [activityName, setActivityName] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activityName.trim()) return;
+    const res = await fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: activityName }),
+    });
+    if (res.ok) {
+      const newActivity: Activity = await res.json();
+      onAdd(newActivity);
+      setActivityName("");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        placeholder="Enter activity name"
+        value={activityName}
+        onChange={(e) => setActivityName(e.target.value)}
+      />
+      <button type="submit">Add Activity</button>
+    </form>
+  );
+};
+
+/*  
+  TotalTime Component
+  -----------------------
+  This component calculates the total time by summing up the timeSpent value
+  from all activities. Because the parent's state now updates whenever a Timer changes,
+  this sum re-renders in real time.
+*/
+const TotalTime: React.FC<{ activities: Activity[] }> = ({ activities }) => {
+  const total = activities.reduce((sum, act) => sum + act.timeSpent, 0);
+  return <h3>Total Time Recorded: {total} seconds</h3>;
+};
+
+/*  
+  HomePage Component
+  -------------------------
+  This is our main page:
+  - It loads existing activities from the API.
+  - It displays an ActivityForm to add new ones.
+  - It renders a Timer for each activity, and passes an onUpdate callback that updates
+    each activity’s timeSpent property in the parent's state.
+*/
+const HomePage: React.FC = () => {
+  const [activities, setActivities] = useState<Activity[]>([]);
+  useSocket();
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      const res = await fetch("/api/activity");
+      if (res.ok) {
+        const data: Activity[] = await res.json();
+        setActivities(data);
+      }
+    };
+    fetchActivities();
+  }, []);
+
+  // Callback for updating a specific activity's time in the parent's state.
+  const updateActivityTime = useCallback((newTime: number, id: string) => {
+    setActivities((prevActivities) =>
+      prevActivities.map((activity) =>
+        activity.id === id ? { ...activity, timeSpent: newTime } : activity
+      )
+    );
+  }, []);
+
+  return (
+    <div>
+      <h1>Activity Timer</h1>
+      <ActivityForm onAdd={(activity) => setActivities([...activities, activity])} />
+      {activities.map((activity) => (
+        <div key={activity.id} style={{ borderBottom: "1px solid #ddd", padding: "10px 0" }}>
+          <h2>{activity.name}</h2>
+          <Timer activity={activity} onUpdate={updateActivityTime} />
+        </div>
+      ))}
+      <TotalTime activities={activities} />
+    </div>
+  );
+};
+
+export default HomePage;
