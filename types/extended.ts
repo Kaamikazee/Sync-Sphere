@@ -1,4 +1,4 @@
-import { Group, UserPermission } from "@prisma/client";
+import { Group, Message, UserPermission } from "@prisma/client";
 
 export interface SubscriptionUser {
     userRole: UserPermission;
@@ -13,4 +13,9 @@ export interface SubscriptionUser {
 
 export interface GroupWithSubscribers extends Group {
     subscribers: SubscriptionUser[]
+}
+
+export interface MessageWithSenderInfo extends Message {
+    senderName: string;
+    senderImage: string;
 }

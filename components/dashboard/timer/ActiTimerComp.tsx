@@ -24,14 +24,14 @@ let socket: Socket | null = null;
 function useSocket() {
   useEffect(() => {
     if (!socket) {
-      socket = io("http://localhost:5555");
+      socket = io("http://localhost:3001");
     }
   }, []);
 }
 
 export function ActiTimerComp({
   activity: { name, timeSpent: OldTimeSpent, id }, onUpdate: onUpdates
-}: Props) {
+}: Props) { 
   useSocket();
 
   const [timeSpent, setTimeSpent] = useState(OldTimeSpent);

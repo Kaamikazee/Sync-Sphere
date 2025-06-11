@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MessageWithSenderInfo } from "@/types/extended";
 import { Message } from "@prisma/client";
 import { MoveDownIcon, Send } from "lucide-react";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
@@ -41,7 +42,7 @@ export const ChatContainer = ({
   userImage,
 }: Props) => {
   useSocket();
-  const [history, setHistory] = useState<Message[]>([]);
+  const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -84,11 +85,11 @@ useEffect(() => {
   useEffect(() => {
     socket?.emit("joinGroup", { groupId, userId });
 
-    socket?.on("recentMessages", (msgs: Message[]) => {
+    socket?.on("recentMessages", (msgs: MessageWithSenderInfo[]) => {
       setHistory(msgs);
     });
 
-    socket?.on("newMessage", (msg: Message) => {
+    socket?.on("newMessage", (msg: MessageWithSenderInfo) => {
       setHistory((h) => [...h, msg]);
     });
 
@@ -112,7 +113,7 @@ useEffect(() => {
   return (
     <>
       <Card className="w-full h-screen bg-gradient-to-br from-blue-400 to-purple-600 p-6 flex flex-col gap-4">
-        <CardHeader className="flex flex-col justify-center items-center">
+        <CardHeader className="flex flex-col justify-center items-center sticky top-0">
           <CardTitle>Chat</CardTitle>
           <CardDescription>Kamikaze is typing...</CardDescription>
         </CardHeader>
@@ -128,8 +129,8 @@ useEffect(() => {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
-              userName={m.id}
-              userImage={userImage}
+              userName={m.senderName}
+              userImage={m.senderImage}
               own={m.senderId === userId}
             />
           ))}

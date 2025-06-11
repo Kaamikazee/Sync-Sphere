@@ -38,12 +38,101 @@ app.prepare().then(() => {
 
         const baseline = activity.timeSpent;
         io.emit("activityStarted", { activityId, startTime, baseline });
-
-        //  --- CHAT HANDLER ---
       } catch {
         console.log(error);
       }
     });
+
+    // --- TIMER UPDATE HANDLER --
+
+    socket.on("updateTimer", async ({ activityId, elapsedTime }) => {
+      console.log("Timer updated:", activityId, elapsedTime);
+      try {
+        await prisma.activity.update({
+          where: { id: activityId },
+          data: { timeSpent: elapsedTime },
+        });
+        io.emit("timerUpdated", { activityId, elapsedTime });
+      } catch (error) {
+        console.error("Error updating timer:", error);
+      }
+    });
+
+    socket.on("stopActivity", async ({ activityId, elapsedTime }) => {
+      console.log("Activity stopped:", activityId);
+      try {
+        await prisma.activity.update({
+          where: { id: activityId },
+          data: { timeSpent: elapsedTime },
+        });
+        io.emit("activityStopped", { activityId, elapsedTime });
+      } catch (error) {
+        console.error("Error stopping activity:", error);
+      }
+    });
+
+    // --- TOTAL TIME HANDLER ---
+
+    socket.on("getAllTotals", async (groupId) => {
+      try {
+        const groupMembers = await prisma.subscription.findMany({
+          where: {
+            groupId: groupId,
+          },
+          select: {
+            userId: true,
+            user: {
+              select: {
+                name: true,
+                image: true,
+              },
+            },
+          },
+        });
+
+        const userIds = groupMembers.map((m) => m.userId);
+
+        const activityTotals = await prisma.activity.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: userIds },
+          },
+          _sum: {
+            timeSpent: true,
+          },
+        });
+
+        // const totals = await prisma.activity.groupBy({
+        //   by: ["userId"],
+        //   _sum: { timeSpent: true },
+        // });
+
+        // totals is an array like:
+        // [ { userId: "abc", _sum: { timeSpent: 1234 } }, … ]
+        // map to simpler shape:
+
+        const userTotal = groupMembers.map((member) => {
+          const total =
+            activityTotals.find((a) => a.userId === member.userId)?._sum
+              .timeSpent || 0;
+
+          return {
+            userId: member.userId,
+            name: member.user.name,
+            image: member.user.image,
+            totalTime: total,
+          };
+        });
+
+        // emit back just to the requester:
+        socket.emit("allTotals", userTotal);
+      } catch (err) {
+        console.error("Error fetching all totals:", err);
+        socket.emit("error", "Could not load totals");
+      }
+    });
+
+    //  --- CHAT HANDLER ---
 
     socket.on("joinGroup", async ({ groupId, userId }) => {
       let chat = await prisma.chat.findFirst({
@@ -75,14 +164,33 @@ app.prepare().then(() => {
 
       const recent = await prisma.message.findMany({
         where: {
-          chatId: chat.id
+          chatId: chat.id,
         },
         orderBy: {
           createdAt: "desc",
         },
         take: 50,
+        include: {
+          sender: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
+        },
       });
-      socket.emit("recentMessages", recent.reverse());
+      socket.emit(
+        "recentMessages",
+        recent.reverse().map((msg) => ({
+          id: msg.id,
+          chatId: msg.chatId,
+          senderId: msg.senderId,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          senderName: msg.sender?.name ?? "Unknown",
+          senderImage: msg.sender?.image ?? null,
+        }))
+      );
     });
 
     socket.on("groupMessage", async ({ groupId, fromUserId, text }) => {
@@ -100,6 +208,9 @@ app.prepare().then(() => {
           sender: { connect: { id: fromUserId } },
           content: text,
         },
+        include: {
+          sender: true,
+        },
       });
       io.to(`chat_${chat.id}`).emit("newMessage", {
         id: saved.id,
@@ -107,6 +218,8 @@ app.prepare().then(() => {
         senderId: saved.senderId,
         content: saved.content,
         createdAt: saved.createdAt,
+        senderName: saved.sender.name,
+        senderImage: saved.sender.image,
       });
     });
 
@@ -117,38 +230,16 @@ app.prepare().then(() => {
     });
 
     socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id); 
-    });
-
-    socket.on("updateTimer", async ({ activityId, elapsedTime }) => {
-      console.log("Timer updated:", activityId, elapsedTime);
-      try {
-        await prisma.activity.update({
-          where: { id: activityId },
-          data: { timeSpent: elapsedTime },
-        });
-        io.emit("timerUpdated", { activityId, elapsedTime });
-      } catch (error) {
-        console.error("Error updating timer:", error);
-      }
-    });
-
-    socket.on("stopActivity", async ({ activityId, elapsedTime }) => {
-      console.log("Activity stopped:", activityId);
-      try {
-        await prisma.activity.update({
-          where: { id: activityId },
-          data: { timeSpent: elapsedTime },
-        });
-        io.emit("activityStopped", { activityId, elapsedTime });
-      } catch (error) {
-        console.error("Error stopping activity:", error);
-      }
+      console.log("Client disconnected:", socket.id);
     });
 
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.id);
     });
+
+
+    // --- SIMPLE TIMER HANDLER ---
+    
   });
 
   server.all("*", (req, res) => {

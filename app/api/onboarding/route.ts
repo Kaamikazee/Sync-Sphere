@@ -1,6 +1,7 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { onboardingSchema } from "@/schemas/onboardingSchema";
+import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -61,6 +62,16 @@ export async function POST(req: Request) {
       },
     });
     console.log("User updated");
+
+    const today = normalizeToStartOfDay(new Date())
+
+    await db.dailyTotal.create({
+      data: {
+        userId: user.id,
+        date: today,
+        totalSeconds: 0
+      }
+    })
 
     console.log("Onboarding completed successfully");
     return NextResponse.json("OK", {

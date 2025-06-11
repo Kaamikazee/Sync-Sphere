@@ -28,8 +28,9 @@ model User {
   createdGroups       Group[]            @relation("CreatedBy")
   subscriptions       Subscription[]
   pomodoroSettings    PomodoroSettings[]
-  activities            Activity[]
-  message Message[]
+  activities          Activity[]
+  message             Message[]
+  dailyTotal          DailyTotal[]
 }
 
 model Account {
@@ -138,6 +139,16 @@ model Activity {
   updatedAt DateTime @updatedAt
 }
 
+model DailyTotal {
+  id        String   @id @default(uuid())
+  userId   String    
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  totalSeconds Int
+
+  @@unique([userId, date])
+}
+
 enum PomodoroSoundEffect {
   ANALOG
   BIRD
@@ -166,5 +177,5 @@ model Message {
   // additionalResources additionalResource[]
   edited Boolean @default(false)
   updatedAt DateTime? @updatedAt
-
 }
+

@@ -21,7 +21,7 @@ export const ChatScreen = ({
     <div className={`flex items-start ${own && "justify-end"} p-2`}>
       <div className="flex items-center justify-center rounded-full mr-2">
         {!own && <Image
-          className="rounded-full justify-center items-center"
+          className="rounded-full justify-center items-center size-auto"
           width={45}
           height={45}
           src={userImage}
@@ -29,7 +29,7 @@ export const ChatScreen = ({
         />}
       </div>
       <div className="max-w-[70%] rounded-2xl bg-white/20 backdrop-blur-md p-2 text-white shadow-md min-w-[12%]">
-      <p className="text-xs font-bold bg-gradient-to-r from-blue-700 to-red-500 text-transparent bg-clip-text mb-1">user name</p>
+      {!own && <p className="text-xs font-bold bg-gradient-to-r from-blue-700 to-red-500 text-transparent bg-clip-text mb-1">{userName}</p>}
         <p className="text-sm mb-1">{content}</p>
         <p className="flex text-xs text-muted-foreground justify-end">{createdAt}</p>
       </div>

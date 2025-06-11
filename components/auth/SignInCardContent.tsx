@@ -44,7 +44,7 @@ export const SignInCardContent = () => {
       const account = await signIn("credentials", {
         email: data.email,
         password: data.password,
-        redirect: false,
+        // redirect: false,
       });
 
       if (!account) {
@@ -53,9 +53,9 @@ export const SignInCardContent = () => {
         toast.error(account.error);
       } else {
         toast.success("You are successfully logged in");
+        router.push("/onboarding");
       }
 
-      router.push("/");
     } catch (err) {
       let errMsg = "Something Went Wrong";
 

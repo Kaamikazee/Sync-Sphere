@@ -64,6 +64,8 @@ export function FirstStep({ profileImage }: Props) {
       type: ActionType.SURNAME,
       payload: data.surname,
     });
+
+    completeOnboarding()
   }
 
   const { mutate: completeOnboarding, isPending } = useMutation({
@@ -154,7 +156,6 @@ export function FirstStep({ profileImage }: Props) {
             <div className="w-full">
               <Button type="submit"
               disabled={isPending}
-              onClick={() => completeOnboarding()}
               className="w-full">
                 Next{" "}
                 <ArrowRight

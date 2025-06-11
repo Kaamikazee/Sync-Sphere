@@ -1,7 +1,4 @@
-import PomodoroContainer from "@/components/dashboard/pomodoro/PomodoroContainer";
-import { ActiTimerComp } from "@/components/dashboard/timer/ActiTimerComp";
-import { CreateActivity } from "@/components/dashboard/timer/CreateActivity";
-import { getActivities } from "@/lib/api";
+import { getActivities, getGroups } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 // import TimerClient from "./TimerClient";
@@ -12,6 +9,7 @@ export default async function TimerPage() {
   if (!session) return null;
 
   const activities = await getActivities(session.user.id) || [];
+  const groups = await getGroups(session.user.id)
 
-  return <TimerClient activities={activities} />;
+  return <TimerClient activities={activities} userId={session.user.id} groups={groups} />;
 }

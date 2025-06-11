@@ -1,5 +1,7 @@
+import Leaderboard from "@/components/dashboard/group/leaderboard/Leaderboard";
 import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 import ActiveLink from "@/components/ui/active-link";
+import { Separator } from "@/components/ui/separator";
 import { getGroup, getUserGroupRole } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 import Link from "next/link";
@@ -38,7 +40,7 @@ const Group = async ({ params: { group_id } }: Params) => {
         {(userRole === "ADMIN" || userRole === "OWNER") && (
           <InviteUsers group={group} />
         )}
-        {group_id} {userRole}j nf
+        You are {userRole} of the group!
         <div className="p-2">
           <ActiveLink
             href={`${group_id}/members`}
@@ -50,6 +52,9 @@ const Group = async ({ params: { group_id } }: Params) => {
         <Link href={`${group_id}/chat`}>
           <div>Chat</div>
         </Link>
+        <Separator />
+
+        <Leaderboard userId = {session.user.id} groupId={group_id}/>
       </main>
     </>
   );

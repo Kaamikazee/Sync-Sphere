@@ -97,3 +97,37 @@ export const getActivityTimeSpent = async (activityId: string) => {
 
   return res.json() as Promise<number>
 };
+
+export interface TotalTimeOfUser {
+  userId: string,
+  name: string,
+  image: string,
+  totalSeconds: number,
+}
+
+
+export const totalTimeOfUser = async (groupId: string) => {
+  const res = await fetch(`${domain}/api/activity?group=${groupId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<TotalTimeOfUser[]>
+};
+
+export const getTotalSecondsOfUser = async (userId: string) => {
+  const res = await fetch(`${domain}/api/simple_timer?userId=${userId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<TotalTimeOfUser>
+};

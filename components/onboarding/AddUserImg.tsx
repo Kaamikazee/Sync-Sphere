@@ -41,7 +41,7 @@ export const AddUserImage = ({ profileImage, className }: Props) => {
       image: profileImage,
     },
   });
-  const [imagePreview, setImagePreview] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const inputRef = useRef<null | HTMLInputElement>(null);
   const photoRef = useRef<null | HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
