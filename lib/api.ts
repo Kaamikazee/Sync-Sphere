@@ -103,6 +103,7 @@ export interface TotalTimeOfUser {
   name: string,
   image: string,
   totalSeconds: number,
+  id: string,
 }
 
 

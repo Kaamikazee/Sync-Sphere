@@ -12,6 +12,10 @@ const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+function normalizeToUTCStartOfDay(date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 app.prepare().then(() => {
   const server = express();
   const httpServer = createServer(server);
@@ -237,9 +241,85 @@ app.prepare().then(() => {
       console.log("Client disconnected:", socket.id);
     });
 
-
     // --- SIMPLE TIMER HANDLER ---
-    
+
+    socket.on("startTimer", async ({ startTime, baseline }) => {
+      socket.broadcast.emit("timerStarted", { startTime, baseline });
+    });
+
+    socket.on("updateTotalTime", async ({ elapsedTime, userIdT }) => {
+      io.emit("TotalTimeUpdated", { elapsedTime, userIdT });
+    });
+
+    // --- TOTAL HOURS HANDLER ---
+    socket.on("getAllTotalHours", async (groupId) => {
+      try {
+        const groupMembers = await prisma.subscription.findMany({
+          where: {
+            groupId,
+          },
+          select: {
+            userId: true,
+            user: {
+              select: {
+                image: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        const userIds = groupMembers.map((m) => m.userId); // It will return a new array with all the member's userId
+        const today = normalizeToUTCStartOfDay(new Date());
+
+        const sums = await prisma.dailyTotal.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: userIds },
+            date: today,
+          },
+          _sum: {
+            totalSeconds: true,
+          },
+        });
+
+        const userTotalHours = groupMembers.map((member) => {
+          const record = sums.find((s) => s.userId === member.userId);
+          const total = record?._sum.totalSeconds ?? 0;
+          return {
+            userId: member.userId,
+            name: member.user.name,
+            image: member.user.image,
+            totalTime: total,
+          };
+        });
+
+        // emit back just to the requester:
+        socket.emit("allTotalHours", userTotalHours);
+      } catch (err) {
+        console.error("Error fetching all totals:", err);
+        socket.emit("error", "Could not load totals");
+      }
+    });
+
+    // __________ NEW FRESH ---------
+
+    socket.on('startTimer', ({ groupId, userId, startTime, baseline }) => {
+    // persist if you like…
+    io.to(groupId).emit('activityStarted', {
+      userId,
+      startTime,
+      baseline
+    });
+  });
+
+  socket.on('stopTimer', ({ groupId, userId, totalSeconds }) => {
+    // persist via Prisma mutation if needed…
+    io.to(groupId).emit('activityStopped', {
+      userId,
+      totalSeconds
+    });
+  });
   });
 
   server.all("*", (req, res) => {

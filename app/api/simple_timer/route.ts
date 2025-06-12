@@ -23,6 +23,7 @@ export const GET = async (request: Request) => {
       },
       select: {
         totalSeconds: true,
+        id: true,
         user: {
           select: {
             id: true,
@@ -43,6 +44,7 @@ export const GET = async (request: Request) => {
         },
         select: {
           totalSeconds: true,
+          id: true,
           user: {
             select: {
               id: true,

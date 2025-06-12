@@ -1,4 +1,5 @@
 import Leaderboard from "@/components/dashboard/group/leaderboard/Leaderboard";
+import TotalHours from "@/components/dashboard/group/leaderboard/TotalHours";
 import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 import ActiveLink from "@/components/ui/active-link";
 import { Separator } from "@/components/ui/separator";
@@ -54,7 +55,8 @@ const Group = async ({ params: { group_id } }: Params) => {
         </Link>
         <Separator />
 
-        <Leaderboard userId = {session.user.id} groupId={group_id}/>
+        {/* <Leaderboard userId = {session.user.id} groupId={group_id}/> */}
+        <TotalHours userId = {session.user.id} groupId={group_id}/>
       </main>
     </>
   );

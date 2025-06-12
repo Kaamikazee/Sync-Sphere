@@ -8,12 +8,12 @@ const SimpleTimer = async () => {
 
     const totalSecondsOfUser = await getTotalSecondsOfUser(session.user.id)
     console.log("Which is getting returned:", totalSecondsOfUser);
-    const total = totalSecondsOfUser?.totalSeconds
+    const total = totalSecondsOfUser
     
     
     return (
         <div>
-            <SimpleTimerContainer totalSeconds={total}/>
+            <SimpleTimerContainer total={total!} />
         </div>
     )
 } 

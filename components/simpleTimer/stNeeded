@@ -14,34 +14,54 @@ import axios from "axios";
 import { io, Socket } from "socket.io-client";
 
 interface Props {
-  total: {
-    userId: string;
-    name: string;
-    image: string;
+  totalSeconds: {
     totalSeconds: number;
-    id: string;
+    name: string;
+    userId: string;
+    image: string;
   };
+  userId: string;
 }
 
 let socket: Socket | null = null;
 
-function useSocket() {
+function useSocket(
+  onUpdate: (data: { userId: string; totalSeconds: number }) => void
+) {
   useEffect(() => {
     if (!socket) {
       socket = io("http://localhost:3001");
     }
-  }, []);
+
+    socket.on("TotalTimeUpdated", onUpdate);
+
+    return () => {
+      socket?.off("TotalTimeUpdated", onUpdate);
+    };
+  }, [onUpdate]);
 }
 
 export const SimpleTimerContainer = ({
-  total: { id: activityId, totalSeconds },
+  totalSeconds: { totalSeconds, image, name, userId: UserIdT },
+  userId,
 }: Props) => {
-  useSocket();
+//   useSocket();
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
   const [time, setTime] = useState(timeSpent);
   const [running, setRunning] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const baselineRef = useRef<number>(timeSpent);
+
+  const [others, setOthers] = useState<Record<string, number>>({});
+
+  const handleRemoteUpdate = (data: { userId: string; totalSeconds: number }) => {
+    setOthers(prev => ({
+      ...prev,
+      [data.userId]: data.totalSeconds,
+    }));
+  };
+
+  useSocket(handleRemoteUpdate)
 
   function formatHMS(total: number) {
     const h = Math.floor(total / 3600);
@@ -51,52 +71,32 @@ export const SimpleTimerContainer = ({
   }
 
   useEffect(() => {
-    const onStart = (data: {
-      activityId: string;
-      startTime: number;
-      baseline: number;
-    }) => {
-      if (data.activityId !== activityId) return;
-      baselineRef.current = data.baseline;
-      setTime(data.baseline);
-      setStartTime(data.startTime);
-      setRunning(true);
-    };
-    const onStop = (data: { activityId: string; totalSeconds: number }) => {
-      if (data.activityId !== activityId) return;
-      setRunning(false);
-      setTime(data.totalSeconds);
-      setTimeSpent(data.totalSeconds);
-    };
-    socket?.on("activityStarted", onStart);
-    socket?.on("activityStopped", onStop);
-    return () => {
-      socket?.off("activityStarted", onStart);
-      socket?.off("activityStopped", onStop);
-    };
-  }, [activityId]);
-
-  useEffect(() => {
     if (!running || startTime === null) return;
 
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const newTime = baselineRef.current + elapsed;
       setTime(newTime);
+      socket?.emit("updateTotalTime", {
+        elapsedTime: newTime,
+        UserIdT
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [running, startTime]);
+  }, [running, startTime, UserIdT]);
 
   const handleStart = () => {
+    // capture wherever we’re at as the new baseline
     baselineRef.current = time;
+    // reset the startTime to now
     const now = Date.now();
     setStartTime(now);
     setRunning(true);
-    socket.emit("start_timer", {
-      activityId,
+
+    socket?.emit("startTimer", {
       startTime: now,
-      baseline: baselineRef.current,
+      baseline: timeSpent,
     });
   };
 
@@ -111,11 +111,7 @@ export const SimpleTimerContainer = ({
   const handleStop = () => {
     setRunning(false);
     setTimeSpent(time);
-    socket.emit("stopTimer", {
-      activityId,
-      totalSeconds: time,
-    });
-    // still persist to your API
+    //   baselineRef.current = time;
     mutate();
   };
 
@@ -147,6 +143,19 @@ export const SimpleTimerContainer = ({
           </Button>
         )}
       </CardContent>
+
+      <div className="mt-4 space-y-2">
+        {/* yourself */}
+        <div>
+          You: {formatHMS(time)}
+        </div>
+        {/* everyone else */}
+        {Object.entries(others).map(([id, secs]) => (
+          <div key={id}>
+            {id}: {formatHMS(secs)}
+          </div>
+        ))}
+      </div>
     </Card>
   );
 };
