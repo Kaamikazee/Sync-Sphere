@@ -31,6 +31,7 @@ model User {
   activities          Activity[]
   message             Message[]
   dailyTotal          DailyTotal[]
+  todos               Todo[]
 }
 
 model Account {
@@ -84,7 +85,7 @@ model Group {
   canEditCode  String         @unique
   readOnlyCode String         @unique
   subscribers  Subscription[]
-  chat Chat[]
+  chat         Chat[]
 
   @@index([creatorId])
 }
@@ -129,26 +130,6 @@ model PomodoroSettings {
   soundEffectVolume  Float               @default(0.5)
 }
 
-model Activity {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String  @unique
-  timeSpent Int      @default(0) // store time in seconds
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model DailyTotal {
-  id        String   @id @default(uuid())
-  userId   String    
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      DateTime
-  totalSeconds Int
-
-  @@unique([userId, date])
-}
-
 enum PomodoroSoundEffect {
   ANALOG
   BIRD
@@ -158,24 +139,68 @@ enum PomodoroSoundEffect {
   BELL
 }
 
+model Activity {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  timeSpent Int      @default(0) // store time in seconds
+  todos     Todo[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Todo {
+  id         String       @id @default(uuid())
+  userId     String
+  activityId String
+  title      String
+  content    String?
+  completed  TodoWorkDone @default(NOT_DONE)
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity   Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([activityId])
+}
+
+
+enum TodoWorkDone {
+  DONE
+  NOT_DONE
+  HALF_DONE
+}
+
+model DailyTotal {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime
+  totalSeconds Int
+
+  @@unique([userId, date])
+}
+
 model Chat {
-  id String @id @default(cuid())
-  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  groupId String 
+  id       String    @id @default(cuid())
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId  String
   messages Message[]
 }
 
-
 model Message {
-  id        String   @id @default(uuid())
-   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  chatId String
-  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  senderId String
-  content String
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid())
+  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId    String
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId  String
+  content   String
+  createdAt DateTime  @default(now())
   // additionalResources additionalResource[]
-  edited Boolean @default(false)
+  edited    Boolean   @default(false)
   updatedAt DateTime? @updatedAt
 }
-

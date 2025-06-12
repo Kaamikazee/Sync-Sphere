@@ -1,4 +1,4 @@
-import { getActivities, getGroups } from "@/lib/api";
+import { getActivities, getGroups, getTodos } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 // import TimerClient from "./TimerClient";
@@ -10,6 +10,8 @@ export default async function TimerPage() {
 
   const activities = await getActivities(session.user.id) || [];
   const groups = await getGroups(session.user.id)
+  const todos = await getTodos(session.user.id)
 
-  return <TimerClient activities={activities} userId={session.user.id} groups={groups} />;
+
+  return <TimerClient activities={activities} userId={session.user.id} groups={groups} todos={todos!} />;
 }

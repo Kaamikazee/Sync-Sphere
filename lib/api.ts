@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Group, PomodoroSettings, UserPermission } from "@prisma/client";
+import { Activity, Group, PomodoroSettings, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"
@@ -85,6 +85,7 @@ export const getActivities = async (userId: string) => {
 
   return res.json() as Promise<Activity[]>
 };
+
 export const getActivityTimeSpent = async (activityId: string) => {
   const res = await fetch(`${domain}/api/activity?activityId=${activityId}`, {
     method: "GET",
@@ -130,4 +131,17 @@ export const getTotalSecondsOfUser = async (userId: string) => {
   }
 
   return res.json() as Promise<TotalTimeOfUser>
+};
+
+export const getTodos = async (userId: string) => {
+  const res = await fetch(`${domain}/api/todos/get?userId=${userId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<Todo[]>
 };

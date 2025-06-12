@@ -21,7 +21,7 @@ export const InviteUsers = ({group}: Props) => {
     return (
         <Dialog>
   <DialogTrigger asChild>
-    <Button size={"icon"} variant={"ghost"} className="sm:bg-primary/10 sm:text-primary sm:hover:bg-primary sm:hover:text-white sm:h-9 sm:rounded-md sm:px-3 sm:w-auto sm:space-x-2">
+    <Button size={"icon"} variant={"ghost"} className="sm:bg-primary/10 sm:text-primary sm:hover:bg-primary sm:hover:text-white sm:h-9 sm:rounded-md sm:px-3 sm:w-auto sm:space-x-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">
     <span className="hidden sm:inline">Invite</span>
     <UserPlus2 className="" size={18} />
     </Button>

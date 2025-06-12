@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageWithSenderInfo } from "@/types/extended";
-import { Message } from "@prisma/client";
 import { MoveDownIcon, Send } from "lucide-react";
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { io, Socket } from "socket.io-client";
@@ -38,8 +37,6 @@ function useSocket() {
 export const ChatContainer = ({
   group_id: groupId,
   userId,
-  userName,
-  userImage,
 }: Props) => {
   useSocket();
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
