@@ -17,40 +17,72 @@ interface Props {
 export default function GroupComp({
   group: { id, image, name, color, createdAt }, href
 }: Props) {
-  return (
-      <Link href={`${href}/${id}`}>
-    <div className="flex justify-center items-center w-full">
-        <List
-          sx={{ width: "100%", maxWidth: 360, bgcolor: "background.paper" }}
+ return (
+    <Link href={`${href}/${id}`}>
+      
+        <div
+          className="
+            p-6
+            bg-gradient-to-br
+              from-purple-500/40
+              via-blue-400/40
+              to-indigo-500/40
+            backdrop-blur-md
+            border border-white/25
+            shadow-xl
+            flex justify-center
+            hover:shadow-2xl hover:scale-105
+            transition-transform duration-300
+          "
         >
-          <ListItem alignItems="flex-start">
-            <ListItemAvatar>
-              <Avatar alt="Remy Sharp" src={image} />
-            </ListItemAvatar>
-            <ListItemText
-              primary={name}
-              secondary={
-                <React.Fragment>
-                  <div className="flex justify-between">
-                    <div>
-                      <Typography
-                        component="span"
-                        variant="body2"
-                        sx={{ color: "text.primary", display: "inline" }}
-                        className="mr-9"
-                      >
-                        Ali Connors{" "}
-                      </Typography>
-                    </div>
-                    <div className="">{format(createdAt, "yyyy-MM-dd")}</div>
+          <List
+            className="
+              w-full max-w-md
+              bg-white/10 backdrop-blur-md
+              rounded-2xl overflow-hidden
+              border border-white/20
+              shadow-md
+            "
+          >
+            <ListItem
+              alignItems="flex-start"
+              className="
+                flex items-start gap-4
+                p-5 transition-colors
+                hover:bg-white/10
+              "
+            >
+              <ListItemAvatar>
+                <Avatar
+                  alt={name}
+                  src={image}
+                  className="ring-2 ring-white/50"
+                />
+              </ListItemAvatar>
+              <ListItemText
+                primary={
+                  <span className="text-white text-lg font-semibold">
+                    {name}
+                  </span>
+                }
+                secondary={
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-white/90">Ali Connors</span>
+                    <span className="text-white/80 font-mono">
+                      {format(createdAt, "yyyy-MM-dd")}
+                    </span>
                   </div>
-                </React.Fragment>
-              }
+                }
+              />
+            </ListItem>
+            <Divider
+              variant="inset"
+              component="li"
+              className="border-white/30"
             />
-          </ListItem>
-          <Divider variant="inset" component="li" />
-        </List>
-    </div>
-      </Link>
+          </List>
+        </div>
+      
+    </Link>
   );
 }

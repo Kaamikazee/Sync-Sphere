@@ -4,7 +4,6 @@ import ActiveLink from "@/components/ui/active-link";
 import { Separator } from "@/components/ui/separator";
 import { getGroup, getUserGroupRole } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
-import { Plus } from "lucide-react";
 import Link from "next/link";
 // import Link from "next/link";
 

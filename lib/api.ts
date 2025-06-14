@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Group, PomodoroSettings, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, Group, PomodoroSettings, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"
@@ -144,4 +144,30 @@ export const getTodos = async (userId: string) => {
   }
 
   return res.json() as Promise<Todo[]>
+};
+
+export const getAnnouncements = async (groupId: string) => {
+  const res = await fetch(`${domain}/api/announcement/get?groupId=${groupId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<Announcement[]>
+};
+
+export const getAnnouncementDetail = async (announcementId: string) => {
+  const res = await fetch(`${domain}/api/announcement/get/detail?announcementId=${announcementId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<Announcement>
 };

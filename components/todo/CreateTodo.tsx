@@ -56,6 +56,10 @@ export function CreateTodo({ activityId }: Props) {
       toast.error("Please fill out both fields.");
       return;
     }
+    else if (todoName.trim().length > 10) {
+      toast.error("Title can be max of 10 letters only");
+      return;
+    }
     mutate();
   };
 

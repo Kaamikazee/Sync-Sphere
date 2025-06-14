@@ -18,4 +18,9 @@ export interface GroupWithSubscribers extends Group {
 export interface MessageWithSenderInfo extends Message {
     senderName: string;
     senderImage: string;
+    replyTo?: {
+    id: string;
+    senderName: string;
+    content: string;
+  } | null;
 }

@@ -177,6 +177,13 @@ app.prepare().then(() => {
               image: true,
             },
           },
+          replyTo: {
+            select: {
+              id: true,
+              content: true,
+              sender: { select: { name: true } },
+            },
+          },
         },
       });
       socket.emit(
@@ -189,39 +196,68 @@ app.prepare().then(() => {
           createdAt: msg.createdAt,
           senderName: msg.sender?.name ?? "Unknown",
           senderImage: msg.sender?.image ?? null,
+          replyToId: msg.replyToId ?? null,
+
+          replyTo: msg.replyTo
+            ? {
+                id: msg.replyTo.id,
+                senderName: msg.replyTo.sender.name,
+                content: msg.replyTo.content,
+              }
+            : null,
         }))
       );
     });
 
-    socket.on("groupMessage", async ({ groupId, fromUserId, text }) => {
-      const chat = await prisma.chat.findFirst({
-        where: {
-          groupId,
-        },
-      });
+    socket.on(
+      "groupMessage",
+      async ({ groupId, fromUserId, text, replyToId }) => {
+        const chat = await prisma.chat.findFirst({
+          where: {
+            groupId,
+          },
+        });
 
-      if (!chat) return socket.emit("error", "Chat not found");
+        if (!chat) return socket.emit("error", "Chat not found");
 
-      const saved = await prisma.message.create({
-        data: {
-          chat: { connect: { id: chat.id } },
-          sender: { connect: { id: fromUserId } },
-          content: text,
-        },
-        include: {
-          sender: true,
-        },
-      });
-      io.to(`chat_${chat.id}`).emit("newMessage", {
-        id: saved.id,
-        chatId: saved.chatId,
-        senderId: saved.senderId,
-        content: saved.content,
-        createdAt: saved.createdAt,
-        senderName: saved.sender.name,
-        senderImage: saved.sender.image,
-      });
-    });
+        const saved = await prisma.message.create({
+          data: {
+            chat: { connect: { id: chat.id } },
+            sender: { connect: { id: fromUserId } },
+            content: text,
+            replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
+          },
+          include: {
+            sender: true,
+
+            replyTo: {
+              include: {
+                sender: {
+                  select: { name: true },
+                },
+              },
+            },
+          },
+        });
+        io.to(`chat_${chat.id}`).emit("newMessage", {
+          id: saved.id,
+          chatId: saved.chatId,
+          senderId: saved.senderId,
+          content: saved.content,
+          createdAt: saved.createdAt,
+          senderName: saved.sender.name,
+          senderImage: saved.sender.image,
+
+          replyTo: saved.replyTo
+    ? {
+        id:         saved.replyTo.id,
+        senderName: saved.replyTo.sender.name,
+        content:    saved.replyTo.content,
+      }
+    : null,
+        });
+      }
+    );
 
     socket.on("leaveGroup", async ({ groupId }) => {
       const chat = await prisma.chat.findFirst({ where: { groupId } });
@@ -237,9 +273,7 @@ app.prepare().then(() => {
       console.log("Client disconnected:", socket.id);
     });
 
-
     // --- SIMPLE TIMER HANDLER ---
-    
   });
 
   server.all("*", (req, res) => {

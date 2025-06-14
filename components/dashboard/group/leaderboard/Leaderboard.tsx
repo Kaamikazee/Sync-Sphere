@@ -70,7 +70,7 @@ export default function Leaderboard({ userId: sessionUserId, groupId }: Props) {
               <li
                 key={userId}
                 className={`
-                  flex items-center justify-between p-4 transition-colors
+                  flex items-center justify-between p-4 hover:scale-105 transition-colors duration-300
                   ${isMe
                     ? "bg-white/30 font-semibold text-white"
                     : "hover:bg-white/10 text-white/90"}

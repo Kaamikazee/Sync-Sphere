@@ -10,7 +10,7 @@ import {
 import { Activity, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { Edit, PauseCircle, PlayCircle, Star, Trash2 } from "lucide-react";
+import { Edit, PauseCircle, PlayCircle, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";

@@ -34,10 +34,7 @@ function useSocket() {
   }, []);
 }
 
-export const ChatContainer = ({
-  group_id: groupId,
-  userId,
-}: Props) => {
+export const ChatContainer = ({ group_id: groupId, userId }: Props) => {
   useSocket();
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
@@ -45,20 +42,23 @@ export const ChatContainer = ({
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const isFirstLoad = useRef(true);
+  const [replyTo, setReplyTo] = useState<MessageWithSenderInfo | null>(null);
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useLayoutEffect(() => {
-  if (isFirstLoad.current && history.length > 0) {
-    bottomRef.current?.scrollIntoView({ behavior: "auto" });
-    isFirstLoad.current = false;
-  }
-}, [history]);
+    if (isFirstLoad.current && history.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+      isFirstLoad.current = false;
+    }
+  }, [history]);
 
-// 2. Then for *subsequent* messages, smooth‐scroll if auto‐scrolling
-useEffect(() => {
-  if (!isFirstLoad.current && isAutoScroll) {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
-}, [history, isAutoScroll]);
+  // 2. Then for *subsequent* messages, smooth‐scroll if auto‐scrolling
+  useEffect(() => {
+    if (!isFirstLoad.current && isAutoScroll) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [history, isAutoScroll]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -86,8 +86,31 @@ useEffect(() => {
       setHistory(msgs);
     });
 
-    socket?.on("newMessage", (msg: MessageWithSenderInfo) => {
-      setHistory((h) => [...h, msg]);
+    socket?.on("newMessage", (msg) => {
+      setHistory((prev) => {
+        // if the server sent replyTo already, use it…
+        let reply = msg.replyTo ?? null;
+
+        // …otherwise, if it sent replyToId only, find the original
+        if (!reply && msg.replyToId) {
+          const original = prev.find((m) => m.id === msg.replyToId);
+          if (original) {
+            reply = {
+              id: original.id,
+              senderName: original.senderName,
+              content: original.content,
+            };
+          }
+        }
+
+        // build the enriched message
+        const enriched: MessageWithSenderInfo = {
+          ...msg,
+          replyTo: reply,
+        };
+
+        return [...prev, enriched];
+      });
     });
 
     return () => {
@@ -103,8 +126,10 @@ useEffect(() => {
       groupId,
       fromUserId: userId,
       text: draft,
+      replyToId: replyTo?.id || null,
     });
     setDraft("");
+    setReplyTo(null);
   };
 
   return (
@@ -118,19 +143,34 @@ useEffect(() => {
           className="w-full max-w-3xl mx-auto flex-1 overflow-y-auto no-scrollbar"
           ref={messagesContainerRef}
         >
-          {history.map((m) => (
-            <ChatScreen
-              key={m.id}
-              content={m.content}
-              createdAt={new Date(m.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-              userName={m.senderName}
-              userImage={m.senderImage}
-              own={m.senderId === userId}
-            />
-          ))}
+          {history.map((msg) => {
+            // find the replied‑to message in your local history
+            const repliedMsg = msg.replyToId
+              ? history.find((m) => m.id === msg.replyToId) || null
+              : null;
+
+            return (
+              <ChatScreen
+                key={msg.id}
+                content={msg.content}
+                createdAt={new Date(msg.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+                userName={msg.senderName}
+                userImage={msg.senderImage}
+                own={msg.senderId === userId}
+                // pass down just the snippet and name
+                replyTo={msg.replyTo ?? undefined}
+                onReply={() => {
+                  setReplyTo(msg);
+                  // 3. as soon as you click “Reply”, focus the input
+                  setTimeout(() => inputRef.current?.focus(), 0);
+                }}
+              />
+            );
+          })}
+
           <div ref={bottomRef} />
         </CardContent>
         <CardFooter
@@ -145,11 +185,23 @@ useEffect(() => {
               }}
               className="fixed bottom-24 right-6 z-50 shadow-lg rounded-full bg-white/20 backdrop-blur-md hover:bg-white/40 cursor-pointer"
             >
-              <MoveDownIcon className="font-bold" size={25}/>
+              <MoveDownIcon className="font-bold" size={25} />
             </Button>
           )}
+
+          {replyTo && (
+            <div className="w-full mb-2 p-2 bg-white/20 rounded flex justify-between items-start">
+              <div>
+                <strong>{replyTo.senderName}</strong>:{" "}
+                <em>{replyTo.content.slice(0, 50)}…</em>
+              </div>
+              <button onClick={() => setReplyTo(null)}>×</button>
+            </div>
+          )}
+
           <div className="flex gap-2 ">
             <Input
+              ref={inputRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}

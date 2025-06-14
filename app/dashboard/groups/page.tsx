@@ -9,15 +9,28 @@ import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 const Groups = () => {
     
   return (
-    <div>
-      <MenuAppBar href={"/dashboard/groups"} />
-      <div className="w-full">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600">
+  {/* Top nav bar */}
+  <MenuAppBar href="/dashboard/groups" />
+
+  {/* Main content */}
+  <main className="flex-1 px-6 py-8">
+    <div className="w-full max-w-6xl mx-auto">
       <GroupList />
-      </div>
-      <Link href={"#"}>
-            <AddGroup />
-      </Link>
     </div>
+  </main>
+
+  {/* Floating “Add Group” button */}
+  <Link href="#" className="fixed bottom-8 right-8">
+    <div
+      className="flex flex-col items-center justify-center p-4 bg-white/10 backdrop-blur-lg border border-white/20 rounded-full shadow-lg
+                 transition-transform hover:scale-110 hover:shadow-2xl"
+    >
+      <AddGroup />
+    </div>
+  </Link>
+</div>
+
   );
 };
 
