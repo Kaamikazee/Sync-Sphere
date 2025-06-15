@@ -15,10 +15,12 @@ const Chat = async ({ params: { group_id } }: Params) => {
   if (!session) return null;
   const group = await getGroupWithSubscribers(group_id, session.user.id);
   const members = group?.subscribers
+  const groupName = group?.name
+  const groupImage = group?.image
 
   return (
     <main className="w-full h-screen">
-    <ChatContainer group_id={group_id} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!}/>
+    <ChatContainer group_id={group_id} groupName={groupName} groupImage={groupImage} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!}/>
     </main>
   )
 };
