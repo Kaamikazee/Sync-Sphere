@@ -119,6 +119,7 @@ export const authOptions: NextAuthOptions = {
         session.user.image = user.image;
         // session.user.completedOnboarding = user.c
         session.user.username = user.username;
+        session.user.name = user.name;
       }
 
       return session;
@@ -137,6 +138,7 @@ export const authOptions: NextAuthOptions = {
       return {
         id: dbUser.id,
         username: dbUser.username,
+        name: dbUser.name,
         email: dbUser.email,
         picture: dbUser.image
       }

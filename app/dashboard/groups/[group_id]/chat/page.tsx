@@ -18,7 +18,7 @@ const Chat = async ({ params: { group_id } }: Params) => {
 
   return (
     <main className="w-full h-screen">
-    <ChatContainer group_id={group_id} userId={session.user.id} userName={session.user.name} userImage={session.user.image}/>
+    <ChatContainer group_id={group_id} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!}/>
     </main>
   )
 };

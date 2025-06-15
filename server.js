@@ -135,6 +135,7 @@ app.prepare().then(() => {
     //  --- CHAT HANDLER ---
 
     socket.on("joinGroup", async ({ groupId, userId }) => {
+      
       let chat = await prisma.chat.findFirst({
         where: { groupId },
         include: {
@@ -208,6 +209,28 @@ app.prepare().then(() => {
         }))
       );
     });
+
+    // in your socket setup
+socket.on("typing",  async ({ groupId, userId, userName }) => {
+  // broadcast to everyone _except_ the typer
+  const chat = await prisma.chat.findFirst({ where: { groupId } });
+  if (!chat) return;
+
+
+  io.to(`chat_${chat.id}`)
+    .except(socket.id)
+    .emit("userTyping", { userId, userName });
+});
+
+socket.on("stopTyping", async({ groupId, userId }) => {
+   const chat = await prisma.chat.findFirst({ where: { groupId } });
+  if (!chat) return;
+
+  io.to(`chat_${chat.id}`)
+    .except(socket.id)
+    .emit("userStopTyping", { userId });
+});
+
 
     socket.on(
       "groupMessage",
