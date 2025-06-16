@@ -171,3 +171,28 @@ export const getAnnouncementDetail = async (announcementId: string) => {
 
   return res.json() as Promise<Announcement>
 };
+
+
+export interface membersWithSeconds {
+    user: {
+        id: string;
+        name: string | null;
+        image: string | null;
+        dailyTotal: {
+            totalSeconds: number;
+        }[];
+    };
+}
+
+export const getSubscribersWithTotalSeconds = async (group_id: string) => {
+  const res = await fetch(`${domain}/api/simple_timer/get?groupId=${group_id}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<membersWithSeconds[]>
+};

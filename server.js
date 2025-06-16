@@ -23,6 +23,8 @@ app.prepare().then(() => {
     cors: { origin: "*", methods: ["GET", "POST"] },
   });
 
+  const userTimers = new Map(); // key: userId, value: { startTime, totalSeconds }
+
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
     console.log("🟢 [server] socket connected:", socket.id);
@@ -135,6 +137,10 @@ app.prepare().then(() => {
     //  --- CHAT HANDLER ---
 
     socket.on("joinGroup", async ({ groupId, userId }) => {
+      console.log("Group Joined", groupId);
+      socket.join(groupId);
+      const current = userTimers.get(userId);
+      socket.to(groupId).emit("user-joined", { userId, ...current });
       
       let chat = await prisma.chat.findFirst({
         where: { groupId },
@@ -209,6 +215,22 @@ app.prepare().then(() => {
         }))
       );
     });
+
+socket.on("start-timer", ({ userId, startTime }) => {
+    console.log("TIMER-STARTED");
+      io.emit("timer-started", { userId, startTime });
+    });
+
+socket.on("stop-timer", ({ userId, totalSeconds }) => {
+  console.log("TIMER-STOPPED");
+      io.emit("timer-stopped", { userId, totalSeconds });
+    });
+
+socket.on("tick", ({ userId, currentTotalSeconds }) => {
+      io.emit("timer-tick", { userId, currentTotalSeconds });
+    });
+  
+
 
     // in your socket setup
 socket.on("typing",  async ({ groupId, userId, userName }) => {
@@ -286,6 +308,7 @@ socket.on("stopTyping", async({ groupId, userId }) => {
       const chat = await prisma.chat.findFirst({ where: { groupId } });
       if (!chat) return;
       socket.leave(`chat_${chat.id}`);
+      socket.leave(groupId)
     });
 
     socket.on("disconnect", () => {
@@ -296,8 +319,9 @@ socket.on("stopTyping", async({ groupId, userId }) => {
       console.log("Client disconnected:", socket.id);
     });
 
+    });
     // --- SIMPLE TIMER HANDLER ---
-  });
+  
 
   server.all("*", (req, res) => {
     if (!req.url) {
@@ -311,4 +335,5 @@ socket.on("stopTyping", async({ groupId, userId }) => {
     if (err) throw err;
     console.log(`Server running at http://localhost:${port}`);
   });
+
 });

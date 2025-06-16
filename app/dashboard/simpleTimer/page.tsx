@@ -1,5 +1,5 @@
 import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
-import { getTotalSecondsOfUser } from "@/lib/api";
+import { getGroups, getTotalSecondsOfUser } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 const SimpleTimer = async () => {
@@ -9,11 +9,13 @@ const SimpleTimer = async () => {
     const totalSecondsOfUser = await getTotalSecondsOfUser(session.user.id)
     console.log("Which is getting returned:", totalSecondsOfUser);
     const total = totalSecondsOfUser?.totalSeconds
+    const groups = await getGroups(session.user.id)
+    const groupIds = groups.map(g => g.id)
     
     
     return (
         <div>
-            <SimpleTimerContainer totalSeconds={total}/>
+            <SimpleTimerContainer totalSeconds={total} userId={session.user.id} groupIds={groupIds}/>
         </div>
     )
 } 

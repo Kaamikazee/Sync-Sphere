@@ -33,7 +33,7 @@ export const GET = async (request: Request) => {
       },
     });
 
-    // If no record exists, create one
+    // If no record exists, create one 
     if (!dailyTotal) {
       dailyTotal = await db.dailyTotal.create({
         data: {

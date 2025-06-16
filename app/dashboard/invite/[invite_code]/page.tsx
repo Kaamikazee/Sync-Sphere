@@ -122,7 +122,7 @@ const Group = async ({params: {invite_code}, searchParams }: Params) => {
     }
   });
 
-  redirect(`dashboard/groups/${inviteCodeValid.id}`)
+  redirect(`/dashboard/groups/${inviteCodeValid.id}`)
 }
 
 export default Group

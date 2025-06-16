@@ -31,13 +31,13 @@ export default function Leaderboard({ userId: sessionUserId, groupId }: Props) {
     });
 
     sock.on("connect", () => {
-      sock.emit("getAllTotals");
+      sock.emit("getAllTotals", groupId);
     });
 
     return () => {
       sock.disconnect();
     };
-  }, []);
+  }, [groupId]);
 
   // whenever someone updates a timer, you could re-fetch:
   useEffect(() => {
