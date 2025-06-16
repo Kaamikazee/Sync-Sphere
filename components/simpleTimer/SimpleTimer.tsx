@@ -15,18 +15,22 @@ import { io, Socket } from "socket.io-client";
 
 interface Props {
   totalSeconds: number;
-  userId: string
+  userId: string;
+  isRunning: boolean;
+  startTimeStamp: Date;
 }
 
 
 const socket = io("http://localhost:3001");
 
-export const SimpleTimerContainer = ({ totalSeconds, userId }: Props) => {
+export const SimpleTimerContainer = ({ totalSeconds, userId, isRunning, startTimeStamp }: Props) => {
   
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
   const [time, setTime] = useState(timeSpent);
-  const [running, setRunning] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [running, setRunning] = useState(isRunning);
+  const [startTime, setStartTime] = useState<number | null>(
+    isRunning && startTimeStamp ? new Date(startTimeStamp).getTime() : null
+  );
   const baselineRef = useRef<number>(timeSpent);
 
   function formatHMS(total: number) {
@@ -58,6 +62,12 @@ export const SimpleTimerContainer = ({ totalSeconds, userId }: Props) => {
   }
 }, [running, time, userId]);
 
+const {mutate: start} = useMutation({
+    mutationFn: async () => {
+        await axios.post("/api/simple_timer/start")
+    }
+  })
+
 
   const handleStart = () => {
     // capture wherever we’re at as the new baseline
@@ -67,6 +77,7 @@ export const SimpleTimerContainer = ({ totalSeconds, userId }: Props) => {
     setStartTime(now);
     setRunning(true);
     socket?.emit("start-timer", { userId, startTime: now });
+    start()
   };
 
 
@@ -78,12 +89,20 @@ export const SimpleTimerContainer = ({ totalSeconds, userId }: Props) => {
     }
   })
 
+  const {mutate: stop} = useMutation({
+    mutationFn: async () => {
+        await axios.post("/api/simple_timer/stop")
+    }
+  })
+  
+
   const handleStop = () => {
     setRunning(false);
     setTimeSpent(time);
     //   baselineRef.current = time;
     mutate()
     socket?.emit("stop-timer", { userId, totalSeconds: time });
+    stop()
   };
 
   return (

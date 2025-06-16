@@ -100,10 +100,14 @@ export const getActivityTimeSpent = async (activityId: string) => {
 };
 
 export interface TotalTimeOfUser {
-  userId: string,
-  name: string,
-  image: string,
-  totalSeconds: number,
+  totalSeconds: number;
+    user: {
+        name: string | null;
+        id: string;
+        image: string | null;
+    };
+    isRunning: boolean;
+    startTimestamp: Date | null;
 }
 
 
@@ -174,13 +178,13 @@ export const getAnnouncementDetail = async (announcementId: string) => {
 
 
 export interface membersWithSeconds {
-    user: {
+   user: {
         id: string;
         name: string | null;
         image: string | null;
-        dailyTotal: {
-            totalSeconds: number;
-        }[];
+        totalSeconds: number;
+        isRunning: boolean;
+        startTimestamp: Date | null;
     };
 }
 

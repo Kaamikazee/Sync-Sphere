@@ -22,14 +22,14 @@ const Group = async ({ params: { group_id } }: Params) => {
     return <p>You need to sign in to access this page.</p>;
   }
 
-  const [group, userRole, groupMembers, membersWithSeconds] = await Promise.all([
+  const [group, userRole, subscribers] = await Promise.all([
     getGroup(group_id, session.user.id),
     getUserGroupRole(group_id, session.user.id),
-    getGroupWithSubscribers(group_id, session.user.id),
     getSubscribersWithTotalSeconds(group_id)
   ]);
+  
+  const members = subscribers!.map(m => m.user)
 
-  const subscribers = membersWithSeconds?.map(mws =>  mws.user)
 
   if (!group) {
     return <p>Group not found.</p>;
@@ -85,7 +85,7 @@ const Group = async ({ params: { group_id } }: Params) => {
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               Leaderboard
             </h2>
-            <NewLeaderboard uuserId={session.user.id} groupId={group_id} initialMembers={subscribers!} />
+            <NewLeaderboard uuserId={session.user.id} groupId={group_id} initialMembers={members} />
           </section>
         </div>
       </main>

@@ -5,29 +5,26 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import io from "socket.io-client";
 
-interface UserTimerData {
+interface MemberWithTimer {
   id: string;
   name: string | null;
   image: string | null;
-  dailyTotal: {
-    totalSeconds: number;
-  }[];
-  isRunning?: boolean;
-  startTimestamp?: number;
-   totalSeconds: number; // ✅ NEW - flattened total
+  totalSeconds: number;
+  isRunning: boolean;
+  startTimestamp: Date | null;
 }
 
 interface Props {
-  groupId: string;
+  initialMembers: MemberWithTimer[];
   uuserId: string;
-  initialMembers: UserTimerData[];
+  groupId: string;
 }
 
 const socket = io("http://localhost:3001");
 
-export const NewLeaderboard = ({ groupId, uuserId, initialMembers }: Props) => {
-  const [members, setMembers] = useState<UserTimerData[]>(
-    initialMembers.map((m) => ({ ...m, isRunning: false, totalSeconds: m.dailyTotal?.[0]?.totalSeconds ?? 0 }))
+export const NewLeaderboard = ({ initialMembers, uuserId, groupId}: Props) => {
+  const [members, setMembers] = useState<MemberWithTimer[]>(
+    initialMembers
   );
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -47,20 +44,22 @@ export const NewLeaderboard = ({ groupId, uuserId, initialMembers }: Props) => {
     });
 
     socket.on("timer-stopped", ({ userId, totalSeconds }) => {
-      console.log("CLIENT TIMER-STOPPED", totalSeconds);
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === userId
-            ? {
-                ...m,
-                isRunning: false,
-                startTimestamp: undefined,
-                 totalSeconds: totalSeconds ?? m.totalSeconds, //
-              }
-            : m
-        )
-      );
-    });
+  console.log("CLIENT TIMER-STOPPED", totalSeconds);
+
+  setMembers((prev) =>
+    prev.map((m) =>
+      m.id === userId
+        ? {
+            ...m,
+            isRunning: false,
+            startTimestamp: null, // 👈 instead of undefined (since it's `Date | null`)
+            totalSeconds: totalSeconds, // 👈 no need for fallback anymore
+          }
+        : m
+    )
+  );
+});
+
 
     return () => {
       socket.off("timer-started");
@@ -84,10 +83,10 @@ export const NewLeaderboard = ({ groupId, uuserId, initialMembers }: Props) => {
     return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
   };
 
-  const getLiveTotalSeconds = (member: UserTimerData) => {
-    const base =  member.totalSeconds ?? 0;
+  const getLiveTotalSeconds = (member: MemberWithTimer) => {
+    const base =  member.totalSeconds;
     if (member.isRunning && member.startTimestamp) {
-      const elapsed = Math.floor((Date.now() - member.startTimestamp) / 1000);
+      const elapsed = Math.floor((Date.now() - new Date(member.startTimestamp).getTime()) / 1000);
       return base + elapsed;
     }
     return base;

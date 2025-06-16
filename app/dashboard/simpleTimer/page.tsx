@@ -11,11 +11,14 @@ const SimpleTimer = async () => {
     const total = totalSecondsOfUser?.totalSeconds
     const groups = await getGroups(session.user.id)
     const groupIds = groups.map(g => g.id)
+    const startTime = totalSecondsOfUser?.startTimestamp
+    const isRunning = totalSecondsOfUser?.isRunning
+    const now = Date.now()
     
     
     return (
         <div>
-            <SimpleTimerContainer totalSeconds={total} userId={session.user.id} groupIds={groupIds}/>
+            <SimpleTimerContainer totalSeconds={total} userId={session.user.id} groupIds={groupIds} isRunning={isRunning || false} startTimeStamp={startTime} />
         </div>
     )
 } 
