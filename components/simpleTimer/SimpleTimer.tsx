@@ -106,24 +106,33 @@ const {mutate: start} = useMutation({
   };
 
   return (
-    <Card className="mt-6 w-full sm:w-auto sm:min-w-[40rem] py-10 bg-cyan-400">
-      <CardHeader className="justify-center items-center">
-        <CardTitle className="text-7xl sm:text-9xl">
-          {formatHMS(time)}
-        </CardTitle>
-        <CardDescription className="text-lg sm:text-2xl mt-6 text-center"></CardDescription>
-      </CardHeader>
-      <CardContent className="flex justify-center items-center mt-4 gap-4">
-        {running ? (
-          <Button className="cursor-pointer" disabled={isPending} onClick={handleStop} > Stop </Button>
-        ) : (
-          <Button className="cursor-pointer" disabled={isPending}
-            onClick={handleStart}
-          >
-            Start
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
+  <Card className="mt-6 w-full sm:w-auto sm:min-w-[40rem] py-10 bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 backdrop-blur-md text-white rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-transform duration-300">
+    <CardHeader className="justify-center items-center">
+      <CardTitle className="text-7xl sm:text-9xl">
+        {formatHMS(time)}
+      </CardTitle>
+      <CardDescription className="text-lg sm:text-2xl mt-6 text-center"></CardDescription>
+    </CardHeader>
+    <CardContent className="flex justify-center items-center mt-4 gap-4">
+      {running ? (
+        <Button
+          className="cursor-pointer bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl transition-all duration-200"
+          disabled={isPending}
+          onClick={handleStop}
+        >
+          Stop
+        </Button>
+      ) : (
+        <Button
+          className="cursor-pointer bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-xl transition-all duration-200"
+          disabled={isPending}
+          onClick={handleStart}
+        >
+          Start
+        </Button>
+      )}
+    </CardContent>
+  </Card>
+);
+
 };
