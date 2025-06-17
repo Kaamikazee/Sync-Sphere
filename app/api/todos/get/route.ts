@@ -6,18 +6,23 @@ export const GET = async (request: Request) => {
   const url = new URL(request.url);
 
   const userId = url.searchParams.get("userId");
+  console.log("USERIDddd:", userId, typeof userId);
 
   if (!userId) return NextResponse.json("ERRORS.NO_USER_API", { status: 404 });
 
   try {
     const todos = await db.todo.findMany({
       where: {
-        userId: userId,
+        userId: "cmbp8m1kr0000ystkcxarajut",
       },
     });
 
+    console.log("TODOSSSS:", todos);
+    
+
 
     if (!todos) {
+      console.log("NOOOTODOSSSS:", todos);
       return NextResponse.json([], { status: 200 });
     }
 

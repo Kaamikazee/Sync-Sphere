@@ -34,7 +34,7 @@ export const GET = async (request: Request) => {
       user: {
         id: subs.userId,
         name: subs.user.name,
-        image: subs.user.name,
+        image: subs.user.image,
         totalSeconds: subs.user.dailyTotal[0]?.totalSeconds ?? 0,
         isRunning: subs.user.dailyTotal[0]?.isRunning ?? false,
         startTimestamp: subs.user.dailyTotal[0]?.startTimestamp ?? null,

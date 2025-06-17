@@ -6,9 +6,9 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   const session = await getAuthSession();
   const url = new URL(request.url);
-  const activityId = url.searchParams.get("activityId");
+  const focusAreaId = url.searchParams.get("focusAreaId");
 
-  if (!session?.user || !activityId) {
+  if (!session?.user || !focusAreaId) {
     return new Response("Unauthorized", {
       status: 400,
       statusText: "Unauthorized User",
@@ -36,8 +36,8 @@ export async function POST(request: Request) {
         content,
         title,
         completed,
-        activityId,
-        userId: session.user.id,
+        focusAreaId,
+        userId: session.user.id
       },
     });
 

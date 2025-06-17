@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import io from "socket.io-client";
+import Image from "next/image";
+
 
 interface MemberWithTimer {
   id: string;
@@ -97,32 +99,35 @@ export const NewLeaderboard = ({ initialMembers, uuserId, groupId}: Props) => {
   );
 
   return (
-    <Card className="w-full max-w-3xl mx-auto mt-6 p-6 bg-white/20 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl">
-      <CardHeader>
-        <CardTitle className="text-3xl font-semibold text-center mb-4 text-black">
-          Group Leaderboard
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  <div className="p-6 bg-gradient-to-br from-purple-500/30 via-blue-400/30 to-indigo-500/30 backdrop-blur-md border border-white/20 shadow-lg flex justify-center hover:shadow-2xl hover:scale-105 transition-transform duration-300">
+    <div className="w-full max-w-3xl space-y-4">
+      <h2 className="text-3xl font-extrabold text-white mb-2 text-center">
+        Group Leaderboard
+      </h2>
+      <ul className="divide-y divide-white/30 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md bg-white/10 border border-white/20">
         {sorted.map((member, index) => (
-          <div
+          <li
             key={member.id}
-            className="flex items-center justify-between bg-white/10 p-4 rounded-xl shadow-sm"
+            className="flex items-center justify-between py-4 px-6 hover:scale-105 transition-all duration-300 text-white/90
+             hover:bg-white/10 hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:ring-2 hover:ring-white/30
+             rounded-xl"
           >
-            <div className="flex items-center gap-4">
-              <span className="text-xl font-bold text-black">#{index + 1}</span>
-              <Avatar>
-                <AvatarImage src={member.image!} />
-                <AvatarFallback>{member.name}</AvatarFallback>
-              </Avatar>
-              <div className="text-black text-lg">{member.name}</div>
+            <div className="flex items-center space-x-4">
+              <span className="text-xl font-bold text-white">#{index + 1}</span>
+              <Image
+                src={member.image!}
+                alt={`${member.name} avatar`}
+                width={40}
+                height={40}
+                className="rounded-full ring-2 ring-white/50 size-10 hover:ring-white/80"
+              />
+              <span className="text-lg">{member.name}</span>
             </div>
-            <div className="text-xl font-mono text-black">
-              {formatHMS(getLiveTotalSeconds(member))}
-            </div>
-          </div>
+            <span className="text-xl font-mono">{formatHMS(getLiveTotalSeconds(member))}</span>
+          </li>
         ))}
-      </CardContent>
-    </Card>
-  );
+      </ul>
+    </div>
+  </div>
+);
 };

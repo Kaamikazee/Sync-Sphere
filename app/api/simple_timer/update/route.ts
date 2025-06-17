@@ -39,7 +39,8 @@ export const POST = async (request: Request) => {
         },
       },
       update: {
-        totalSeconds,
+        isRunning: false,
+        totalSeconds // Update it from the segment
       },
       create: {
         userId,

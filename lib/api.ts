@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Announcement, Group, PomodoroSettings, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, FocusArea, Group, PomodoroSettings, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"
@@ -200,3 +200,30 @@ export const getSubscribersWithTotalSeconds = async (group_id: string) => {
 
   return res.json() as Promise<membersWithSeconds[]>
 };
+
+
+export const getFocusAreas = async (userId: string) => {
+  const res = await fetch(`${domain}/api/focus_area/get?userId=${userId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<FocusArea[]>
+};
+
+export const getFocusAreaTotals = async () => {
+  const res = await fetch(`${domain}/api/focus_area/get/totals`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<number>
+}

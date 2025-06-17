@@ -4,8 +4,9 @@ import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-export const POST = async () => {
+export const POST = async (request: Request) => {
   const session = await getAuthSession();
   const userId = session?.user.id;
 
@@ -14,6 +15,33 @@ export const POST = async () => {
   }
 
   const today = normalizeToStartOfDay(new Date());
+
+   const body: unknown = await request.json();
+  
+    const result = z
+      .object({
+        focusAreaId: z.string(),
+      })
+      .safeParse(body);
+  
+    if (!result.success) {
+      return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
+    }
+  
+    const { focusAreaId } = result.data;
+
+//   ---------CREATING TIME SEGMENT ON START---------
+
+  const segment = await db.timerSegment.create({
+    data: {
+        userId,
+        focusAreaId, //get the activityId from there and send it
+        start: new Date(),
+        date: today
+    }
+  })
+
+//   --------------------------------
 
   try {
     await db.dailyTotal.upsert({
@@ -36,7 +64,7 @@ export const POST = async () => {
       },
     });
 
-    return NextResponse.json("OK", { status: 200 });
+    return NextResponse.json({ segmentId: segment.id, start: segment.start }, { status: 200 });
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }

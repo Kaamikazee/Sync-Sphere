@@ -1,5 +1,5 @@
 import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
-import { getGroups, getTotalSecondsOfUser } from "@/lib/api";
+import { getFocusAreas, getFocusAreaTotals, getGroups, getTodos, getTotalSecondsOfUser } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 const SimpleTimer = async () => {
@@ -13,7 +13,13 @@ const SimpleTimer = async () => {
     const groupIds = groups.map(g => g.id)
     const startTime = totalSecondsOfUser?.startTimestamp
     const isRunning = totalSecondsOfUser?.isRunning
-    const now = Date.now()
+    
+    const focusAreas = await getFocusAreas(session.user.id)
+    const timeSpentOfFA = await getFocusAreaTotals()
+
+    const todos = await getTodos(session.user.id)
+
+    console.log("TODOS:", todos);
     
     
     return (
@@ -26,6 +32,9 @@ const SimpleTimer = async () => {
           groupIds={groupIds}
           isRunning={isRunning || false}
           startTimeStamp={startTime}
+          focusAreas={focusAreas}
+          timeSpentOfFA={timeSpentOfFA}
+          todos= {todos}
         />
       </div>
     </div>

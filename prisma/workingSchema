@@ -236,6 +236,7 @@ model Activity {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   timeSpent Int      @default(0) // store time in seconds
+  todos     Todo[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -266,19 +267,21 @@ model FocusArea {
 model Todo {
   id          String       @id @default(uuid())
   userId      String
+  activityId  String
   focusAreaId String
   title       String
   content     String?
   completed   TodoWorkDone @default(NOT_DONE)
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity  Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   focusArea FocusArea @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-  @@index([focusAreaId])
+  @@index([activityId])
 }
 
 enum TodoWorkDone {
