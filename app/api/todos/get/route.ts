@@ -13,7 +13,7 @@ export const GET = async (request: Request) => {
   try {
     const todos = await db.todo.findMany({
       where: {
-        userId: "cmbp8m1kr0000ystkcxarajut",
+        userId: userId,
       },
     });
 

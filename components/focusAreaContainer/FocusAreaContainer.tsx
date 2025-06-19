@@ -1,11 +1,13 @@
 import { FocusArea, Todo } from "@prisma/client";
 import { FocusAreaComp } from "./FocusAreaComp";
 import { CreateFocusArea } from "./CreateFocusArea";
+import { FocusAreTotalsById } from "@/lib/api";
+import { useState } from "react";
 
 interface Props {
   focusAreas: FocusArea[];
   todos: Todo[];
-  timeSpent: number;
+  timeSpent: FocusAreTotalsById[];
   handleStart: () => void;
   handleStop: () => void;
   setStartTime: (arg: number) => void;
@@ -25,11 +27,10 @@ export default function FocusAreaContainer({
   setTime,
   isRunning
 }: Props) {
+
+   const [activeId, setActiveId] = useState<string | null>(null);
   return (
     <div>
-        <div>
-            
-        </div>
       <div className="flex flex-col gap-4 w-full max-w-xl">
         {focusAreas.map((focusArea) => {
           const focusAreaTodos = todos.filter(
@@ -44,13 +45,15 @@ export default function FocusAreaContainer({
                 focusArea={focusArea}
                 //   onUpdate={handleUpdate}
                 todos={focusAreaTodos}
-                timeSpent={timeSpent}
+                timeSpent={timeSpent.find(m => m.focusAreaId === focusArea.id)?.totalDuration ?? 0}
                 handleStart={handleStart}
                 handleStop={handleStop}
                 setIsRunning={setIsRunning}
                 setStartTime={setStartTime}
                 setTime={setTime}
                 isRunning={isRunning}
+                isActive={focusArea.id === activeId}
+                 onActivate={() => setActiveId(focusArea.id)}
               />
             </div>
           );
@@ -62,7 +65,6 @@ export default function FocusAreaContainer({
         <CreateFocusArea />
       </div>
     </div>
-
     </div>
   );
 }

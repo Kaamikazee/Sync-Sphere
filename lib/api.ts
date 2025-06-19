@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Announcement, FocusArea, Group, PomodoroSettings, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, FocusArea, Group, PomodoroSettings, Subscription, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"
@@ -215,8 +215,13 @@ export const getFocusAreas = async (userId: string) => {
   return res.json() as Promise<FocusArea[]>
 };
 
-export const getFocusAreaTotals = async () => {
-  const res = await fetch(`${domain}/api/focus_area/get/totals`, {
+export interface FocusAreTotalsById {
+  focusAreaId: string;
+    totalDuration: number;
+}
+
+export const getFocusAreaTotals = async (userId: string) => {
+  const res = await fetch(`${domain}/api/focus_area/get/totals?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -225,5 +230,30 @@ export const getFocusAreaTotals = async () => {
     return null
   }
 
-  return res.json() as Promise<number>
+  return res.json() as Promise<FocusAreTotalsById[]>
 }
+
+export interface GroupIdAndSubscribers {
+    groupId: string;
+    users: {
+        id: string;
+        name: string | null;
+        image: string | null;
+        totalSeconds: number;
+        isRunning: boolean;
+        startTimestamp: Date | null;
+    }[];
+}
+export const getGroupIdAndSubscribers = async (userId: string) => {
+  const res = await fetch(`${domain}/api/group/user_groups/subscribers?userId=${userId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<GroupIdAndSubscribers[][]>
+}
+

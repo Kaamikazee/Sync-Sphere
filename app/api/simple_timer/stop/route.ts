@@ -1,5 +1,3 @@
-// app/api/timer/stop/route.ts
-
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
@@ -15,7 +13,6 @@ export const POST = async (request: Request) => {
   }
 
   const today = normalizeToStartOfDay(new Date());
-
   const body: unknown = await request.json();
 
   const result = z
@@ -33,17 +30,20 @@ export const POST = async (request: Request) => {
   const segment = await db.timerSegment.findUnique({
     where: { id: segmentId },
   });
+
   if (!segment || segment.end) {
     return NextResponse.json({ error: "Invalid or already-stopped segment" });
   }
 
-  const segments = await db.timerSegment.update({
+  // ✅ Calculate duration and update segment
+  const now = new Date();
+  const duration = Math.floor((now.getTime() - new Date(segment.start).getTime()) / 1000);
+
+  await db.timerSegment.update({
     where: { id: segmentId },
     data: {
-      end: new Date(),
-      duration: Math.floor(
-        (Date.now() - new Date(segment.start).getTime()) / 1000
-      ),
+      end: now,
+      duration,
     },
   });
 
@@ -58,31 +58,27 @@ export const POST = async (request: Request) => {
     });
 
     if (!existing || !existing.isRunning || !existing.startTimestamp) {
-      const resFromSeg = NextResponse.json("ERRORS.NOT_RUNNING", {
-        status: 400,
-      });
-    } else {
-      const elapsedSeconds = Math.floor(
-        (Date.now() - new Date(existing.startTimestamp).getTime()) / 1000
-      );
-      
-      await db.dailyTotal.update({
-        where: {
-          userId_date: {
-            userId,
-            date: today,
-          },
-        },
-        data: {
-          isRunning: false,
-          startTimestamp: null,
-          totalSeconds: existing.totalSeconds + elapsedSeconds, //Add it from the segment
-        },
-      });
+      return NextResponse.json("ERRORS.NOT_RUNNING", { status: 404 });
     }
-      
+
+    await db.dailyTotal.update({
+      where: {
+        userId_date: {
+          userId,
+          date: today,
+        },
+      },
+      data: {
+        isRunning: false,
+        startTimestamp: null,
+        totalSeconds: { increment: duration },
+      },
+    });
+
     return NextResponse.json("OK", { status: 200 });
   } catch (err) {
+    console.log(err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
+    
   }
 };

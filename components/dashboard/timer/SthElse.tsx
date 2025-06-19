@@ -11,15 +11,19 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Group } from "@prisma/client";
-import Leaderboard from "../group/leaderboard/Leaderboard";
+import { GroupIdAndSubscribers } from "@/lib/api";
+import { NewLeaderboard } from "../group/leaderboard/NewLeaderboard";
 // import Leaderboard from "./Leaderboard"; // ← your leaderboard display
 
 interface Props {
   groups: Group[];
-  userId: string
+  userId: string;
+  IdsAndSubscriber: GroupIdAndSubscribers[][]
 }
 
-export function SthElse({ groups, userId }: Props) {
+export function SthElse({ groups, userId, IdsAndSubscriber }: Props) {
+  console.log("IDSSSANDSUBS",IdsAndSubscriber);
+  
   // 1) state for which page we’re on (1-based)
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 1;
@@ -28,6 +32,11 @@ export function SthElse({ groups, userId }: Props) {
   const pageCount = Math.ceil(groups.length / itemsPerPage);
 
   // 3) pick the single group for this page
+  const groupMap = useMemo(() => {
+  const flat = IdsAndSubscriber.flat();
+  return new Map(flat.map(({ groupId, users }) => [groupId, users]));
+}, [IdsAndSubscriber]);
+
   const currentGroup = useMemo(() => {
     const idx = (currentPage - 1) * itemsPerPage;
     return groups[idx];
@@ -39,15 +48,23 @@ export function SthElse({ groups, userId }: Props) {
     setCurrentPage(page);
   };
 
+  
+
+const members = useMemo(() => {
+  if (!currentGroup) return [];
+  return groupMap.get(currentGroup.id) ?? [];
+}, [currentGroup, groupMap]);
+
   return (
     <div className="relative max-w-3xl mx-auto mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-6">
   {/* — render the group & its leaderboard — */}
   {currentGroup ? (
+    
     <div className="mb-8">
       <h2 className="text-2xl font-bold text-white mb-4">
         Group: <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text">{currentGroup.name}</span>
       </h2>
-      <Leaderboard groupId={currentGroup.id} userId={userId} />
+      <NewLeaderboard groupId={currentGroup.id} uuserId={userId} initialMembers={members}/>
     </div>
   ) : (
     <p className="text-white/70">No group on this page.</p>

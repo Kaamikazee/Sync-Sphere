@@ -11,7 +11,7 @@ import { FocusArea, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { Edit, PauseCircle, PlayCircle, Trash2 } from "lucide-react";
-import {  useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";
 
@@ -24,12 +24,15 @@ interface Props {
   focusArea: FocusArea;
   todos: Todo[];
   timeSpent: number;
-  isRunning: boolean
+  isRunning: boolean;
   handleStart: () => void;
   handleStop: () => void;
   setStartTime: (arg: number) => void;
   setIsRunning: (arg: boolean) => void;
   setTime: (arg: number) => void;
+  // id: string,
+  isActive: boolean;
+  onActivate: () => void;
 }
 
 export function FocusAreaComp({
@@ -42,17 +45,49 @@ export function FocusAreaComp({
   setIsRunning,
   setStartTime,
   setTime,
+  isActive,
+  onActivate,
 }: Props) {
   const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
-  const [running, setRunning] = useState(isRunning)
+  const [running, setRunning] = useState(isRunning);
+  const [IsFocusRunning, setIsFocusRunning] = useState(false);
+  const [displayTime, setDisplayTime] = useState(timeSpent);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (IsFocusRunning) {
+      interval = setInterval(() => {
+        setDisplayTime((prev) => {
+          const updated = prev + 1;
+          localStorage.setItem("activeDisplayTime", updated.toString());
+          return updated;
+        });
+      }, 1000);
+    }
+
+    return () => clearInterval(interval);
+  }, [IsFocusRunning]);
+
+  useEffect(() => {
+    const savedDisplay = localStorage.getItem("activeDisplayTime");
+    if (savedDisplay && !localStorage.getItem("activeStartTime")) {
+      setDisplayTime(parseInt(savedDisplay, 10));
+    }
+  }, []);
+
+  useEffect(() => {
+  setIsFocusRunning(isActive);
+}, [isActive]);
 
   useEffect(() => {
     const savedSegmentId = localStorage.getItem("activeSegmentId");
     const savedStart = localStorage.getItem("activeStartTime");
+     const savedFocusAreaId = localStorage.getItem("activeFocusAreaId");
 
-    if (savedSegmentId && savedStart) {
+
+    if (savedSegmentId && savedStart && savedFocusAreaId === focusAreaId) {
       setSegmentId(savedSegmentId);
       const startMs = new Date(savedStart).getTime();
       setStartTime(startMs);
@@ -60,8 +95,12 @@ export function FocusAreaComp({
 
       const elapsed = Math.floor((Date.now() - startMs) / 1000);
       setTime(timeSpent + elapsed);
+
+      setDisplayTime(timeSpent + elapsed);
+      setIsFocusRunning(true);
     }
-  }, [timeSpent, setIsRunning, setStartTime, setTime]);
+    
+  }, [timeSpent, setIsRunning, setStartTime, setTime, focusAreaId]);
 
   const { mutate: start } = useMutation({
     mutationFn: async () => {
@@ -78,9 +117,12 @@ export function FocusAreaComp({
   });
 
   const onStart = () => {
-    setRunning(true); 
+    setRunning(true);
     handleStart();
     start();
+    onActivate();
+    localStorage.setItem("activeFocusAreaId", focusAreaId);
+    setIsFocusRunning(isActive);
   };
 
   const { mutate: stop } = useMutation({
@@ -93,13 +135,17 @@ export function FocusAreaComp({
   });
 
   const onStop = () => {
-    setRunning(false)
+    setRunning(false);
     handleStop();
     stop();
+    setIsFocusRunning(false);
     // setIsRunning(false)
 
     localStorage.removeItem("activeSegmentId");
     localStorage.removeItem("activeStartTime");
+    localStorage.removeItem("activeSegmentId");
+    localStorage.removeItem("activeDisplayTime");
+    localStorage.removeItem("activeFocusAreaId");
   };
 
   function formatHMS(total: number) {
@@ -119,17 +165,9 @@ export function FocusAreaComp({
         variants={iconVariants}
       >
         {!running ? (
-          <PlayCircle
-            onClick={onStart}
-            className="cursor-pointer"
-            size={30}
-          />
+          <PlayCircle onClick={onStart} className="cursor-pointer" size={30} />
         ) : (
-          <PauseCircle
-            onClick={onStop}
-            className="cursor-pointer"
-            size={30}
-          />
+          <PauseCircle onClick={onStop} className="cursor-pointer" size={30} />
         )}
       </motion.div>
 
@@ -146,7 +184,7 @@ export function FocusAreaComp({
         >
           <AccordionTrigger className="cursor-pointer flex justify-between items-center w-full text-lg font-medium">
             <span className="truncate w-[40%]">{name}</span>
-            <span className="font-bold">{formatHMS(timeSpent)}</span>
+            <span className="font-bold">{formatHMS(displayTime)}</span>
           </AccordionTrigger>
 
           <AccordionContent className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-gray-900 font-semibold py-4 px-5 rounded-xl shadow-inner mt-3">

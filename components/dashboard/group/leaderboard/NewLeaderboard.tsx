@@ -25,10 +25,14 @@ interface Props {
 const socket = io("http://localhost:3001");
 
 export const NewLeaderboard = ({ initialMembers, uuserId, groupId}: Props) => {
-  const [members, setMembers] = useState<MemberWithTimer[]>(
-    initialMembers
-  );
+  const [members, setMembers] = useState<MemberWithTimer[]>(initialMembers);
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 🔁 Sync state with incoming props on group change
+  useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
 
   useEffect(() => {
     socket.emit("join-group", { groupId, userId: uuserId });
