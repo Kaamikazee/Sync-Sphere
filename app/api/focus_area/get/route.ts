@@ -1,4 +1,3 @@
-import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 
@@ -7,7 +6,6 @@ export const GET = async (request: Request) => {
    const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
   // const userId = session?.user.id
-  console.log("USER ID: ", userId);
   
   if (!userId) return NextResponse.json("No such user found", { status: 404 });
 
@@ -18,7 +16,6 @@ export const GET = async (request: Request) => {
       }
     });
 
-    console.log("FOCUS AREAS FROM SERVER", focusAreas);
     
 
     if (!focusAreas) return NextResponse.json([], { status: 200 });

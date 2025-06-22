@@ -5,9 +5,7 @@ import { NextResponse } from "next/server";
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
-  console.log("USER ID: ", userId);
 
-  console.log("USERRRR IDDD: ", userId);
   if (!userId) return NextResponse.json("No such user found", { status: 404 });
 
   const today = normalizeToStartOfDay(new Date());

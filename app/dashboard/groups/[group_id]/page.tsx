@@ -1,9 +1,8 @@
-import Leaderboard from "@/components/dashboard/group/leaderboard/Leaderboard";
 import { NewLeaderboard } from "@/components/dashboard/group/leaderboard/NewLeaderboard";
 import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 import ActiveLink from "@/components/ui/active-link";
 import { Separator } from "@/components/ui/separator";
-import { getGroup, getGroupWithSubscribers, getSubscribersWithTotalSeconds, getTotalSecondsOfUser, getUserGroupRole } from "@/lib/api";
+import { getGroup, getUserGroupRole } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 import Link from "next/link";
 // import Link from "next/link";
@@ -22,13 +21,11 @@ const Group = async ({ params: { group_id } }: Params) => {
     return <p>You need to sign in to access this page.</p>;
   }
 
-  const [group, userRole, subscribers] = await Promise.all([
+  const [group, userRole] = await Promise.all([
     getGroup(group_id, session.user.id),
-    getUserGroupRole(group_id, session.user.id),
-    getSubscribersWithTotalSeconds(group_id)
+    getUserGroupRole(group_id, session.user.id)
   ]);
   
-  const members = subscribers!.map(m => m.user)
 
 
   if (!group) {
@@ -79,13 +76,7 @@ const Group = async ({ params: { group_id } }: Params) => {
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               Leaderboard
             </h2>
-            <Leaderboard userId={session.user.id} groupId={group_id} />
-          </section>
-          <section className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Leaderboard
-            </h2>
-            <NewLeaderboard uuserId={session.user.id} groupId={group_id} initialMembers={members} />
+            <NewLeaderboard uuserId={session.user.id} groupId={group_id} />
           </section>
         </div>
       </main>

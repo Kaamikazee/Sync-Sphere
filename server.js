@@ -24,10 +24,12 @@ app.prepare().then(() => {
   });
 
   const userTimers = new Map(); // key: userId, value: { startTime, totalSeconds }
+  // const onlineUsers = new Map(); // userId -> socket.id
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
-    console.log("🟢 [server] socket connected:", socket.id);
+    console.log("🟢 [server] socket connected:", socket.id)
+
 
     socket.on("startActivity", async ({ activityId, startTime }) => {
       console.log("Activity started:", activityId);
@@ -72,6 +74,93 @@ app.prepare().then(() => {
         console.error("Error stopping activity:", error);
       }
     });
+
+
+    // -------- CHAT PAGINATION -------------
+
+    socket.on("getMessages", async ({ groupId, beforeMessageId }) => {
+  const PAGE_SIZE = 20;
+
+  try {
+    const chat = await prisma.chat.findFirst({
+      where: { groupId },
+    });
+
+    if (!chat) {
+      return socket.emit("error", "Chat not found");
+    }
+
+    let messages;
+
+    if (beforeMessageId) {
+      const referenceMessage = await prisma.message.findUnique({
+        where: { id: beforeMessageId },
+      });
+
+      if (!referenceMessage) return;
+
+      messages = await prisma.message.findMany({
+        where: {
+          chatId: chat.id,
+          createdAt: { lt: referenceMessage.createdAt },
+        },
+        orderBy: { createdAt: "desc" },
+        take: PAGE_SIZE,
+        include: {
+          sender: true,
+          replyTo: {
+            include: {
+              sender: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      });
+    } else {
+      // Initial load (optional, you can remove if handled separately)
+      messages = await prisma.message.findMany({
+        where: { chatId: chat.id },
+        orderBy: { createdAt: "desc" },
+        take: PAGE_SIZE,
+        include: {
+          sender: true,
+          replyTo: {
+            include: {
+              sender: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    // Reverse the order so oldest messages appear first in chat
+    const formattedMessages = messages.reverse().map((msg) => ({
+      id: msg.id,
+      chatId: msg.chatId,
+      senderId: msg.senderId,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      senderName: msg.sender.name,
+      senderImage: msg.sender.image,
+      replyTo: msg.replyTo
+        ? {
+            id: msg.replyTo.id,
+            senderName: msg.replyTo.sender.name,
+            content: msg.replyTo.content,
+          }
+        : null,
+    }));
+
+    socket.emit("olderMessages", formattedMessages);
+  } catch (error) {
+    console.error("Error in getMessages:", error);
+    socket.emit("error", "Failed to load older messages");
+  }
+});
+
 
     // --- TOTAL TIME HANDLER ---
 
@@ -141,7 +230,8 @@ app.prepare().then(() => {
       socket.join(groupId);
       const current = userTimers.get(userId);
       socket.to(groupId).emit("user-joined", { userId, ...current });
-      
+
+
       let chat = await prisma.chat.findFirst({
         where: { groupId },
         include: {
@@ -216,43 +306,39 @@ app.prepare().then(() => {
       );
     });
 
-socket.on("start-timer", ({ userId, startTime }) => {
-    console.log("TIMER-STARTED");
+    socket.on("start-timer", ({ userId, startTime }) => {
+      console.log("TIMER-STARTED");
       io.emit("timer-started", { userId, startTime });
     });
 
-socket.on("stop-timer", ({ userId, totalSeconds }) => {
-  console.log("TIMER-STOPPED");
+    socket.on("stop-timer", ({ userId, totalSeconds }) => {
+      console.log("TIMER-STOPPED");
       io.emit("timer-stopped", { userId, totalSeconds });
     });
 
-socket.on("tick", ({ userId, currentTotalSeconds }) => {
+    socket.on("tick", ({ userId, currentTotalSeconds }) => {
       io.emit("timer-tick", { userId, currentTotalSeconds });
     });
-  
-
 
     // in your socket setup
-socket.on("typing",  async ({ groupId, userId, userName }) => {
-  // broadcast to everyone _except_ the typer
-  const chat = await prisma.chat.findFirst({ where: { groupId } });
-  if (!chat) return;
+    socket.on("typing", async ({ groupId, userId, userName }) => {
+      // broadcast to everyone _except_ the typer
+      const chat = await prisma.chat.findFirst({ where: { groupId } });
+      if (!chat) return;
 
+      io.to(`chat_${chat.id}`)
+        .except(socket.id)
+        .emit("userTyping", { userId, userName });
+    });
 
-  io.to(`chat_${chat.id}`)
-    .except(socket.id)
-    .emit("userTyping", { userId, userName });
-});
+    socket.on("stopTyping", async ({ groupId, userId }) => {
+      const chat = await prisma.chat.findFirst({ where: { groupId } });
+      if (!chat) return;
 
-socket.on("stopTyping", async({ groupId, userId }) => {
-   const chat = await prisma.chat.findFirst({ where: { groupId } });
-  if (!chat) return;
-
-  io.to(`chat_${chat.id}`)
-    .except(socket.id)
-    .emit("userStopTyping", { userId });
-});
-
+      io.to(`chat_${chat.id}`)
+        .except(socket.id)
+        .emit("userStopTyping", { userId });
+    });
 
     socket.on(
       "groupMessage",
@@ -294,12 +380,12 @@ socket.on("stopTyping", async({ groupId, userId }) => {
           senderImage: saved.sender.image,
 
           replyTo: saved.replyTo
-    ? {
-        id:         saved.replyTo.id,
-        senderName: saved.replyTo.sender.name,
-        content:    saved.replyTo.content,
-      }
-    : null,
+            ? {
+                id: saved.replyTo.id,
+                senderName: saved.replyTo.sender.name,
+                content: saved.replyTo.content,
+              }
+            : null,
         });
       }
     );
@@ -308,20 +394,16 @@ socket.on("stopTyping", async({ groupId, userId }) => {
       const chat = await prisma.chat.findFirst({ where: { groupId } });
       if (!chat) return;
       socket.leave(`chat_${chat.id}`);
-      socket.leave(groupId)
+      socket.leave(groupId);
     });
 
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.id);
-    });
 
-    socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id);
     });
 
     });
-    // --- SIMPLE TIMER HANDLER ---
-  
+  // --- SIMPLE TIMER HANDLER ---
 
   server.all("*", (req, res) => {
     if (!req.url) {
@@ -335,5 +417,4 @@ socket.on("stopTyping", async({ groupId, userId }) => {
     if (err) throw err;
     console.log(`Server running at http://localhost:${port}`);
   });
-
 });

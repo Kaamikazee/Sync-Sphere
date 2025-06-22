@@ -29,6 +29,7 @@ export function UpdateTodo({ todo }: Props) {
   const [todoName, setTodoName] = React.useState(title);
   const [todoContent, setTodoContent] = React.useState(content);
   const [todoDone, setTodoDone] = React.useState<TodoWorkDone>(completed);
+  const [isEditingContent, setIsEditingContent] = React.useState(false); // 
   const router = useRouter();
 
   // Unified mutation accepting fields
@@ -85,7 +86,7 @@ export function UpdateTodo({ todo }: Props) {
             ${todoDone === "DONE" ? 'text-emerald-400 line-through' : 'text-purple-200 hover:text-purple-400'}`
           }
         >
-          <Star className={fillColors[todoDone]} /> {todoName} <Star className={fillColors[todoDone]} />
+          <Star className={fillColors[todoDone]} /> {todoName}
         </motion.span>
       </DrawerTrigger>
 
@@ -135,13 +136,32 @@ export function UpdateTodo({ todo }: Props) {
 
               <div className="space-y-2">
                 <Label htmlFor="todo-content" className="text-gray-100 font-semibold">Todo Content</Label>
-                <Input
-                  id="todo-content"
-                  name="content"
-                  value={todoContent!}
-                  onChange={(e) => setTodoContent(e.target.value)}
-                  className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-600 focus:ring-2 focus:ring-blue-400"
-                />
+               <div className="space-y-2">
+
+  {isEditingContent ? (
+    <textarea
+      id="todo-content"
+      name="content"
+      value={todoContent!}
+      onChange={(e) => setTodoContent(e.target.value)}
+      onBlur={() => setIsEditingContent(false)}
+      autoFocus
+      rows={4}
+      className="w-full resize-none bg-gray-800 text-white placeholder-gray-400 border border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+    />
+  ) : (
+    <div
+      onClick={() => setIsEditingContent(true)}
+      className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg p-3 cursor-text hover:bg-gray-700 transition"
+    >
+      {todoContent?.trim() ? (
+        <p className="whitespace-pre-line">{todoContent}</p>
+      ) : (
+        <p className="text-gray-400 italic">Click to add content...</p>
+      )}
+    </div>
+  )}
+</div>
               </div>
 
               <div className="flex justify-end items-center gap-3 pt-4 border-t border-gray-700">

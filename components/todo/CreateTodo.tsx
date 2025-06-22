@@ -58,8 +58,8 @@ export function CreateTodo({ focusAreaId }: Props) {
       toast.error("Please fill out both fields.");
       return;
     }
-    else if (todoName.trim().length > 10) {
-      toast.error("Title can be max of 10 letters only");
+    else if (todoName.trim().length > 20) {
+      toast.error("Title can be max of 20 letters only");
       return;
     }
     mutate();
@@ -73,7 +73,7 @@ export function CreateTodo({ focusAreaId }: Props) {
           className="bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform"
           variant="outline"
         >
-          ➕ Create a Todo
+          ➕ Create a new todo
         </Button>
       </DialogTrigger>
 

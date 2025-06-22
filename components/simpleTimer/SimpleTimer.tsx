@@ -2,19 +2,17 @@
 
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "../ui/button";
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
-import { FocusArea, Group, Subscription, Todo } from "@prisma/client";
-import { FocusAreTotalsById, GroupIdAndSubscribers } from "@/lib/api";
+import { FocusArea, Group, Todo } from "@prisma/client";
+import { FocusAreTotalsById } from "@/lib/api";
 import { SthElse } from "../dashboard/timer/SthElse";
 
 interface Props {
@@ -25,7 +23,6 @@ interface Props {
   focusAreas: FocusArea[];
   timeSpentOfFA: FocusAreTotalsById[];
   todos: Todo[];
-  IdsAndSubscriber: GroupIdAndSubscribers[][],
   groups: Group[]
 }
 
@@ -39,7 +36,6 @@ export const SimpleTimerContainer = ({
   focusAreas,
   timeSpentOfFA: focusAreaTotals,
   todos,
-  IdsAndSubscriber,
   groups
 }: Props) => {
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
@@ -132,7 +128,7 @@ useEffect(() => {
     socket?.emit("start-timer", { userId, startTime: now });
   };
 
-  const { mutate, isPending } = useMutation({
+  const { mutate } = useMutation({
     mutationFn: async () => {
       await axios.post("/api/simple_timer/update", {
         totalSeconds: time,
@@ -149,7 +145,6 @@ useEffect(() => {
     stop();
   };
 
-  console.log("FROM CONTAINER: ", IdsAndSubscriber);
   
   return (
     <>
@@ -182,7 +177,7 @@ useEffect(() => {
             </CardTitle>
             <CardDescription className="text-lg sm:text-2xl mt-6 text-center"></CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center items-center mt-4 gap-4">
+          {/* <CardContent className="flex justify-center items-center mt-4 gap-4">
             {running ? (
               <Button
                 className="cursor-pointer bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl transition-all duration-200"
@@ -200,7 +195,7 @@ useEffect(() => {
                 Start
               </Button>
             )}
-          </CardContent>
+          </CardContent> */}
         </Card>
         </div>
         </div>
@@ -224,7 +219,7 @@ useEffect(() => {
         <aside className="w-full">
             <div className="p-4 h-full">
               <div className="bg-white/10 border border-white/20 backdrop-blur-md rounded-2xl shadow-lg p-6 hover:shadow-2xl transition-all duration-300 h-full">
-                <SthElse groups={groups} userId={userId} IdsAndSubscriber={IdsAndSubscriber} />
+                <SthElse groups={groups} userId={userId} />
               </div>
             </div>
           </aside>

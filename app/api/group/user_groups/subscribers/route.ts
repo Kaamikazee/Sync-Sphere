@@ -56,15 +56,12 @@ export const GET = async (request: Request) => {
         }),
       };
     });
-
-    console.log("Servers RESULTTT: ", result);
     
 
     if (!result) return NextResponse.json([], { status: 200 });
 
     return NextResponse.json(result, { status: 200 });
   } catch {
-    console.log("Servers RESULTTT: ", "ERRROORR");
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }
 };
