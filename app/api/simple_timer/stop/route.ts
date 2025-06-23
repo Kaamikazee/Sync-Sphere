@@ -32,20 +32,17 @@ export const POST = async (request: Request) => {
   });
 
   if (!segment || segment.end) {
-    return NextResponse.json({ error: "Invalid or already-stopped segment" });
+    return NextResponse.json({ error: "Invalid or already-stopped segment" }, { status: 400 });
+  }
+
+  // ✅ Only FOCUS segments can trigger breaks
+  if (segment.type !== "FOCUS") {
+    return NextResponse.json("ERRORS.NOT_FOCUS_SEGMENT", { status: 400 });
   }
 
   // ✅ Calculate duration and update segment
   const now = new Date();
   const duration = Math.floor((now.getTime() - new Date(segment.start).getTime()) / 1000);
-
-  await db.timerSegment.update({
-    where: { id: segmentId },
-    data: {
-      end: now,
-      duration,
-    },
-  });
 
   try {
     const existing = await db.dailyTotal.findUnique({
@@ -57,28 +54,54 @@ export const POST = async (request: Request) => {
       },
     });
 
-    if (!existing || !existing.isRunning || !existing.startTimestamp) {
+    console.log("Fetched dailyTotal:", existing);
+
+    if (!existing) {
       return NextResponse.json("ERRORS.NOT_RUNNING", { status: 404 });
     }
 
-    await db.dailyTotal.update({
-      where: {
-        userId_date: {
+    const [_, breakSegment] = await db.$transaction([
+      // ✅ Stop current FOCUS segment
+      db.timerSegment.update({
+        where: { id: segmentId },
+        data: {
+          end: now,
+          duration,
+        },
+      }),
+
+      // ✅ Auto-start BREAK segment
+      db.timerSegment.create({
+        data: {
           userId,
+          type: "BREAK",
+          start: now,
           date: today,
         },
-      },
-      data: {
-        isRunning: false,
-        startTimestamp: null,
-        totalSeconds: { increment: duration },
-      },
-    });
+      }),
 
-    return NextResponse.json("OK", { status: 200 });
+      // ✅ Update daily total
+      db.dailyTotal.update({
+        where: {
+          userId_date: {
+            userId,
+            date: today,
+          },
+        },
+        data: {
+          isRunning: false,
+          startTimestamp: null,
+          totalSeconds: { increment: duration },
+        },
+      }),
+    ]);
+
+    return NextResponse.json(
+      { status: "OK", breakSegmentId: breakSegment.id },
+      { status: 200 }
+    );
   } catch (err) {
-    console.log(err);
+    console.error("Timer stop error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
-    
   }
 };

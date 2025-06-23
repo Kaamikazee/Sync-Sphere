@@ -1,17 +1,38 @@
-import { getActivities, getGroups, getTodos } from "@/lib/api";
+import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
+import { getFocusAreas, getFocusAreaTotals, getGroups, getTodos, getTotalSecondsOfUser } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
-// import TimerClient from "./TimerClient";
-import TimerClient from "@/components/dashboard/timer/TimerClient";
+const SimpleTimer = async () => {
+    const session = await checkIfUserCompleteOnboarding("/dashboard/timer");
+    if (!session) return null;
 
-export default async function TimerPage() {
-  const session = await checkIfUserCompleteOnboarding("/dashboard/timer");
-  if (!session) return null;
+    const totalSecondsOfUser = await getTotalSecondsOfUser(session.user.id)
+    console.log("Which is getting returned:", totalSecondsOfUser);
+    const total = totalSecondsOfUser?.totalSeconds
+    const groups = await getGroups(session.user.id)
+    const startTime = totalSecondsOfUser?.startTimestamp
+    const isRunning = totalSecondsOfUser?.isRunning
+    
+    const focusAreas = await getFocusAreas(session.user.id)
+    const timeSpentOfFA = await getFocusAreaTotals(session.user.id)
 
-  const activities = await getActivities(session.user.id) || [];
-  const groups = await getGroups(session.user.id)
-  const todos = await getTodos(session.user.id)
+    const todos = await getTodos(session.user.id)
 
 
-  return <TimerClient activities={activities} userId={session.user.id} groups={groups} todos={todos!} />;
-}
+    
+    return (
+        <SimpleTimerContainer
+          totalSeconds={total!}
+          userId={session.user.id}
+          isRunning={isRunning || false}
+          startTimeStamp={startTime!}
+          focusAreas={focusAreas!}
+          timeSpentOfFA={timeSpentOfFA!}
+          todos= {todos!}
+          groups={groups}
+        />
+);
+
+} 
+
+export default SimpleTimer;

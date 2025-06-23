@@ -243,16 +243,25 @@ model Activity {
 model TimerSegment {
   id          String    @id @default(uuid())
   userId      String
-  focusAreaId String
+  focusAreaId String?
   start       DateTime
   end         DateTime?
-  duration    Int? // seconds
+  duration    Int? // in seconds
   date        DateTime // normalized to midnight
+  type        SegmentType @default(FOCUS) // <-- NEW: FOCUS or BREAK
+  label       String? // <-- Optional label for break reason (e.g. "Lunch", "Phone")
+
   user        User      @relation(fields: [userId], references: [id])
-  focusArea   FocusArea @relation(fields: [focusAreaId], references: [id])
+  focusArea   FocusArea? @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
 }
+
+enum SegmentType {
+  FOCUS
+  BREAK
+}
+
 
 model FocusArea {
   id       String         @id @default(uuid())

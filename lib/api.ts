@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Announcement, FocusArea, Group, PomodoroSettings, Subscription, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, FocusArea, Group, PomodoroSettings, SegmentType, Subscription, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"
@@ -257,3 +257,29 @@ export const getGroupIdAndSubscribers = async (userId: string) => {
   return res.json() as Promise<GroupIdAndSubscribers[][]>
 }
 
+export interface SegmentTypes {
+   id: string;
+    start: Date;
+    end: Date | null;
+    duration: number | null;
+    date: Date;
+     type: SegmentType;
+    label: string | null;
+    focusArea: {
+        id: string;
+        name: string;
+    };
+}
+
+export const getAllSegments = async (userId: string) => {
+  const res = await fetch(`${domain}/api/segments/get?userId=${userId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<SegmentTypes[]>
+}

@@ -12,8 +12,11 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { Edit, PauseCircle, PlayCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence,motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";
+import { useRunningStore } from "@/stores/useGlobalTimer";
+import { useBreakStore } from "@/stores/useBreakStore";
+import { ResumeTimer } from "./ResumeTimer";
 
 const iconVariants = {
   hover: { scale: 1.2, rotate: 10 },
@@ -50,9 +53,19 @@ export function FocusAreaComp({
 }: Props) {
   const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
-  const [running, setRunning] = useState(isRunning);
+  const running = useRunningStore((s) => s.running);
+  const setRunning = useRunningStore((s) => s.setRunning);
   const [IsFocusRunning, setIsFocusRunning] = useState(false);
   const [displayTime, setDisplayTime] = useState(timeSpent);
+
+  const breakReason = useBreakStore((s) => s.breakReason)
+
+  const stopRequested = useRunningStore((state) => state.stopRequested);
+  const resetStop = useRunningStore((state) => state.resetStop);
+
+  useEffect(() => {
+  setRunning(isRunning);
+}, [isRunning, setRunning]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -69,6 +82,7 @@ export function FocusAreaComp({
 
     return () => clearInterval(interval);
   }, [IsFocusRunning]);
+
 
   useEffect(() => {
     const savedDisplay = localStorage.getItem("activeDisplayTime");
@@ -106,6 +120,7 @@ export function FocusAreaComp({
     mutationFn: async () => {
       const { data } = await axios.post("/api/simple_timer/start", {
         focusAreaId,
+        breakReason
       });
       return data;
     },
@@ -148,6 +163,14 @@ export function FocusAreaComp({
     localStorage.removeItem("activeFocusAreaId");
   };
 
+  useEffect(() => {
+  if (stopRequested) {
+    console.log("🛑 Stop triggered in child!");
+    onStop();           // 🔥 Actually stops the timer
+    resetStop();        // Reset the trigger
+  }
+}, [stopRequested, resetStop]);
+
   function formatHMS(total: number) {
     const h = Math.floor(total / 3600);
     const m = Math.floor((total % 3600) / 60);
@@ -159,16 +182,32 @@ export function FocusAreaComp({
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white/5 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/10">
         {/* Play / Pause Button */}
         <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
+          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full"
           whileHover="hover"
           whileTap="tap"
           variants={iconVariants}
         >
-          {!IsFocusRunning ? (
-            <PlayCircle onClick={onStart} className="cursor-pointer" size={30} />
-          ) : (
-            <PauseCircle onClick={onStop} className="cursor-pointer" size={30} />
-          )}
+          <AnimatePresence mode="wait">
+  {!running && (
+    <motion.div
+      key={IsFocusRunning ? "pause" : "play"}
+      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.8, y: -10 }}
+      transition={{ duration: 0.2 }}
+    >
+      {IsFocusRunning ? (
+        <PauseCircle
+          onClick={onStop}
+          className="cursor-pointer text-white"
+          size={30}
+        />
+      ) : (
+        <ResumeTimer onStart={onStart} />
+      )}
+    </motion.div>
+  )}
+</AnimatePresence>
         </motion.div>
 
         {/* Accordion */}

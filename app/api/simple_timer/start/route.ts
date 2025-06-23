@@ -21,6 +21,7 @@ export const POST = async (request: Request) => {
     const result = z
       .object({
         focusAreaId: z.string(),
+        breakReason: z.string().optional(),
       })
       .safeParse(body);
   
@@ -28,7 +29,31 @@ export const POST = async (request: Request) => {
       return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
     }
   
-    const { focusAreaId } = result.data;
+    const { focusAreaId, breakReason } = result.data;
+    const cleanLabel = breakReason?.trim() || null;
+
+
+  // 🧠 1. Close any ongoing break segment if exists
+  const lastSegment = await db.timerSegment.findFirst({
+    where: {
+      userId,
+      end: null,
+      type: "BREAK",
+    },
+    orderBy: { start: "desc" },
+  });
+
+  if (lastSegment) {
+    const now = new Date();
+    await db.timerSegment.update({
+      where: { id: lastSegment.id },
+      data: {
+        end: now,
+        duration: Math.floor((now.getTime() - lastSegment.start.getTime()) / 1000),
+        label: cleanLabel,
+      },
+    });
+  }
 
 //   ---------CREATING TIME SEGMENT ON START---------
 
@@ -37,7 +62,8 @@ export const POST = async (request: Request) => {
         userId,
         focusAreaId, //get the activityId from there and send it
         start: new Date(),
-        date: today
+        date: today,
+        type: "FOCUS"
     }
   })
 
