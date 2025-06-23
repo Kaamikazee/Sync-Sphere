@@ -12,6 +12,9 @@ export const GET = async (request: Request) => {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
 
+  console.log();
+  
+
   const targetDate = dateParam
     ? normalizeToStartOfDay(new Date(dateParam))
     : normalizeToStartOfDay(new Date());

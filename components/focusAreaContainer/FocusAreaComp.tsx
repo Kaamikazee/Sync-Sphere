@@ -12,11 +12,12 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { Edit, PauseCircle, PlayCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AnimatePresence,motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";
 import { useRunningStore } from "@/stores/useGlobalTimer";
 import { useBreakStore } from "@/stores/useBreakStore";
 import { ResumeTimer } from "./ResumeTimer";
+import { toast } from "sonner";
 
 const iconVariants = {
   hover: { scale: 1.2, rotate: 10 },
@@ -58,14 +59,16 @@ export function FocusAreaComp({
   const [IsFocusRunning, setIsFocusRunning] = useState(false);
   const [displayTime, setDisplayTime] = useState(timeSpent);
 
-  const breakReason = useBreakStore((s) => s.breakReason)
+  const breakReason = useBreakStore((s) => s.breakReason);
 
   const stopRequested = useRunningStore((state) => state.stopRequested);
   const resetStop = useRunningStore((state) => state.resetStop);
 
   useEffect(() => {
-  setRunning(isRunning);
-}, [isRunning, setRunning]);
+    setRunning(isRunning);
+  }, [isRunning, setRunning]);
+
+  
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -83,7 +86,6 @@ export function FocusAreaComp({
     return () => clearInterval(interval);
   }, [IsFocusRunning]);
 
-
   useEffect(() => {
     const savedDisplay = localStorage.getItem("activeDisplayTime");
     if (savedDisplay && !localStorage.getItem("activeStartTime")) {
@@ -92,14 +94,13 @@ export function FocusAreaComp({
   }, []);
 
   useEffect(() => {
-  setIsFocusRunning(isActive);
-}, [isActive]);
+    setIsFocusRunning(isActive);
+  }, [isActive]);
 
   useEffect(() => {
     const savedSegmentId = localStorage.getItem("activeSegmentId");
     const savedStart = localStorage.getItem("activeStartTime");
-     const savedFocusAreaId = localStorage.getItem("activeFocusAreaId");
-
+    const savedFocusAreaId = localStorage.getItem("activeFocusAreaId");
 
     if (savedSegmentId && savedStart && savedFocusAreaId === focusAreaId) {
       setSegmentId(savedSegmentId);
@@ -113,14 +114,13 @@ export function FocusAreaComp({
       setDisplayTime(timeSpent + elapsed);
       setIsFocusRunning(true);
     }
-    
   }, [timeSpent, setIsRunning, setStartTime, setTime, focusAreaId]);
 
   const { mutate: start } = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post("/api/simple_timer/start", {
         focusAreaId,
-        breakReason
+        breakReason,
       });
       return data;
     },
@@ -143,9 +143,13 @@ export function FocusAreaComp({
   const { mutate: stop } = useMutation({
     mutationFn: async () => {
       if (!segmentId) throw new Error("No segmentId available");
-      await axios.post("/api/simple_timer/stop", {
+      const res = await axios.post("/api/simple_timer/stop", {
         segmentId,
       });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(`${name} logged ${data.duration} seconds`);
     },
   });
 
@@ -164,12 +168,12 @@ export function FocusAreaComp({
   };
 
   useEffect(() => {
-  if (stopRequested) {
-    console.log("🛑 Stop triggered in child!");
-    onStop();           // 🔥 Actually stops the timer
-    resetStop();        // Reset the trigger
-  }
-}, [stopRequested, resetStop]);
+    if (stopRequested) {
+      console.log("🛑 Stop triggered in child!");
+      onStop(); // 🔥 Actually stops the timer
+      resetStop(); // Reset the trigger
+    }
+  }, [stopRequested, resetStop]);
 
   function formatHMS(total: number) {
     const h = Math.floor(total / 3600);
@@ -178,109 +182,110 @@ export function FocusAreaComp({
     return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
   }
 
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white/5 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/10">
-        {/* Play / Pause Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white/5 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/10">
+      {/* Play / Pause Button */}
+      <motion.div
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full"
+        whileHover="hover"
+        whileTap="tap"
+        variants={iconVariants}
+      >
+        <AnimatePresence mode="wait">
+          {!running && (
+            <motion.div
+              key={IsFocusRunning ? "pause" : "play"}
+              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {IsFocusRunning ? (
+                <PauseCircle
+                  onClick={onStop}
+                  className="cursor-pointer text-white"
+                  size={30}
+                />
+              ) : (
+                <ResumeTimer onStart={onStart} />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Accordion */}
+      <Accordion
+        type="single"
+        collapsible
+        className="flex-1 min-w-[300px] max-w-3xl"
+        defaultValue="item-2"
+      >
+        <AccordionItem
+          value="item-1"
+          className="bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-lg rounded-2xl px-6 py-2 hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300"
         >
-          <AnimatePresence mode="wait">
-  {!running && (
-    <motion.div
-      key={IsFocusRunning ? "pause" : "play"}
-      initial={{ opacity: 0, scale: 0.8, y: 10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8, y: -10 }}
-      transition={{ duration: 0.2 }}
-    >
-      {IsFocusRunning ? (
-        <PauseCircle
-          onClick={onStop}
-          className="cursor-pointer text-white"
-          size={30}
-        />
-      ) : (
-        <ResumeTimer onStart={onStart} />
-      )}
-    </motion.div>
-  )}
-</AnimatePresence>
-        </motion.div>
+          <AccordionTrigger className="cursor-pointer flex justify-between items-center w-full text-lg font-medium">
+            <span className="truncate w-[40%]">{name}</span>
+            <span className="font-bold">{formatHMS(displayTime)}</span>
+          </AccordionTrigger>
 
-        {/* Accordion */}
-        <Accordion
-          type="single"
-          collapsible
-          className="flex-1 min-w-[300px] max-w-3xl"
-          defaultValue="item-2"
-        >
-          <AccordionItem
-            value="item-1"
-            className="bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-lg rounded-2xl px-6 py-2 hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300"
-          >
-            <AccordionTrigger className="cursor-pointer flex justify-between items-center w-full text-lg font-medium">
-              <span className="truncate w-[40%]">{name}</span>
-              <span className="font-bold">{formatHMS(displayTime)}</span>
-            </AccordionTrigger>
+          <AccordionContent className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-gray-900 font-semibold py-4 px-5 rounded-xl shadow-inner mt-3">
+            {/* Todos Heading */}
+            <h2 className="text-center text-2xl font-extrabold bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 bg-clip-text text-transparent drop-shadow-sm mb-4">
+              Todos
+            </h2>
 
-            <AccordionContent className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-gray-900 font-semibold py-4 px-5 rounded-xl shadow-inner mt-3">
-  {/* Todos Heading */}
-  <h2 className="text-center text-2xl font-extrabold bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 bg-clip-text text-transparent drop-shadow-sm mb-4">
-    Todos
-  </h2>
+            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl py-2 px-3 shadow-md mb-4">
+              {todos.length > 0 ? (
+                todos.map((t) => (
+                  <div
+                    key={t.id}
+                    className="text-white text-base font-medium mb-2 flex items-center"
+                  >
+                    <motion.span
+                      className="flex items-center gap-2 cursor-pointer"
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <UpdateTodo todo={t} />
+                    </motion.span>
+                  </div>
+                ))
+              ) : (
+                <h1 className="text-white text-lg font-semibold text-center">
+                  ― No Todos ―
+                </h1>
+              )}
+            </div>
 
-  <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl py-2 px-3 shadow-md mb-4">
-    {todos.length > 0 ? (
-      todos.map((t) => (
-        <div
-          key={t.id}
-          className="text-white text-base font-medium mb-2 flex items-center"
-        >
-          <motion.span
-            className="flex items-center gap-2 cursor-pointer"
-            whileHover={{ scale: 1.1 }}
-          >
-            <UpdateTodo todo={t} />
-          </motion.span>
-        </div>
-      ))
-    ) : (
-      <h1 className="text-white text-lg font-semibold text-center">
-        ― No Todos ―
-      </h1>
-    )}
-  </div>
+            <div className="flex justify-center items-center">
+              <CreateTodo focusAreaId={focusAreaId} />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
-  <div className="flex justify-center items-center">
-    <CreateTodo focusAreaId={focusAreaId} />
-  </div>
-</AccordionContent>
+      {/* Edit Button */}
+      <motion.div
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
+        whileHover="hover"
+        whileTap="tap"
+        variants={iconVariants}
+      >
+        <Edit className="cursor-pointer" size={30} />
+      </motion.div>
 
-          </AccordionItem>
-        </Accordion>
+      {/* Delete Button */}
+      <motion.div
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
+        whileHover="hover"
+        whileTap="tap"
+        variants={iconVariants}
+      >
+        <Trash2 className="cursor-pointer" size={30} />
+      </motion.div>
 
-        {/* Edit Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <Edit className="cursor-pointer" size={30} />
-        </motion.div>
-
-        {/* Delete Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <Trash2 className="cursor-pointer" size={30} />
-        </motion.div>
-      </div>
-    );
+      
+    </div>
+  );
 }

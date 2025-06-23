@@ -44,41 +44,47 @@ export const SegmentBlock = ({
 
   return (
     <div
-      className={`flex gap-2 p-2 mb-3 rounded-xl shadow-md border items-start relative transition-all duration-300 
+      className={`flex gap-3 p-4 rounded-2xl shadow-xl border items-start relative transition-all duration-300 group overflow-hidden
         ${isBreak
-          ? "bg-gray-100 border-gray-300"
-          : "bg-gradient-to-r from-cyan-100 via-blue-50 to-indigo-100 border-white/30"}
+          ? "bg-gradient-to-r from-gray-200 to-gray-300 border-gray-400"
+          : "bg-gradient-to-r from-cyan-200 via-blue-100 to-indigo-200 border-white/40"}
       `}
     >
       {/* Left Timeline Marker */}
-      <div className="w-14 text-xs text-gray-500 pt-1 text-right">
+      <div className="w-16 text-sm text-gray-600 pt-1 text-right font-mono">
         {formatAmPm(startDate)}
       </div>
 
       {/* Content */}
-      <div className="flex-1">
-        <div className="text-xs text-gray-500 font-medium">
+      <div className="flex-1 space-y-1">
+        <div className="text-sm text-gray-600 font-medium">
           {formatAmPm(startDate)} ~ {formatAmPm(endDate)} ({formatDuration(duration)})
         </div>
 
-        <div className="text-base font-semibold text-gray-800">
+        <div className="text-lg font-bold text-gray-800 tracking-wide">
           {isBreak ? label || "Break" : focusAreaName || "Unlabeled"}
         </div>
 
-        <div className="text-sm text-gray-500">{formatDuration(duration)}</div>
+        <div className="text-xs text-gray-500 italic">{formatDuration(duration)}</div>
       </div>
 
       {/* Buttons */}
       {(showAddButton || showEditButton) && (
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-2">
           {showAddButton && (
-            <button className="text-xs text-blue-500 hover:underline">+</button>
+            <button className="text-sm text-blue-600 hover:text-blue-800 transition">+</button>
           )}
           {showEditButton && (
-            <button className="text-xs text-gray-600 hover:text-black">⋮</button>
+            <button className="text-sm text-gray-600 hover:text-black transition">⋮</button>
           )}
         </div>
       )}
+
+      {/* Hover Glow */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none rounded-2xl" style={{
+        background:
+          "radial-gradient(circle at center, rgba(255,255,255,0.25), transparent 70%)"
+      }} />
     </div>
   );
 };

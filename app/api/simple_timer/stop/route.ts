@@ -97,7 +97,7 @@ export const POST = async (request: Request) => {
     ]);
 
     return NextResponse.json(
-      { status: "OK", breakSegmentId: breakSegment.id },
+      { status: "OK", breakSegmentId: breakSegment.id, duration },
       { status: 200 }
     );
   } catch (err) {

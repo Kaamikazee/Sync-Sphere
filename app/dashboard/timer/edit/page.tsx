@@ -13,7 +13,7 @@ const TimerEdit = async () => {
     
     return (
         <div>
-          <Edit totalSeconds={total!} segments={segments!} />
+          <Edit totalSeconds={total!} segments={segments!} userId={session.user.id} />
         </div>
 );
 

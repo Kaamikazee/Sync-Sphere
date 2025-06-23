@@ -2,8 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
 import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
 import { FocusArea, Group, Todo } from "@prisma/client";
@@ -45,6 +43,8 @@ export const SimpleTimerContainer = ({
     isRunning && startTimeStamp ? new Date(startTimeStamp).getTime() : null
   );
   const baselineRef = useRef<number>(timeSpent);
+    const [currentSessionTime, setCurrentSessionTime] = useState<number>(0);
+
 
   const triggerStop = useRunningStore((state) => state.triggerStop);
 
@@ -60,6 +60,24 @@ export const SimpleTimerContainer = ({
   useEffect(() => {
     setRunning(isRunning);
   }, [isRunning, setRunning]);
+
+  useEffect(() => {
+  let interval: NodeJS.Timeout;
+
+  const updateSessionTime = () => {
+    setCurrentSessionTime((prev) => prev + 1);
+  };
+
+  if (running) {
+    interval = setInterval(updateSessionTime, 1000);
+  } else {
+    setCurrentSessionTime(0); // reset immediately on pause/stop
+  }
+
+  return () => clearInterval(interval);
+}, [running]);
+
+
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -130,6 +148,8 @@ export const SimpleTimerContainer = ({
     setStartTime(now);
     setRunning(true);
     socket?.emit("start-timer", { userId, startTime: now });
+
+    setCurrentSessionTime(1);
   };
 
   const handleStop = () => {
@@ -197,6 +217,11 @@ export const SimpleTimerContainer = ({
                     Settings
                   </div>
                 </Link>
+                <div className="absolute top-1 right-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
+        <span className="font-mono">
+          ⏱️ Focused for {formatHMS(currentSessionTime)}
+        </span>
+      </div>
               </Card>
             </div>
           </div>
