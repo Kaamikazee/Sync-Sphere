@@ -222,16 +222,14 @@ export const SimpleTimerContainer = ({
                     <Pencil className="mr-2"/>
                   </motion.div>
                 </Link>
-                <div className="absolute top-1 right-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
+                {running && <div className="absolute top-1 right-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
                   <span className="font-mono">
                     ⏱️ Focused for {formatHMS(currentSessionTime)}
                   </span>
-                </div>
-                <div className="absolute top-1 left-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
+                </div>}
                   <span className="font-mono">
-                    ⏱️ <BreakTimerWidget />
+                    <BreakTimerWidget />
                   </span>
-                </div>
               </Card>
             </div>
           </div>
