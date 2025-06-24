@@ -18,6 +18,7 @@ import { useRunningStore } from "@/stores/useGlobalTimer";
 import { useBreakStore } from "@/stores/useBreakStore";
 import { ResumeTimer } from "./ResumeTimer";
 import { toast } from "sonner";
+import { useBreakTimer } from "@/stores/useBreakTimer";
 
 const iconVariants = {
   hover: { scale: 1.2, rotate: 10 },
@@ -64,11 +65,11 @@ export function FocusAreaComp({
   const stopRequested = useRunningStore((state) => state.stopRequested);
   const resetStop = useRunningStore((state) => state.resetStop);
 
+  const breakTimer = useBreakTimer();
+
   useEffect(() => {
     setRunning(isRunning);
   }, [isRunning, setRunning]);
-
-  
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -118,16 +119,39 @@ export function FocusAreaComp({
 
   const { mutate: start } = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.post("/api/simple_timer/start", {
+      const lastBreakEnd = localStorage.getItem("lastBreakEnd");
+      const lastBreakStart = localStorage.getItem("lastBreakStart");
+
+      let duration = 0;
+      if (lastBreakStart && lastBreakEnd) {
+        const startMs = new Date(lastBreakStart).getTime();
+        const endMs = new Date(lastBreakEnd).getTime();
+        if (!isNaN(startMs) && !isNaN(endMs)) {
+          duration = Math.floor((endMs - startMs) / 1000);
+        }
+      }
+
+      const payload: { focusAreaId: string; breakReason?: string } = {
         focusAreaId,
-        breakReason,
-      });
+      };
+
+      if (duration < 3 * 3600) {
+        payload.breakReason = breakReason;
+      }
+
+      const { data } = await axios.post("/api/simple_timer/start", payload);
       return data;
     },
+
     onSuccess: (data) => {
-      setSegmentId(data.segmentId); // Save the segmentId
+      setSegmentId(data.segmentId);
       localStorage.setItem("activeSegmentId", data.segmentId);
       localStorage.setItem("activeStartTime", data.start);
+
+      if (data.lastBreakStart != null && data.lastBreakEnd != null) {
+        localStorage.setItem("lastBreakStart", data.lastBreakStart);
+        localStorage.setItem("lastBreakEnd", data.lastBreakEnd);
+      }
     },
   });
 
@@ -138,6 +162,8 @@ export function FocusAreaComp({
     onActivate();
     localStorage.setItem("activeFocusAreaId", focusAreaId);
     setIsFocusRunning(isActive);
+    breakTimer.stop(); // Stop break
+    breakTimer.reset(); // Reset for next time
   };
 
   const { mutate: stop } = useMutation({
@@ -159,6 +185,7 @@ export function FocusAreaComp({
     stop();
     setIsFocusRunning(false);
     // setIsRunning(false)
+    breakTimer.start();
 
     localStorage.removeItem("activeSegmentId");
     localStorage.removeItem("activeStartTime");
@@ -284,8 +311,6 @@ export function FocusAreaComp({
       >
         <Trash2 className="cursor-pointer" size={30} />
       </motion.div>
-
-      
     </div>
   );
 }

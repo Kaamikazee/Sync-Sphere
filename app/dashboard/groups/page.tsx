@@ -1,17 +1,15 @@
 import React from "react";
 import MenuAppBar from "@/components/ui/appbar";
-import { CirclePlusIcon } from "lucide-react";
 import Link from "next/link";
 import { AddGroup } from "@/components/dashboard/group/AddGroup";
 import { GroupList } from "@/components/dashboard/group/GroupList";
-import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 
 const Groups = () => {
     
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600">
   {/* Top nav bar */}
-  <MenuAppBar href="/dashboard/groups" />
+  <MenuAppBar />
 
   {/* Main content */}
   <main className="flex-1 px-6 py-8">

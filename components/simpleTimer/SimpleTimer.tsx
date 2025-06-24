@@ -6,11 +6,13 @@ import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
 import { FocusArea, Group, Todo } from "@prisma/client";
 import { FocusAreTotalsById } from "@/lib/api";
-import { SthElse } from "../dashboard/timer/SthElse";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useRunningStore } from "@/stores/useGlobalTimer";
 import { AnimatePresence, motion } from "framer-motion";
+import { Pencil } from "lucide-react";
+import { SthElse } from "./SthElse";
+import { BreakTimerWidget } from "./BreakTimerWidget";
 
 interface Props {
   totalSeconds: number;
@@ -43,8 +45,7 @@ export const SimpleTimerContainer = ({
     isRunning && startTimeStamp ? new Date(startTimeStamp).getTime() : null
   );
   const baselineRef = useRef<number>(timeSpent);
-    const [currentSessionTime, setCurrentSessionTime] = useState<number>(0);
-
+  const [currentSessionTime, setCurrentSessionTime] = useState<number>(0);
 
   const triggerStop = useRunningStore((state) => state.triggerStop);
 
@@ -62,22 +63,20 @@ export const SimpleTimerContainer = ({
   }, [isRunning, setRunning]);
 
   useEffect(() => {
-  let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout;
 
-  const updateSessionTime = () => {
-    setCurrentSessionTime((prev) => prev + 1);
-  };
+    const updateSessionTime = () => {
+      setCurrentSessionTime((prev) => prev + 1);
+    };
 
-  if (running) {
-    interval = setInterval(updateSessionTime, 1000);
-  } else {
-    setCurrentSessionTime(0); // reset immediately on pause/stop
-  }
+    if (running) {
+      interval = setInterval(updateSessionTime, 1000);
+    } else {
+      setCurrentSessionTime(0); // reset immediately on pause/stop
+    }
 
-  return () => clearInterval(interval);
-}, [running]);
-
-
+    return () => clearInterval(interval);
+  }, [running]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -213,15 +212,26 @@ export const SimpleTimerContainer = ({
                 </CardContent>
 
                 <Link href={"timer/edit"}>
-                  <div className="flex justify-end sticky bottom-0">
-                    Settings
-                  </div>
+                  <motion.div
+                    initial={{ scale: 1 }}
+                    whileHover={{
+                      textShadow: "0px 0px 8px rgba(79, 70, 229, 0.8)",
+                    }}
+                    className="flex justify-end sticky bottom-0 right-2 text-purple-200 hover:text-purple-600"
+                  >
+                    <Pencil className="mr-2"/>
+                  </motion.div>
                 </Link>
                 <div className="absolute top-1 right-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
-        <span className="font-mono">
-          ⏱️ Focused for {formatHMS(currentSessionTime)}
-        </span>
-      </div>
+                  <span className="font-mono">
+                    ⏱️ Focused for {formatHMS(currentSessionTime)}
+                  </span>
+                </div>
+                <div className="absolute top-1 left-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
+                  <span className="font-mono">
+                    ⏱️ <BreakTimerWidget />
+                  </span>
+                </div>
               </Card>
             </div>
           </div>

@@ -15,23 +15,26 @@ export const POST = async (request: Request) => {
   }
 
   const today = normalizeToStartOfDay(new Date());
+  const now = new Date(); // ✅ always defined
 
-   const body: unknown = await request.json();
-  
-    const result = z
-      .object({
-        focusAreaId: z.string(),
-        breakReason: z.string().optional(),
-      })
-      .safeParse(body);
-  
-    if (!result.success) {
-      return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
-    }
-  
-    const { focusAreaId, breakReason } = result.data;
-    const cleanLabel = breakReason?.trim() || null;
+  const body: unknown = await request.json();
 
+  const result = z
+    .object({
+      focusAreaId: z.string(),
+      breakReason: z.string().optional(),
+    })
+    .safeParse(body);
+
+  if (!result.success) {
+    return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
+  }
+
+  const { focusAreaId, breakReason } = result.data;
+  const cleanLabel = breakReason?.trim() || null;
+
+  let lastBreakStart: Date | null = null;
+  let lastBreakEnd: Date | null = null;
 
   // 🧠 1. Close any ongoing break segment if exists
   const lastSegment = await db.timerSegment.findFirst({
@@ -44,30 +47,30 @@ export const POST = async (request: Request) => {
   });
 
   if (lastSegment) {
-    const now = new Date();
+    const duration = Math.floor((now.getTime() - lastSegment.start.getTime()) / 1000);
     await db.timerSegment.update({
       where: { id: lastSegment.id },
       data: {
         end: now,
-        duration: Math.floor((now.getTime() - lastSegment.start.getTime()) / 1000),
-        label: cleanLabel,
+        duration,
+        label: duration >= 3 * 3600 ? "Other" : cleanLabel,
       },
     });
+
+    lastBreakStart = lastSegment.start;
+    lastBreakEnd = now;
   }
 
-//   ---------CREATING TIME SEGMENT ON START---------
-
+  // ---------CREATING TIME SEGMENT ON START---------
   const segment = await db.timerSegment.create({
     data: {
-        userId,
-        focusAreaId, //get the activityId from there and send it
-        start: new Date(),
-        date: today,
-        type: "FOCUS"
-    }
-  })
-
-//   --------------------------------
+      userId,
+      focusAreaId,
+      start: now,
+      date: today,
+      type: "FOCUS",
+    },
+  });
 
   try {
     await db.dailyTotal.upsert({
@@ -79,19 +82,28 @@ export const POST = async (request: Request) => {
       },
       update: {
         isRunning: true,
-        startTimestamp: new Date(),
+        startTimestamp: now,
       },
       create: {
         userId,
         date: today,
         totalSeconds: 0,
         isRunning: true,
-        startTimestamp: new Date(),
+        startTimestamp: now,
       },
     });
 
-    return NextResponse.json({ segmentId: segment.id, start: segment.start }, { status: 200 });
+    return NextResponse.json(
+      {
+        segmentId: segment.id,
+        start: segment.start,
+        ...(lastBreakStart && { lastBreakStart }),
+        ...(lastBreakEnd && { lastBreakEnd }),
+      },
+      { status: 200 }
+    );
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }
 };
+

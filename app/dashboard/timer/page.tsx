@@ -1,4 +1,5 @@
 import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
+import MenuAppBar from "@/components/ui/appbar";
 import { getFocusAreas, getFocusAreaTotals, getGroups, getTodos, getTotalSecondsOfUser } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
@@ -21,6 +22,7 @@ const SimpleTimer = async () => {
 
     
     return (
+    <>
         <SimpleTimerContainer
           totalSeconds={total!}
           userId={session.user.id}
@@ -30,7 +32,8 @@ const SimpleTimer = async () => {
           timeSpentOfFA={timeSpentOfFA!}
           todos= {todos!}
           groups={groups}
-        />
+          />
+          </>
 );
 
 } 

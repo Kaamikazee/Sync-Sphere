@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,26 +9,53 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBreakStore } from "@/stores/useBreakStore";
 import { PlayCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 
-export function ResumeTimer({ onStart: OnSubmit }: { onStart: () => void }) {
+export function ResumeTimer({ onStart }: { onStart: () => void }) {
   const breakReason = useBreakStore((s) => s.breakReason);
   const setBreakReason = useBreakStore((s) => s.setBreakReason);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [needsReason, setNeedsReason] = useState(false);
+
+  useEffect(() => {
+    const lastBreakStart = localStorage.getItem("lastBreakStart");
+    const lastBreakEnd = localStorage.getItem("lastBreakEnd");
+
+    if (lastBreakStart && lastBreakEnd) {
+      const start = new Date(lastBreakStart).getTime();
+      const end = new Date(lastBreakEnd).getTime();
+      const duration = Math.floor((end - start) / 1000);
+      setNeedsReason(duration < 3 * 3600);
+    }
+  }, []);
+
+  const handlePlayClick = () => {
+    if (needsReason) {
+      setDialogOpen(true);
+    } else {
+      onStart();
+    }
+  };
+
+  const handleSubmit = () => {
+    setDialogOpen(false);
+    onStart();
+  };
 
   return (
-    <Dialog>
-      <form>
-        <DialogTrigger asChild>
-          <PlayCircle
-            className="cursor-pointer text-white hover:scale-110 transition-transform drop-shadow-lg"
-            size={40}
-          />
-        </DialogTrigger>
+    <>
+      <PlayCircle
+        className="cursor-pointer text-white hover:scale-110 transition-transform drop-shadow-lg"
+        size={40}
+        onClick={handlePlayClick}
+      />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all">
           <DialogHeader>
             <DialogTitle className="text-white text-xl">⏸️ Break Reason</DialogTitle>
@@ -63,15 +91,15 @@ export function ResumeTimer({ onStart: OnSubmit }: { onStart: () => void }) {
               </Button>
             </DialogClose>
             <Button
-              type="submit"
-              onClick={OnSubmit}
+              type="button"
+              onClick={handleSubmit}
               className="bg-gradient-to-r from-lime-400 via-green-400 to-emerald-500 text-white shadow-md hover:scale-105 transition-transform"
             >
               ✅ Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
-      </form>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

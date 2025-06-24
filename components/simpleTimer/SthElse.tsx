@@ -11,7 +11,9 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Group } from "@prisma/client";
-import { NewLeaderboard } from "../group/leaderboard/NewLeaderboard";
+// import { NewLeaderboard } from "../group/leaderboard/NewLeaderboard";
+import Link from "next/link";
+import { NewLeaderboard } from "../dashboard/group/leaderboard/NewLeaderboard";
 // import Leaderboard from "./Leaderboard"; // ← your leaderboard display
 
 interface Props {
@@ -49,7 +51,7 @@ export function SthElse({ groups, userId }: Props) {
     
     <div className="mb-8">
       <h2 className="text-2xl font-bold text-white mb-4">
-        Group: <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text">{currentGroup.name}</span>
+        Group: <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text"><Link href={`groups/${currentGroup.id}`}>{currentGroup.name} </Link></span>
       </h2>
       <NewLeaderboard groupId={currentGroup.id} uuserId={userId}/>
     </div>
