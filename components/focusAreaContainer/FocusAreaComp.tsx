@@ -175,7 +175,7 @@ export function FocusAreaComp({
       return res.data;
     },
     onSuccess: (data) => {
-      toast.success(`${name} logged ${data.duration} seconds`);
+      toast.success(`${name} logged ${formatHMS(data.duration)} seconds`);
     },
   });
 

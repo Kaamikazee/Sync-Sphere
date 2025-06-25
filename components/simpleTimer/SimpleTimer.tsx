@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
-import { FocusArea, Group, Todo } from "@prisma/client";
+import { FocusArea, Group, PomodoroSettings, Todo } from "@prisma/client";
 import { FocusAreTotalsById } from "@/lib/api";
 import Link from "next/link";
 import { Button } from "../ui/button";
@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Pencil } from "lucide-react";
 import { SthElse } from "./SthElse";
 import { BreakTimerWidget } from "./BreakTimerWidget";
+import PomodoroContainer from "../dashboard/pomodoro/PomodoroContainer";
 
 interface Props {
   totalSeconds: number;
@@ -23,6 +24,7 @@ interface Props {
   timeSpentOfFA: FocusAreTotalsById[];
   todos: Todo[];
   groups: Group[];
+  pomodoroSettings: PomodoroSettings;
 }
 
 const socket = io("http://localhost:3001");
@@ -36,6 +38,7 @@ export const SimpleTimerContainer = ({
   timeSpentOfFA: focusAreaTotals,
   todos,
   groups,
+  pomodoroSettings,
 }: Props) => {
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
   const [time, setTime] = useState(timeSpent);
@@ -46,6 +49,7 @@ export const SimpleTimerContainer = ({
   );
   const baselineRef = useRef<number>(timeSpent);
   const [currentSessionTime, setCurrentSessionTime] = useState<number>(0);
+  const [isPomodoro] = useState(false);
 
   const triggerStop = useRunningStore((state) => state.triggerStop);
 
@@ -148,7 +152,7 @@ export const SimpleTimerContainer = ({
     setRunning(true);
     socket?.emit("start-timer", { userId, startTime: now });
 
-    setCurrentSessionTime(1);
+    setCurrentSessionTime(0);
   };
 
   const handleStop = () => {
@@ -175,7 +179,9 @@ export const SimpleTimerContainer = ({
 
               <Card
                 ref={glowRef}
-                className="relative mt-6 w-full sm:w-auto sm:min-w-[40rem] bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 backdrop-blur-md text-white rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-transform duration-300 gap-2 py-2"
+                className={`relative mt-6 w-full sm:w-auto sm:min-w-[40rem] bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 backdrop-blur-md text-white rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-transform duration-300 gap-2 py-2 ${
+                  isPomodoro && "hidden"
+                }`}
               >
                 <div
                   className="pointer-events-none absolute inset-0 rounded-2xl z-0"
@@ -219,18 +225,23 @@ export const SimpleTimerContainer = ({
                     }}
                     className="flex justify-end sticky bottom-0 right-2 text-purple-200 hover:text-purple-600"
                   >
-                    <Pencil className="mr-2"/>
+                    <Pencil className="mr-2" />
                   </motion.div>
                 </Link>
-                {running && <div className="absolute top-1 right-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
-                  <span className="font-mono">
-                    ⏱️ Focused for {formatHMS(currentSessionTime)}
-                  </span>
-                </div>}
-                  <span className="font-mono">
-                    <BreakTimerWidget />
-                  </span>
+                {running && (
+                  <div className="absolute top-1 right-4 text-xs text-white bg-black/30 px-2 py-1 rounded-md shadow-sm">
+                    <span className="font-mono">
+                      ⏱️ Focused for {formatHMS(currentSessionTime)}
+                    </span>
+                  </div>
+                )}
+                <span className="font-mono">
+                  <BreakTimerWidget />
+                </span>
               </Card>
+              <div className={`${!isPomodoro && "hidden"}`}>
+                <PomodoroContainer pomodoroSettings={pomodoroSettings} />
+              </div>
             </div>
           </div>
 

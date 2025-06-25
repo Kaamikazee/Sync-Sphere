@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBreakStore } from "@/stores/useBreakStore";
+import { useBreakTimer } from "@/stores/useBreakTimer";
 import { PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -21,18 +22,14 @@ export function ResumeTimer({ onStart }: { onStart: () => void }) {
   const setBreakReason = useBreakStore((s) => s.setBreakReason);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [needsReason, setNeedsReason] = useState(false);
+  const { startTime } = useBreakTimer();
 
   useEffect(() => {
-    const lastBreakStart = localStorage.getItem("lastBreakStart");
-    const lastBreakEnd = localStorage.getItem("lastBreakEnd");
-
-    if (lastBreakStart && lastBreakEnd) {
-      const start = new Date(lastBreakStart).getTime();
-      const end = new Date(lastBreakEnd).getTime();
-      const duration = Math.floor((end - start) / 1000);
-      setNeedsReason(duration < 3 * 3600);
+    if (startTime) {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setNeedsReason(elapsed < 3 * 3600);
     }
-  }, []);
+  }, [startTime]);
 
   const handlePlayClick = () => {
     if (needsReason) {
@@ -58,7 +55,9 @@ export function ResumeTimer({ onStart }: { onStart: () => void }) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all">
           <DialogHeader>
-            <DialogTitle className="text-white text-xl">⏸️ Break Reason</DialogTitle>
+            <DialogTitle className="text-white text-xl">
+              ⏸️ Break Reason
+            </DialogTitle>
             <DialogDescription className="text-white/80">
               Provide a reason for your break. Click {`"Save"`} to resume.
             </DialogDescription>

@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { SegmentBlock } from "./SegmentBlock";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,27 +19,35 @@ import { AnimatePresence, motion } from "framer-motion";
 import { SegmentTypes } from "@/lib/api";
 
 interface Props {
-  totalSeconds: number;
   userId: string;
 }
 
-export function Edit({ totalSeconds, userId }: Props) {
+export function Edit({ userId }: Props) {
   const today = normalizeToStartOfDay(new Date());
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date | undefined>(today);
 
   const glowRef = React.useRef<HTMLDivElement>(null);
 
-  const { data: segments , isLoading, error } = useQuery({
-  queryKey: ['getSegments', userId, date],
-  queryFn: () => axios.get(`/api/segments/get?userId=${userId}&date=${date}`).then(res => res.data)
-});
+  const {
+    data: segments,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["getSegments", userId, date],
+    queryFn: () =>
+      axios
+        .get(`/api/segments/get?userId=${userId}&date=${date}`)
+        .then((res) => res.data),
+  });
 
   React.useEffect(() => {
     const el = glowRef.current;
     if (!el) return;
 
-    const glowLayer = el.querySelector(".glow-overlay") as HTMLDivElement | null;
+    const glowLayer = el.querySelector(
+      ".glow-overlay"
+    ) as HTMLDivElement | null;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!glowLayer) return;
@@ -64,13 +72,6 @@ export function Edit({ totalSeconds, userId }: Props) {
     };
   }, []);
 
-  function formatHMS(total: number) {
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
-  }
-
   function changeDateBy(days: number) {
     setDate((prev) => {
       const newDate = new Date((prev ?? today).getTime());
@@ -80,21 +81,20 @@ export function Edit({ totalSeconds, userId }: Props) {
   }
 
   if (isLoading) {
-  return (
-    <div className="flex justify-center items-center min-h-[20vh] text-white/80 text-sm italic animate-pulse">
-      Loading segments...
-    </div>
-  );
-}
+    return (
+      <div className="flex justify-center items-center min-h-[20vh] text-white/80 text-sm italic animate-pulse">
+        Loading segments...
+      </div>
+    );
+  }
 
-if (error) {
-  return (
-    <div className="flex justify-center items-center min-h-[20vh] text-red-300 text-sm italic">
-      Something went wrong: {error.message}
-    </div>
-  );
-}
-
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-[20vh] text-red-300 text-sm italic">
+        Something went wrong: {error.message}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full px-4 py-8 bg-gradient-to-br from-indigo-950 via-purple-900 to-sky-900 text-white flex flex-col items-center gap-6 font-[\'Orbitron\'],sans">
@@ -140,54 +140,30 @@ if (error) {
 
       {/* Timer Card */}
       <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg rounded-xl">
-  <CardContent className="p-4 space-y-4">
-    <AnimatePresence mode="wait">
-      {segments.map((seg: SegmentTypes) => (
-        <motion.div
-          key={seg.id + date?.toISOString()}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="transition-transform duration-300 ease-out hover:scale-[1.02] hover:brightness-110"
-        >
-          <SegmentBlock
-            start={seg.start}
-            end={seg.end!}
-            duration={seg.duration!}
-            focusAreaName={seg.focusArea.name}
-            type={seg.type}
-            label={seg.label!}
-            showAddButton
-            showEditButton
-          />
-        </motion.div>
-      ))}
-    </AnimatePresence>
-  </CardContent>
-</Card>
-
-
-      {/* Segment List */}
-      <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg rounded-xl">
         <CardContent className="p-4 space-y-4">
-          {segments.map((seg: SegmentTypes) => (
-            <div
-              key={seg.id}
-              className="transition-transform duration-300 ease-out hover:scale-[1.02] hover:brightness-110"
-            >
-              <SegmentBlock
-                start={seg.start}
-                end={seg.end!}
-                duration={seg.duration!}
-                focusAreaName={seg.focusArea.name}
-                type={seg.type}
-                label={seg.label!}
-                showAddButton
-                showEditButton
-              />
-            </div>
-          ))}
+          <AnimatePresence mode="wait">
+            {segments.map((seg: SegmentTypes) => (
+              <motion.div
+                key={seg.id + date?.toISOString()}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="transition-transform duration-300 ease-out hover:scale-[1.02] hover:brightness-110"
+              >
+                <SegmentBlock
+                  start={seg.start}
+                  end={seg.end!}
+                  duration={seg.duration!}
+                  focusAreaName={seg.focusArea.name}
+                  type={seg.type}
+                  label={seg.label!}
+                  showAddButton
+                  showEditButton
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </CardContent>
       </Card>
     </div>

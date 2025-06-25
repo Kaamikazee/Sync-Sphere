@@ -1,4 +1,5 @@
 import { SegmentType } from "@prisma/client";
+import { formatHMS } from "../BreakTimerWidget";
 
 interface Props {
   start: Date;
@@ -34,12 +35,6 @@ export const SegmentBlock = ({
       : "--:--";
   };
 
-  function formatDuration(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}m ${s}s`;
-  }
-
   const isBreak = type === "BREAK";
 
   return (
@@ -58,14 +53,14 @@ export const SegmentBlock = ({
       {/* Content */}
       <div className="flex-1 space-y-1">
         <div className="text-sm text-gray-600 font-medium">
-          {formatAmPm(startDate)} ~ {formatAmPm(endDate)} ({formatDuration(duration)})
+          {formatAmPm(startDate)} ~ {formatAmPm(endDate)} ({formatHMS(duration)})
         </div>
 
         <div className="text-lg font-bold text-gray-800 tracking-wide">
           {isBreak ? label || "Break" : focusAreaName || "Unlabeled"}
         </div>
 
-        <div className="text-xs text-gray-500 italic">{formatDuration(duration)}</div>
+        <div className="text-xs text-gray-500 italic">{formatHMS(duration)}</div>
       </div>
 
       {/* Buttons */}

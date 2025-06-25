@@ -37,7 +37,7 @@ const Group = async ({ params: { group_id } }: Params) => {
   return (
     <>
     <MenuAppBar />
-      <main className="min-h-screen bg-gradient-to-br from-gray-100 to-white p-8 mt-8">
+      <main className="min-h-screen bg-gradient-to-br from-purple-500/30 via-blue-400/30 to-indigo-500/30 backdrop-blur-md">
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Page Header */}
           <header className="text-center space-y-2">

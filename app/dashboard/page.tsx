@@ -1,49 +1,67 @@
-// pages/dashboard.tsx
 import Link from "next/link";
-// import { useEffect, useState } from 'react'
-import { FaUsers, FaClock } from "react-icons/fa";
+import { Clock, Users } from "lucide-react";
+import MenuAppBar from "@/components/ui/appbar";
 
-export default function Dashboard() {
-  // const [username, setUsername] = useState<string>('')
-
-  // useEffect(() => {
-  //   // TODO: Fetch actual user from auth/session
-  //   const user = { name: '' } // placeholder
-  //   setUsername(user.name)
-  // }, [])
-
+export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
-      {/* Hero Dashboard Section */}
-      <section className="max-w-2xl text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
-          Welcome back, Marsh!
-        </h1>
-        <p className="text-lg text-gray-300 mb-8">
-          Choose from where you want to start today.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-6 justify-center">
-          <Link
-            className='className="flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-700 transition-colors px-8 py-4 rounded-2xl text-xl font-semibold'
-            href="dashboard/groups"
-          >
-            <FaUsers className="w-5 h-5" />
-            Groups
+    <>
+    <MenuAppBar />
+      <div className="min-h-screen bg-gradient-to-r from-indigo-950 via-purple-900 to-sky-900 flex items-center justify-center p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+          {/* ── Timer Card */}
+          <Link href="/dashboard/timer" className="group">
+            <div
+              className="relative p-8 bg-gradient-to-br from-cyan-700/30 via-blue-600/30 to-indigo-700/30 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg
+                              hover:shadow-2xl hover:-translate-y-1 transition-transform duration-300"
+            >
+              {/* Decorative spotlight */}
+              <div
+                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-40 transition-opacity duration-500"
+                style={{
+                  background:
+                    "radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 60%)",
+                }}
+              />
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="p-4 bg-white/10 rounded-full mb-4">
+                  <Clock className="w-12 h-12 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">
+                  Live Timer
+                </h3>
+                <p className="text-white/80">
+                  Track your focus sessions in real time.
+                </p>
+              </div>
+            </div>
           </Link>
-          <Link
-            className='className="flex items-center justify-center gap-3 bg-green-500 hover:bg-green-600 transition-colors px-8 py-4 rounded-2xl text-xl font-semibold'
-            href="dashboard/timer"
-          >
-            <FaClock className="w-5 h-5" />
-            Timer
+
+          {/* ── Groups Card */}
+          <Link href="/dashboard/groups" className="group">
+            <div
+              className="relative p-8 bg-gradient-to-br from-purple-700/30 via-pink-600/30 to-red-700/30 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg
+                              hover:shadow-2xl hover:-translate-y-1 transition-transform duration-300"
+            >
+              <div
+                className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-40 transition-opacity duration-500"
+                style={{
+                  background:
+                    "radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 60%)",
+                }}
+              />
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="p-4 bg-white/10 rounded-full mb-4">
+                  <Users className="w-12 h-12 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">Groups</h3>
+                <p className="text-white/80">
+                  Manage and join your focus groups.
+                </p>
+              </div>
+            </div>
           </Link>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="mt-auto py-4 text-gray-500 text-sm">
-        &copy; {new Date().getFullYear()} Sync Sphere. All rights reserved.
-      </footer>
-    </main>
+      </div>
+    </>
   );
 }
