@@ -36,6 +36,7 @@ model User {
   seen                 AnnouncementView[]
   announcementReaction AnnouncementReaction[]
   commentReaction      CommentReaction[]
+  notifications         Notification[]
 
   dailyTotal    DailyTotal[]
   focusAreas    FocusArea[]
@@ -332,4 +333,32 @@ model Message {
   // additionalResources additionalResource[]
   edited    Boolean   @default(false)
   updatedAt DateTime? @updatedAt
+}
+
+
+// NOTIFICATION SYSTEM
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String   // Recipient
+  senderId   String?  // Optional: who triggered it
+  type       NotifType   
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+enum NotifType {
+  MESSAGE
+  TIMER_ENDED
+  TEAM_ALERT
+  WAKE_UP
+  WARNING
+  USER_JOINED
+  USER_LEFT
+  NEW_ANNOUNCEMENT
+  NOTICE
+  COMMENT
+  REPLY
 }

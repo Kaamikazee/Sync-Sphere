@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Announcement, FocusArea, Group, PomodoroSettings, SegmentType, Subscription, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, FocusArea, Group, Notification, PomodoroSettings, SegmentType, Subscription, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"
@@ -282,4 +282,16 @@ export const getAllSegments = async (userId: string) => {
   }
 
   return res.json() as Promise<SegmentTypes[]>
+}
+export const getAllNotifications = async (userId: string) => {
+  const res = await fetch(`${domain}/api/notifications/get?userId=${userId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if(!res.ok) {
+    return null
+  }
+
+  return res.json() as Promise<Notification[]>
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { getSocket } from "@/lib/socket";
+import { MemberComponent } from "./MemberComponent";
 
-interface MemberWithTimer {
+export interface MemberWithTimer {
   id: string;
   name: string | null;
   image: string | null;
@@ -16,37 +16,37 @@ interface MemberWithTimer {
 interface Props {
   uuserId: string;
   groupId: string;
+  uuserName?: string | null;
 }
 
-export const NewLeaderboard = ({ uuserId, groupId }: Props) => {
+export const NewLeaderboard = ({ uuserId, groupId, uuserName }: Props) => {
   const [members, setMembers] = useState<MemberWithTimer[]>([]);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const socket = getSocket();
 
   useEffect(() => {
-  const fetchMembers = async () => {
-    setLoading(true);
-    const res = await fetch(`/api/simple_timer/get?groupId=${groupId}`);
-    const data = await res.json();
+    const fetchMembers = async () => {
+      setLoading(true);
+      const res = await fetch(`/api/simple_timer/get?groupId=${groupId}`);
+      const data = await res.json();
 
-    const hydrated = data.map((m: { user: MemberWithTimer }) => {
-      const user = m.user;
-      return {
-        ...user,
-        startTimestamp: user.startTimestamp
-          ? new Date(user.startTimestamp)
-          : null,
-      };
-    });
+      const hydrated = data.map((m: { user: MemberWithTimer }) => {
+        const user = m.user;
+        return {
+          ...user,
+          startTimestamp: user.startTimestamp
+            ? new Date(user.startTimestamp)
+            : null,
+        };
+      });
 
-    setMembers(hydrated);
-    setLoading(false);
-  };
+      setMembers(hydrated);
+      setLoading(false);
+    };
 
-  fetchMembers();
-}, [groupId]);
-
+    fetchMembers();
+  }, [groupId]);
 
   // 🔌 Join and leave socket group correctly
   useEffect(() => {
@@ -130,10 +130,10 @@ export const NewLeaderboard = ({ uuserId, groupId }: Props) => {
   );
 
   if (loading) {
-  return (
-    <div className="p-6 text-white text-center">Loading leaderboard...</div>
-  );
-}
+    return (
+      <div className="p-6 text-white text-center">Loading leaderboard...</div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gradient-to-br from-purple-500/30 via-blue-400/30 to-indigo-500/30 backdrop-blur-md border border-white/20 shadow-lg flex justify-center hover:shadow-2xl hover:scale-105 transition-transform duration-300">
@@ -142,29 +142,14 @@ export const NewLeaderboard = ({ uuserId, groupId }: Props) => {
           Group Leaderboard
         </h2>
         <ul className="divide-y divide-white/30 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md bg-white/10 border border-white/20">
-          {sorted.map((member, index) => (
-            <li
-              key={member.id}
-              className="flex items-center justify-between py-4 px-6 hover:scale-105 transition-all duration-300 text-white/90
-             hover:bg-white/10 hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:ring-2 hover:ring-white/30
-             rounded-xl"
-            >
-              <div className="flex items-center space-x-4">
-                <span className="text-xl font-bold text-white">#{index + 1}</span>
-                <Image
-                  src={member.image ?? "/default-avatar.png"}
-                  alt={`${member.name ?? "User"} avatar`}
-                  width={40}
-                  height={40}
-                  className="rounded-full ring-2 ring-white/50 size-10 hover:ring-white/80"
-                />
-                <span className="text-lg">{member.name ?? "Anonymous"}</span>
-              </div>
-              <span className="text-xl font-mono">
-                {formatHMS(getLiveTotalSeconds(member))}
-              </span>
-            </li>
-          ))}
+          {sorted.map((member, index) => {
+            const base = formatHMS(getLiveTotalSeconds(member));
+            return (
+              <li key={member.id}>
+                <MemberComponent name={member.name} index={index} image={member.image} id={member.id} base={base} uusername={uuserName} />
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
