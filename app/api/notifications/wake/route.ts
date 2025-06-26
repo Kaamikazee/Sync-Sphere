@@ -15,7 +15,7 @@ export const POST = async (req: Request) => {
     where: {
       userId: targetUserId,
       type: "WAKE_UP",
-      message: senderId,
+      message: message,
       createdAt: {
         gte: new Date(Date.now() - 2 * 60 * 60 * 1000), // last 2 hrs
       },
@@ -23,7 +23,7 @@ export const POST = async (req: Request) => {
   });
 
   if (lastWake) {
-    return NextResponse.json("Cooldown active", { status: 429 });
+    return NextResponse.json("Cooldown active", { status: 429, statusText: "You can only wake up a user once every 2 hours." });
   }
 
   await db.notification.create({

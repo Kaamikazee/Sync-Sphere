@@ -283,8 +283,8 @@ export const getAllSegments = async (userId: string) => {
 
   return res.json() as Promise<SegmentTypes[]>
 }
-export const getAllNotifications = async (userId: string) => {
-  const res = await fetch(`${domain}/api/notifications/get?userId=${userId}`, {
+export const getAllNotifications = async () => {
+  const res = await fetch(`${domain}/api/notifications/get`, {
     method: "GET",
     cache: "no-store",
   });

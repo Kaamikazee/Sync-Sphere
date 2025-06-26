@@ -21,6 +21,8 @@ export const GET = async (request: Request) => {
       include: {
         user: {
           include: {
+            receivedWarnings: true,
+            issuedWarnings: true,
             dailyTotal: {
               where: { date: today },
               take: 1,
@@ -30,18 +32,26 @@ export const GET = async (request: Request) => {
       },
     });
 
-    const membersWithTimer = membersWithSeconds.map((subs) => ({
-      user: {
-        id: subs.userId,
-        name: subs.user.name,
-        image: subs.user.image,
-        totalSeconds: subs.user.dailyTotal[0]?.totalSeconds ?? 0,
-        isRunning: subs.user.dailyTotal[0]?.isRunning ?? false,
-        startTimestamp: subs.user.dailyTotal[0]?.startTimestamp ?? null,
-      },
-    }));
+    const membersWithTimer = membersWithSeconds.map((subs) => {
+      const warnings = subs.user.receivedWarnings?.filter(
+        (w) => w.groupId === groupId
+      );
 
-    // // If no record exists, create one
+      return {
+        user: {
+          id: subs.userId,
+          name: subs.user.name,
+          image: subs.user.image,
+          totalSeconds: subs.user.dailyTotal[0]?.totalSeconds ?? 0,
+          isRunning: subs.user.dailyTotal[0]?.isRunning ?? false,
+          startTimestamp: subs.user.dailyTotal[0]?.startTimestamp ?? null,
+          warningMessage: warnings.length > 0 ? warnings[0].message : null, // assuming you show latest only
+          warningId: warnings.length > 0 ? warnings[0].id : null,
+        },
+      };
+    });
+
+    // If no record exists, create one
     if (!membersWithSeconds) {
       return NextResponse.json([], { status: 200 });
     }

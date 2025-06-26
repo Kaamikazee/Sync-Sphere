@@ -1,8 +1,22 @@
+"use client"
 // components/AppBar.tsx
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import Link from "next/link";
 import { FaUsers, FaClock, FaBell, FaUserCircle } from "react-icons/fa";
+import { NotificationDropdown } from "../notifications/NotificationDropdown";
 
 export default function MenuAppBar() {
+  const { data: notifications } = useQuery({
+  queryKey: ["notifications"],
+  queryFn: async () => {
+    const { data } = await axios.get("/api/notifications/get");
+    return data;
+  },
+});
+
+  const unreadCount = notifications?.filter((n) => !n.isRead).length || 0;
+
   return (
     <nav className="fixed top-0 left-0 w-full backdrop-blur-lg bg-white/20 border-b border-white/30 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -30,15 +44,16 @@ export default function MenuAppBar() {
             <FaClock className="w-5 h-5" />
             <span>Timer</span>
           </Link>
-          <Link
+          {/* <Link
             className="relative text-white hover:text-indigo-200 transition-colors"
             href="/notifications"
           >
             <FaBell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-2 bg-red-500 text-xs w-4 h-4 rounded-full flex items-center justify-center">
-              3
-            </span>
-          </Link>
+            {unreadCount > 0 && <span className="absolute -top-1 -right-2 bg-red-500 text-xs w-4 h-4 rounded-full flex items-center justify-center">
+              {unreadCount}
+            </span>}
+          </Link> */}
+            <NotificationDropdown />
         </div>
 
         {/* Profile */}

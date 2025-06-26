@@ -36,7 +36,9 @@ model User {
   seen                 AnnouncementView[]
   announcementReaction AnnouncementReaction[]
   commentReaction      CommentReaction[]
-  notifications         Notification[]
+  notifications        Notification[]
+  receivedWarnings     Warning[]              @relation("ReceivedWarnings")
+  issuedWarnings       Warning[]              @relation("IssuedWarnings")
 
   dailyTotal    DailyTotal[]
   focusAreas    FocusArea[]
@@ -96,6 +98,7 @@ model Group {
   subscribers   Subscription[]
   chat          Chat[]
   announcements Announcement[]
+  warnings      Warning[]
 
   @@index([creatorId])
 }
@@ -242,7 +245,7 @@ model Activity {
 }
 
 model TimerSegment {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   userId      String
   focusAreaId String?
   start       DateTime
@@ -252,8 +255,8 @@ model TimerSegment {
   type        SegmentType @default(FOCUS) // <-- NEW: FOCUS or BREAK
   label       String? // <-- Optional label for break reason (e.g. "Lunch", "Phone")
 
-  user        User      @relation(fields: [userId], references: [id])
-  focusArea   FocusArea? @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
+  focusArea FocusArea? @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
 }
@@ -262,7 +265,6 @@ enum SegmentType {
   FOCUS
   BREAK
 }
-
 
 model FocusArea {
   id       String         @id @default(uuid())
@@ -335,18 +337,17 @@ model Message {
   updatedAt DateTime? @updatedAt
 }
 
-
 // NOTIFICATION SYSTEM
 
 model Notification {
-  id         String   @id @default(cuid())
-  userId     String   // Recipient
-  senderId   String?  // Optional: who triggered it
-  type       NotifType   
-  message    String
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
+  id        String    @id @default(cuid())
+  userId    String // Recipient
+  senderId  String? // Optional: who triggered it
+  type      NotifType
+  message   String
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
 }
 
 enum NotifType {
@@ -361,4 +362,19 @@ enum NotifType {
   NOTICE
   COMMENT
   REPLY
+}
+
+model Warning {
+  id         String   @id @default(cuid())
+  userId     String
+  groupId    String
+  issuedById String // Admin or owner who gave the warning
+  message    String
+  createdAt  DateTime @default(now())
+
+  user     User  @relation("ReceivedWarnings", fields: [userId], references: [id])
+  issuedBy User  @relation("IssuedWarnings", fields: [issuedById], references: [id])
+  group    Group @relation(fields: [groupId], references: [id])
+
+  @@index([userId, groupId])
 }

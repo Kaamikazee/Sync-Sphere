@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getSocket } from "@/lib/socket";
 import { MemberComponent } from "./MemberComponent";
+import { useQuery } from "@tanstack/react-query";
 
 export interface MemberWithTimer {
   id: string;
@@ -11,42 +12,49 @@ export interface MemberWithTimer {
   totalSeconds: number;
   isRunning: boolean;
   startTimestamp: Date | null | string;
+  warningMessage: string | null;
+  warningId: string | null;
 }
 
 interface Props {
   uuserId: string;
   groupId: string;
   uuserName?: string | null;
+  groupName?: string;
 }
 
-export const NewLeaderboard = ({ uuserId, groupId, uuserName }: Props) => {
+export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props) => {
   const [members, setMembers] = useState<MemberWithTimer[]>([]);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const socket = getSocket();
 
+  const fetchMembers = async () => {
+    const res = await fetch(`/api/simple_timer/get?groupId=${groupId}`);
+    const data = await res.json();
+    return data.map((m: { user: MemberWithTimer }) => {
+      const user = m.user;
+      return {
+        ...user,
+        startTimestamp: user.startTimestamp
+          ? new Date(user.startTimestamp)
+          : null,
+      };
+    });
+  };
+
+  const { data: membersData, isLoading } = useQuery({
+    queryKey: ["groupMembers", groupId],
+    queryFn: fetchMembers,
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
-    const fetchMembers = async () => {
-      setLoading(true);
-      const res = await fetch(`/api/simple_timer/get?groupId=${groupId}`);
-      const data = await res.json();
+    if (membersData) setMembers(membersData);
+    setLoading(isLoading);
+  }, [membersData, isLoading]);
 
-      const hydrated = data.map((m: { user: MemberWithTimer }) => {
-        const user = m.user;
-        return {
-          ...user,
-          startTimestamp: user.startTimestamp
-            ? new Date(user.startTimestamp)
-            : null,
-        };
-      });
 
-      setMembers(hydrated);
-      setLoading(false);
-    };
-
-    fetchMembers();
-  }, [groupId]);
 
   // 🔌 Join and leave socket group correctly
   useEffect(() => {
@@ -146,7 +154,7 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName }: Props) => {
             const base = formatHMS(getLiveTotalSeconds(member));
             return (
               <li key={member.id}>
-                <MemberComponent name={member.name} index={index} image={member.image} id={member.id} base={base} uusername={uuserName} />
+                <MemberComponent name={member.name} index={index} image={member.image} id={member.id} base={base} uusername={uuserName!} groupName={groupName!} warningMessage={member.warningMessage} groupId={groupId} warningId={member.warningId}/>
               </li>
             );
           })}

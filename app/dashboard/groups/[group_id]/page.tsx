@@ -84,7 +84,7 @@ const Group = async ({ params: { group_id } }: Params) => {
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               Leaderboard
             </h2>
-            <NewLeaderboard uuserId={session.user.id} groupId={group_id} uuserName={session.user.name}/>
+            <NewLeaderboard uuserId={session.user.id} groupId={group_id} groupName={group.name} uuserName={session.user.name}/>
           </section>
         </div>
       </main>

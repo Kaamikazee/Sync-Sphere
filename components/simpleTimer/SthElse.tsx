@@ -53,7 +53,7 @@ export function SthElse({ groups, userId }: Props) {
       <h2 className="text-2xl font-bold text-white mb-4">
         Group: <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text"><Link href={`groups/${currentGroup.id}`}>{currentGroup.name} </Link></span>
       </h2>
-      <NewLeaderboard groupId={currentGroup.id} uuserId={userId}/>
+      <NewLeaderboard groupId={currentGroup.id} uuserId={userId} groupName={currentGroup.name}/>
     </div>
   ) : (
     <p className="text-white/70">No group on this page.</p>
