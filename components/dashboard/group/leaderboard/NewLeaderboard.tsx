@@ -26,6 +26,7 @@ interface Props {
 export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props) => {
   const [members, setMembers] = useState<MemberWithTimer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const socket = getSocket();
 
@@ -94,14 +95,18 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
       );
     };
 
+    const handleOnlineUsers = (ids: string[]) => setOnlineUserIds(ids);
+
     socket.on("timer-started", handleStart);
     socket.on("timer-stopped", handleStop);
+    socket.on("online-users", handleOnlineUsers);
 
     return () => {
       console.log("Leaving group:", groupId);
       socket.emit("leaveGroup", { groupId, userId: uuserId });
       socket.off("timer-started", handleStart);
       socket.off("timer-stopped", handleStop);
+      socket.off("online-users", handleOnlineUsers);
     };
   }, [groupId, uuserId]);
 
@@ -152,9 +157,22 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
         <ul className="divide-y divide-white/30 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md bg-white/10 border border-white/20">
           {sorted.map((member, index) => {
             const base = formatHMS(getLiveTotalSeconds(member));
+            const isOnline = onlineUserIds.includes(member.id);
             return (
               <li key={member.id}>
-                <MemberComponent name={member.name} index={index} image={member.image} id={member.id} base={base} uusername={uuserName!} groupName={groupName!} warningMessage={member.warningMessage} groupId={groupId} warningId={member.warningId}/>
+                <MemberComponent
+                  name={member.name}
+                  index={index}
+                  image={member.image}
+                  id={member.id}
+                  base={base}
+                  uusername={uuserName!}
+                  groupName={groupName!}
+                  warningMessage={member.warningMessage}
+                  groupId={groupId}
+                  warningId={member.warningId}
+                  isOnline={isOnline}
+                />
               </li>
             );
           })}

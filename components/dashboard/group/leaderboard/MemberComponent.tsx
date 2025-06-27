@@ -24,6 +24,7 @@ interface Props {
   warningMessage?: string | null;
   warningId?: string | null;
   groupId: string;
+  isOnline?: boolean;
 }
 
 export function MemberComponent({
@@ -37,6 +38,7 @@ export function MemberComponent({
   warningMessage,
   warningId,
   groupId,
+  isOnline = false,
 }: Props) {
   const queryClient = useQueryClient()
   const { mutate, isPending } = useMutation({
@@ -165,13 +167,18 @@ export function MemberComponent({
               }`}
             >
               <span className="text-xl font-bold text-white">#{index + 1}</span>
-              <Image
-                src={image ?? "/default-avatar.png"}
-                alt={`${name ?? "User"} avatar`}
-                width={40}
-                height={40}
-                className="rounded-full ring-2 ring-white/50 size-10 hover:ring-white/80"
-              />
+              <div className="relative">
+                <Image
+                  src={image ?? "/default-avatar.png"}
+                  alt={`${name ?? "User"} avatar`}
+                  width={40}
+                  height={40}
+                  className="rounded-full ring-2 ring-white/50 size-10 hover:ring-white/80"
+                />
+                {isOnline && (
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                )}
+              </div>
               <span className="text-lg">{name ?? "Anonymous"}</span>
             </div>
             <span

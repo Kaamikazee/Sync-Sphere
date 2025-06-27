@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { initSocket } from "@/lib/initSocket";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
 import Image from "next/image";
@@ -64,19 +63,6 @@ export const ChatContainer = ({
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
-  // const socket = initSocket(userId)
-
-//   function useSocket() {
-//   useEffect(() => {
-//     if (!socket) {
-//       socket = io("http://localhost:3001", {
-//         auth: {
-//           userId
-//         }
-//       });
-//     }
-//   }, []);
-// }
 
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -130,13 +116,15 @@ export const ChatContainer = ({
     setOnlineUserIds(ids);
   });
 
-  socket?.on("user-online", ({ userId }) => {
-    setOnlineUserIds((prev) => [...new Set([...prev, userId])]);
-  });
 
-  socket?.on("user-offline", ({ userId }) => {
-    setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
-  });
+  // This will be need if you want granular control over online/offline events for each users instead of sending the entire list, useful when there is heavy traffic or many users in the group
+  // socket?.on("user-online", ({ userId }) => {
+  //   setOnlineUserIds((prev) => [...new Set([...prev, userId])]);
+  // });
+
+  // socket?.on("user-offline", ({ userId }) => {
+  //   setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
+  // });
 
   return () => {
     socket?.off("online-users");
@@ -215,12 +203,18 @@ export const ChatContainer = ({
       setTypingUsers((curr) => curr.filter((x) => x.userId !== userId));
     });
 
+    // --- Fix: Request online users immediately after joining ---
+    const handleOnlineUsers = (ids: string[]) => setOnlineUserIds(ids);
+    socket?.on("online-users", handleOnlineUsers);
+    socket?.emit("getOnlineUsers", { groupId });
+
     return () => {
       socket?.emit("leaveGroup", { groupId });
       socket?.off("recentMessages");
       socket?.off("newMessage");
       socket?.off("userTyping");
       socket?.off("userStopTyping");
+      socket?.off("online-users", handleOnlineUsers);
     };
   }, [groupId, userId]);
 
