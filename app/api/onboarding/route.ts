@@ -65,13 +65,29 @@ export async function POST(req: Request) {
 
     const today = normalizeToStartOfDay(new Date())
 
-    await db.dailyTotal.create({
+    const dailyTotal = await db.dailyTotal.findFirst({
+      where: {
+        userId: user.id,
+        date: today,
+      },
+    });
+
+    if (!dailyTotal) {
+      await db.dailyTotal.create({
       data: {
         userId: user.id,
         date: today,
         totalSeconds: 0
       }
     })
+    }
+
+    await db.pomodoroSettings.create({
+      data: {
+        userId: user.id,
+      },
+    });
+    
 
     console.log("Onboarding completed successfully");
     return NextResponse.json("OK", {

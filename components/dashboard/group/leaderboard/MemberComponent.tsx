@@ -11,6 +11,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import Image from "next/image";
+import Link from "next/link";
 import { toast } from "sonner";
 
 interface Props {
@@ -203,9 +204,12 @@ export function MemberComponent({
             </DialogTitle>
           </DialogHeader>
           <DialogFooter>
-            <DialogClose asChild>
+            {/* <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
-            </DialogClose>
+            </DialogClose> */}
+            <Link href={`/profile/${id}/reports`}>
+            <Button>Reports</Button>
+            </Link>
             <Button type="submit" disabled={isPending} onClick={handleWakeUp}>
               Wake up
             </Button>

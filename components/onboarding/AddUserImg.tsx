@@ -187,7 +187,7 @@ export const AddUserImage = ({ profileImage, className }: Props) => {
                 src={profileImage}
                 alt="PI"
                 fill
-                className="object-cover w-full h-full"
+                className="object-cover w-full h-full size-full"
               />
             ) : (
               <User />
