@@ -3,7 +3,6 @@ import MenuAppBar from "@/components/ui/appbar";
 // import { CirclePlusIcon } from "lucide-react";
 import Link from "next/link";
 import { AddGroup } from "@/components/dashboard/group/AddGroup";
-import { GroupList } from "@/components/dashboard/group/GroupList";
 import { MemberList } from "@/components/dashboard/group/members/MemberList";
 // import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 

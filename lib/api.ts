@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Announcement, FocusArea, Group, Notification, PomodoroSettings, SegmentType, Subscription, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, FocusArea, Group, Notification, PomodoroSettings, SegmentType, Todo, UserPermission } from "@prisma/client";
 
 export const domain =
   process.env.NODE_ENV !== "production"

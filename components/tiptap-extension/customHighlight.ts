@@ -1,6 +1,5 @@
 // extensions/CustomHighlight.ts
 import { Highlight } from '@tiptap/extension-highlight'
-import { mergeAttributes } from '@tiptap/core'
 
 export const CustomHighlight = Highlight.extend({
   addAttributes() {

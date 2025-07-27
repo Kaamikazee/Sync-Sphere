@@ -2,7 +2,7 @@
 
 import { Separator } from "../ui/separator";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Announcement, UserPermission } from "@prisma/client";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -20,7 +20,6 @@ import { ImageUploadNode } from "../tiptap-node/image-upload-node";
 import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import TrailingNode from "../tiptap-extension/trailing-node-extension";
 import Link from "@tiptap/extension-link";
-import { Button } from "../ui/button";
 import { EditAnnouncement } from "./EditAnnouncement";
 
 interface Props {

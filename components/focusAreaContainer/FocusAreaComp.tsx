@@ -10,7 +10,7 @@ import {
 import { FocusArea, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { Edit, PauseCircle, PlayCircle, Trash2 } from "lucide-react";
+import { Edit, PauseCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
-import { FaUsers, FaClock, FaBell, FaUserCircle } from "react-icons/fa";
+import { FaUsers, FaClock, FaUserCircle } from "react-icons/fa";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 
 export default function MenuAppBar() {

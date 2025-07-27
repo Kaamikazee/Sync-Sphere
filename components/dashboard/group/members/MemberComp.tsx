@@ -9,7 +9,6 @@ import ListItemAvatar from "@mui/material/ListItemAvatar";
 import Avatar from "@mui/material/Avatar";
 import Typography from "@mui/material/Typography";
 import { UserPermission } from "@prisma/client";
-import Link from "next/link";
 import { SubscriptionUser } from "@/types/extended";
 import { Check, MoreVertical } from "lucide-react";
 

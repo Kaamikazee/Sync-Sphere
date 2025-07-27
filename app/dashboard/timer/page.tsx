@@ -1,5 +1,4 @@
 import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
-import MenuAppBar from "@/components/ui/appbar";
 import { getFocusAreas, getFocusAreaTotals, getGroups, getTodos, getTotalSecondsOfUser, getUserPomodoroSettings } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 

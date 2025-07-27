@@ -75,7 +75,6 @@ export default function Home() {
 
 // Feature Data and Card Component
 
-import { IconType } from 'react-icons'
 import { FaClock, FaComments, FaTasks, FaBullhorn } from 'react-icons/fa'
 
 const features: { title: string; description: string; icon: ReactNode }[] = [

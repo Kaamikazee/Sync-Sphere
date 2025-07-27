@@ -5,14 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SimpleEditor, SimpleEditorHandle } from "../tiptap-templates/simple/simple-editor";
 import { Separator } from "../ui/separator";
 import { Button } from "../ui/button";
-import { useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { toast } from "sonner";
-import { useEditorContext } from "@/context/EditorContext";
 import { useRouter } from "next/navigation";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card";
 
