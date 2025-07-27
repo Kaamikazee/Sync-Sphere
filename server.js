@@ -437,9 +437,10 @@ app.prepare().then(() => {
 
   server.all("*", (req, res) => {
     if (!req.url) {
-      console.error("Invalid request URL");
-      return res.status(400).send("Bad Request");
-    }
+  console.error("Invalid request URL");
+  res.status(400).send("Bad Request");
+  return;
+}
     return handle(req, res);
   });
 
