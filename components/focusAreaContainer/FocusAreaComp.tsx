@@ -11,7 +11,7 @@ import { FocusArea, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { Edit, PauseCircle, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";
 import { useRunningStore } from "@/stores/useGlobalTimer";
@@ -179,7 +179,7 @@ export function FocusAreaComp({
     },
   });
 
-  const onStop = () => {
+  const onStop = useCallback(() => {
     setRunning(false);
     handleStop();
     stop();
@@ -192,7 +192,7 @@ export function FocusAreaComp({
     localStorage.removeItem("activeSegmentId");
     localStorage.removeItem("activeDisplayTime");
     localStorage.removeItem("activeFocusAreaId");
-  };
+  }, [setRunning, handleStop, stop, setIsFocusRunning, breakTimer]);
 
   useEffect(() => {
     if (stopRequested) {
@@ -200,7 +200,7 @@ export function FocusAreaComp({
       onStop(); // 🔥 Actually stops the timer
       resetStop(); // Reset the trigger
     }
-  }, [stopRequested, resetStop]);
+  }, [stopRequested, resetStop, onStop]);
 
   function formatHMS(total: number) {
     const h = Math.floor(total / 3600);

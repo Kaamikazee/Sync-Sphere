@@ -2,7 +2,7 @@ import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 
-export const GET = async (request: Request) => {
+export const GET = async () => {
   const session = await getAuthSession()
   //  const url = new URL(request.url);
   // const userId = url.searchParams.get("userId");

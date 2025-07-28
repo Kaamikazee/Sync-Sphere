@@ -1,21 +1,19 @@
 "use client"
 // components/AppBar.tsx
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import Link from "next/link";
 import { FaUsers, FaClock, FaUserCircle } from "react-icons/fa";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 
 export default function MenuAppBar() {
-  const { data: notifications } = useQuery({
-  queryKey: ["notifications"],
-  queryFn: async () => {
-    const { data } = await axios.get("/api/notifications/get");
-    return data;
-  },
-});
+//   const { data: notifications } = useQuery({
+//   queryKey: ["notifications"],
+//   queryFn: async () => {
+//     const { data } = await axios.get("/api/notifications/get");
+//     return data;
+//   },
+// });
 
-  const unreadCount = notifications?.filter((n) => !n.isRead).length || 0;
+  // const unreadCount = notifications?.filter((n) => !n.isRead).length || 0;
 
   return (
     <nav className="fixed top-0 left-0 w-full backdrop-blur-lg bg-white/20 border-b border-white/30 z-50">

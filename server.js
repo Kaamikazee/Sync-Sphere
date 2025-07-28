@@ -1,10 +1,10 @@
 // server.js
-const { createServer } = require("http");
-const express = require("express");
-const next = require("next");
-const { Server } = require("socket.io");
-const cors = require("cors");
-const { PrismaClient } = require("@prisma/client");
+import { createServer } from "http";
+import express from "express";
+import next from "next";
+import { Server } from "socket.io";
+import cors from "cors";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3001;
@@ -26,10 +26,6 @@ app.prepare().then(() => {
   const userTimers = new Map(); // key: userId, value: { startTime, totalSeconds }
   // const onlineUsers = new Map(); // userId -> socket.id
 
-  // --- ONLINE USERS TRACKING ---
-  const groupOnlineUsers = new Map(); // groupId -> Set of userIds
-  const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
-
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
     console.log("🟢 [server] socket connected:", socket.id)
@@ -47,7 +43,7 @@ app.prepare().then(() => {
         const baseline = activity.timeSpent;
         io.emit("activityStarted", { activityId, startTime, baseline });
       } catch {
-        console.log(error);
+        console.log("error");
       }
     });
 
@@ -308,12 +304,6 @@ app.prepare().then(() => {
             : null,
         }))
       );
-
-      // Track online users
-      if (!groupOnlineUsers.has(groupId)) groupOnlineUsers.set(groupId, new Set());
-      groupOnlineUsers.get(groupId).add(userId);
-      socketToUserGroup.set(socket.id, { userId, groupId });
-      io.to(groupId).emit("online-users", Array.from(groupOnlineUsers.get(groupId)));
     });
 
     socket.on("start-timer", ({ userId, startTime }) => {
@@ -400,47 +390,26 @@ app.prepare().then(() => {
       }
     );
 
-    socket.on("leaveGroup", async ({ groupId, userId }) => {
+    socket.on("leaveGroup", async ({ groupId }) => {
       const chat = await prisma.chat.findFirst({ where: { groupId } });
       if (!chat) return;
       socket.leave(`chat_${chat.id}`);
       socket.leave(groupId);
-
-      // Remove from online users
-      if (groupOnlineUsers.has(groupId)) {
-        groupOnlineUsers.get(groupId).delete(userId);
-        io.to(groupId).emit("online-users", Array.from(groupOnlineUsers.get(groupId)));
-      }
-      socketToUserGroup.delete(socket.id);
     });
 
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.id);
-      const info = socketToUserGroup.get(socket.id);
-      if (info) {
-        const { userId, groupId } = info;
-        if (groupOnlineUsers.has(groupId)) {
-          groupOnlineUsers.get(groupId).delete(userId);
-          io.to(groupId).emit("online-users", Array.from(groupOnlineUsers.get(groupId)));
-        }
-        socketToUserGroup.delete(socket.id);
-      }
+
     });
 
-    // Respond to getOnlineUsers event
-    socket.on("getOnlineUsers", ({ groupId }) => {
-      const online = groupOnlineUsers.get(groupId) || new Set();
-      socket.emit("online-users", Array.from(online));
     });
-  }); // <-- closes io.on('connection', ...)
   // --- SIMPLE TIMER HANDLER ---
 
   server.all("*", (req, res) => {
     if (!req.url) {
-  console.error("Invalid request URL");
-  res.status(400).send("Bad Request");
-  return;
-}
+      console.error("Invalid request URL");
+      return res.status(400).send("Bad Request");
+    }
     return handle(req, res);
   });
 

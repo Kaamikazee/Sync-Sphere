@@ -31,9 +31,9 @@ export const EmojiSelector = ({
   children,
   setSelectedEmoji,
   asChild,
-  classname,
+  // classname,
 }: Props) => {
-  const { theme, setTheme, systemTheme } = useTheme();
+  const { theme, /*setTheme,*/ systemTheme } = useTheme();
   const [open, setOpen] = useState(false);
 
   const emojiTheme = useMemo(() => {

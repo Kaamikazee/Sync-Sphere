@@ -14,7 +14,7 @@ interface Props {
   href: string
 }
 export default function GroupComp({
-  group: { id, image, name, color, createdAt }, href
+  group: { id, image, name, /* color, */ createdAt }, href
 }: Props) {
  return (
     <Link href={`${href}/${id}`}>

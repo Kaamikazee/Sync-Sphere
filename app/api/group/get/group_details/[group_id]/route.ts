@@ -1,14 +1,11 @@
 import db from "@/lib/db";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-
-interface Params {
-    params: {
-        group_id: string
-    }
-}
-export const GET = async (request: Request, {params }: Params) => {
-  const {group_id} = await params
+export const GET = async (
+  request: NextRequest,
+  { params }: { params: { group_id: string } }
+) => {
+  const { group_id } = params;
   const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
 
@@ -19,18 +16,16 @@ export const GET = async (request: Request, {params }: Params) => {
       where: {
         id: group_id,
         subscribers: {
-            some: {
-                userId
-            }
-        }
+          some: {
+            userId,
+          },
+        },
       },
     });
 
-    if (!group) return NextResponse.json("Group not found", {status: 200})
+    if (!group) return NextResponse.json("Group not found", { status: 200 });
 
-        return NextResponse.json(group, {
-            status: 200
-        })
+    return NextResponse.json(group, { status: 200 });
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }

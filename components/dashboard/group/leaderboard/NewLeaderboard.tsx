@@ -108,7 +108,7 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
       socket.off("timer-stopped", handleStop);
       socket.off("online-users", handleOnlineUsers);
     };
-  }, [groupId, uuserId]);
+  }, [groupId, uuserId, socket]);
 
   // ⏱ Trigger re-render every second
   useEffect(() => {

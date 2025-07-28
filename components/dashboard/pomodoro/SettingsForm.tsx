@@ -38,7 +38,7 @@ interface Props {
 
 export const SettingsForm = ({
   pomodoroSettings: {
-    id,
+    // id,
     longBreakDuration,
     longBreakInterval,
     rounds,

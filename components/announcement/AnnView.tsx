@@ -2,7 +2,6 @@
 
 import { Separator } from "../ui/separator";
 import Image from "next/image";
-import { useState } from "react";
 import { Announcement, UserPermission } from "@prisma/client";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -31,7 +30,7 @@ interface Props {
 }
 
 export const AnnView = ({ announcement, userRole }: Props) => {
-  const [open, setOpen] = useState(false)
+  // const [open, setOpen] = useState(false)
 
   const editor = useEditor({
     extensions: [

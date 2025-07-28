@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
 import Image from "next/image";
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 
 interface Props {
@@ -64,7 +64,6 @@ export const ChatContainer = ({
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const key = e.key;
     if (key.length !== 1) return;
@@ -78,7 +77,7 @@ export const ChatContainer = ({
     }, TYPING_TIMEOUT);
   };
 
-  const loadMoreMessages = () => {
+  const loadMoreMessages = useCallback(() => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
     const firstMessage = history[0];
@@ -89,20 +88,20 @@ export const ChatContainer = ({
     socket?.once("olderMessages", (olderMessages: MessageWithSenderInfo[]) => {
       if (olderMessages.length === 0) setHasMore(false);
       setHistory((prev) => {
-  const all = [...olderMessages, ...prev];
-  const seen = new Set();
-  return all.filter((msg) => {
-    if (seen.has(msg.id)) return false;
-    seen.add(msg.id);
-    return true;
-  });
-});
+        const all = [...olderMessages, ...prev];
+        const seen = new Set();
+        return all.filter((msg) => {
+          if (seen.has(msg.id)) return false;
+          seen.add(msg.id);
+          return true;
+        });
+      });
       setLoadingMore(false);
       setTimeout(() => {
         topRef.current?.scrollIntoView({ behavior: "auto" });
       }, 0);
     });
-  };
+  }, [hasMore, loadingMore, history, groupId]);
 
   useLayoutEffect(() => {
     if (isFirstLoad.current && history.length > 0) {
@@ -112,27 +111,25 @@ export const ChatContainer = ({
   }, [history]);
 
   useEffect(() => {
-  socket?.on("online-users", (ids: string[]) => {
-    setOnlineUserIds(ids);
-  });
+    socket?.on("online-users", (ids: string[]) => {
+      setOnlineUserIds(ids);
+    });
 
+    // This will be need if you want granular control over online/offline events for each users instead of sending the entire list, useful when there is heavy traffic or many users in the group
+    // socket?.on("user-online", ({ userId }) => {
+    //   setOnlineUserIds((prev) => [...new Set([...prev, userId])]);
+    // });
 
-  // This will be need if you want granular control over online/offline events for each users instead of sending the entire list, useful when there is heavy traffic or many users in the group
-  // socket?.on("user-online", ({ userId }) => {
-  //   setOnlineUserIds((prev) => [...new Set([...prev, userId])]);
-  // });
+    // socket?.on("user-offline", ({ userId }) => {
+    //   setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
+    // });
 
-  // socket?.on("user-offline", ({ userId }) => {
-  //   setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
-  // });
-
-  return () => {
-    socket?.off("online-users");
-    socket?.off("user-online");
-    socket?.off("user-offline");
-  };
-}, []);
-
+    return () => {
+      socket?.off("online-users");
+      socket?.off("user-online");
+      socket?.off("user-offline");
+    };
+  }, []);
 
   useEffect(() => {
     if (!isFirstLoad.current && isAutoScroll) {
@@ -160,7 +157,7 @@ export const ChatContainer = ({
 
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
-  }, [hasMore, loadingMore, history]);
+  }, [hasMore, loadingMore, history, loadMoreMessages]);
 
   useEffect(() => {
     socket?.emit("joinGroup", { groupId, userId });
@@ -268,17 +265,17 @@ export const ChatContainer = ({
               >
                 {!isOwn && (
                   <div className="relative w-8 h-8 mr-2 shrink-0">
-  <Image
-    src={msg.senderImage}
-    alt="pfp"
-    width={32}
-    height={32}
-    className="rounded-full object-cover w-full h-full"
-  />
-  {onlineUserIds.includes(msg.senderId) && (
-    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
-  )}
-</div>
+                    <Image
+                      src={msg.senderImage}
+                      alt="pfp"
+                      width={32}
+                      height={32}
+                      className="rounded-full object-cover w-full h-full"
+                    />
+                    {onlineUserIds.includes(msg.senderId) && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
+                    )}
+                  </div>
                 )}
                 <div
                   className={`rounded-xl px-3 py-2 text-sm shadow-sm max-w-[75%] ${

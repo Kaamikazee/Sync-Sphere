@@ -41,7 +41,7 @@ export function CreateAnnouncement({ groupId }: Props) {
         toast.success("Announcement created successfully")
     },
     onError : (err: AxiosError) => {
-        toast.error("Something is wrong")
+        toast.error(err.message)
     }
   });
 
@@ -94,7 +94,7 @@ export function CreateAnnouncement({ groupId }: Props) {
                     />
                   </span>
                   <span className="text-sm text-gray-600">
-                    Let your team know what's new
+                    Let your team know what&apos;s new
                   </span>
                 </div>
                 <div className="flex gap-2">
@@ -106,6 +106,7 @@ export function CreateAnnouncement({ groupId }: Props) {
                     Cancel
                   </Button>
                   <Button
+                  disabled={isPending}
                     onClick={() => {
                       mutate(); // <-- call the mutation!
                       setIsOpen(false);

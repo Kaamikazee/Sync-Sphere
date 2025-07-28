@@ -1,5 +1,4 @@
 import CalendarComp from "@/components/profile/Calendar";
-import { getTotalSecondsOfUser } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 interface Params {
@@ -16,18 +15,6 @@ const Reports = async ({ params: { user_id } }: Params) => {
     return <p>You need to sign in to access this page.</p>;
   }
 
-  const totalSecondsOfUser = await getTotalSecondsOfUser(user_id)
-
-  // const [group, userRole] = await Promise.all([
-  //   getGroup(user_id, session.user.id),
-  //   getUserGroupRole(user_id, session.user.id)
-  // ]);
-  
-
-
-  // if (!group) {
-  //   return <p>Group not found.</p>;
-  // }
 
 
   return (

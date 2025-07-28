@@ -16,7 +16,7 @@ export const POST = async (req: Request) => {
 };
 
 
-export const PUT = async (req: Request) => {
+export const PUT = async () => {
   const session = await getAuthSession();
   const userId = session?.user.id;
 

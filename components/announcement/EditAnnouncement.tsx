@@ -45,7 +45,7 @@ export function EditAnnouncement({ annId, content, title: annTitle }: Props) {
       toast.success("Announcement updated successfully");
     },
     onError: (err: AxiosError) => {
-      toast.error("Something went wrong");
+      toast.error(err.message);
     },
   });
 
@@ -111,6 +111,7 @@ export function EditAnnouncement({ annId, content, title: annTitle }: Props) {
                     Cancel
                   </Button>
                   <Button
+                  disabled={isPending}
                     onClick={() => {
                       mutate();
                       setIsOpen(false);

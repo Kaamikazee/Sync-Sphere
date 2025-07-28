@@ -60,7 +60,7 @@ export const POST = async (request: Request) => {
       return NextResponse.json("ERRORS.NOT_RUNNING", { status: 404 });
     }
 
-    const [_, breakSegment] = await db.$transaction([
+    const [breakSegment] = await db.$transaction([
       // ✅ Stop current FOCUS segment
       db.timerSegment.update({
         where: { id: segmentId },

@@ -107,7 +107,7 @@ export default function MemberComp({
                         sx={{ color: "text.primary", display: "inline" }}
                         className="mr-9"
                       >
-                        Ali Connors{" "}
+                        {name} {surname}{" "} <span className="text-muted-foreground">{username}</span>
                       </Typography>
                     </div>
                     <div className="">
@@ -142,6 +142,7 @@ export default function MemberComp({
                                     )}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
+                                  disabled={isPending}
                                     onClick={() => {
                                       editUserRole("ADMIN");
                                     }}
@@ -154,6 +155,7 @@ export default function MemberComp({
                             </DropdownMenuSub>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
+                            disabled={isRemoving}
                             onClick={() => {removeUser()}}
                             >Kick</DropdownMenuItem>
                           </DropdownMenuContent>
