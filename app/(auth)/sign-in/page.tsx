@@ -10,7 +10,7 @@ const signIn = () => {
     return (
         <div>
              <Suspense fallback={<div>Loading...</div>}>
-                    <AuthCard />
+                    <AuthCard signInCard/>
                   </Suspense>
         </div>
     )

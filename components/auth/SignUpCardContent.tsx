@@ -57,7 +57,7 @@ export const SignUpCardContent = () => {
               redirect: false,
             });
         
-            router.push("/");
+            router.push("/onboarding");
           }
     } catch (err) {
         let errMsg = "Something Went Wrong"
