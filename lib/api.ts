@@ -1,13 +1,15 @@
 import { GroupWithSubscribers } from "@/types/extended";
 import { Activity, Announcement, FocusArea, Group, Notification, PomodoroSettings, SegmentType, Todo, UserPermission } from "@prisma/client";
 
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000';
+
 export const domain =
   process.env.NODE_ENV !== "production"
     ? "http://localhost:3000"
     : "http://localhost:3000";
 
 export const getGroups = async (userId: string) => {
-  const res = await fetch(`${domain}/api/group/user_groups/?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/group/user_groups/?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -19,7 +21,7 @@ export const getGroups = async (userId: string) => {
   return res.json() as Promise<Group[]>
 };
 export const getGroup = async (group_id: string, userId: string) => {
-  const res = await fetch(`${domain}/api/group/get/group_details/${group_id}?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/group/get/group_details/${group_id}?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -33,7 +35,7 @@ export const getGroup = async (group_id: string, userId: string) => {
 
 export const getUserGroupRole = async (group_id: string, userId: string) => {
     const res = await fetch(
-        `${domain}/api/group/get/user_role?groupId=${group_id}&userId=${userId}`,
+        `${baseUrl}/api/group/get/user_role?groupId=${group_id}&userId=${userId}`,
         {
             method: 'GET',
             cache: 'no-store'
@@ -48,7 +50,7 @@ export const getUserGroupRole = async (group_id: string, userId: string) => {
 };
 
 export const getGroupWithSubscribers = async (group_id: string, userId: string) => {
-  const res = await fetch(`${domain}/api/group/get/subscribers/${group_id}?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/group/get/subscribers/${group_id}?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -61,7 +63,7 @@ export const getGroupWithSubscribers = async (group_id: string, userId: string) 
 };
 
 export const getUserPomodoroSettings = async (userId: string) => {
-  const res = await fetch(`${domain}/api/pomodoro/get_settings?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/pomodoro/get_settings?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -74,7 +76,7 @@ export const getUserPomodoroSettings = async (userId: string) => {
 };
 
 export const getActivities = async (userId: string) => {
-  const res = await fetch(`${domain}/api/activity/user_activities?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/activity/user_activities?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -87,7 +89,7 @@ export const getActivities = async (userId: string) => {
 };
 
 export const getActivityTimeSpent = async (activityId: string) => {
-  const res = await fetch(`${domain}/api/activity?activityId=${activityId}`, {
+  const res = await fetch(`${baseUrl}/api/activity?activityId=${activityId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -112,7 +114,7 @@ export interface TotalTimeOfUser {
 
 
 export const totalTimeOfUser = async (groupId: string) => {
-  const res = await fetch(`${domain}/api/activity?group=${groupId}`, {
+  const res = await fetch(`${baseUrl}/api/activity?group=${groupId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -125,7 +127,7 @@ export const totalTimeOfUser = async (groupId: string) => {
 };
 
 export const getTotalSecondsOfUser = async (userId: string) => {
-  const res = await fetch(`${domain}/api/simple_timer?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/simple_timer?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -138,7 +140,7 @@ export const getTotalSecondsOfUser = async (userId: string) => {
 };
 
 export const getTodos = async (userId: string) => {
-  const res = await fetch(`${domain}/api/todos/get?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/todos/get?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -151,7 +153,7 @@ export const getTodos = async (userId: string) => {
 };
 
 export const getAnnouncements = async (groupId: string) => {
-  const res = await fetch(`${domain}/api/announcement/get?groupId=${groupId}`, {
+  const res = await fetch(`${baseUrl}/api/announcement/get?groupId=${groupId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -164,7 +166,7 @@ export const getAnnouncements = async (groupId: string) => {
 };
 
 export const getAnnouncementDetail = async (announcementId: string) => {
-  const res = await fetch(`${domain}/api/announcement/get/detail?announcementId=${announcementId}`, {
+  const res = await fetch(`${baseUrl}/api/announcement/get/detail?announcementId=${announcementId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -189,7 +191,7 @@ export interface membersWithSeconds {
 }
 
 export const getSubscribersWithTotalSeconds = async (group_id: string) => {
-  const res = await fetch(`${domain}/api/simple_timer/get?groupId=${group_id}`, {
+  const res = await fetch(`${baseUrl}/api/simple_timer/get?groupId=${group_id}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -203,7 +205,7 @@ export const getSubscribersWithTotalSeconds = async (group_id: string) => {
 
 
 export const getFocusAreas = async (userId: string) => {
-  const res = await fetch(`${domain}/api/focus_area/get?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/focus_area/get?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -221,7 +223,7 @@ export interface FocusAreTotalsById {
 }
 
 export const getFocusAreaTotals = async (userId: string) => {
-  const res = await fetch(`${domain}/api/focus_area/get/totals?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/focus_area/get/totals?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -245,7 +247,7 @@ export interface GroupIdAndSubscribers {
     }[];
 }
 export const getGroupIdAndSubscribers = async (userId: string) => {
-  const res = await fetch(`${domain}/api/group/user_groups/subscribers?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/group/user_groups/subscribers?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -272,7 +274,7 @@ export interface SegmentTypes {
 }
 
 export const getAllSegments = async (userId: string) => {
-  const res = await fetch(`${domain}/api/segments/get?userId=${userId}`, {
+  const res = await fetch(`${baseUrl}/api/segments/get?userId=${userId}`, {
     method: "GET",
     cache: "no-store",
   });
@@ -284,7 +286,7 @@ export const getAllSegments = async (userId: string) => {
   return res.json() as Promise<SegmentTypes[]>
 }
 export const getAllNotifications = async () => {
-  const res = await fetch(`${domain}/api/notifications/get`, {
+  const res = await fetch(`${baseUrl}/api/notifications/get`, {
     method: "GET",
     cache: "no-store",
   });

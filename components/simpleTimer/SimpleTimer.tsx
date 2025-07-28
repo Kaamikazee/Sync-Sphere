@@ -27,7 +27,9 @@ interface Props {
   pomodoroSettings: PomodoroSettings;
 }
 
-const socket = io("http://localhost:3001");
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000';
+
+const socket = io(baseUrl);
 
 export const SimpleTimerContainer = ({
   totalSeconds,
