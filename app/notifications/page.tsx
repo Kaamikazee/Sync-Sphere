@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Notification } from "@prisma/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 
@@ -64,7 +65,7 @@ const Notifications = () => {
           >Mark all as read</Button>
         </div>
         <ul className="divide-y divide-white/30 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md bg-white/10 border border-white/20">
-          {notifications?.map((notification) => {
+          {notifications?.map((notification: Notification) => {
             const isUnread = notification.isRead === false;
             return (
               <li key={notification.id}>

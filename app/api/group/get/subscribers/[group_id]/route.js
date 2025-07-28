@@ -2,13 +2,8 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 
 
-interface Params {
-    params: {
-        group_id: string
-    }
-}
-export const GET = async (request: Request, {params }: Params) => {
-  const {group_id} = await params
+export const GET = async (request, {params }) => {
+  const {group_id} = params
   const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
   

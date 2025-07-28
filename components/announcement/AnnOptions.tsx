@@ -1,3 +1,4 @@
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Mic, MoreVerticalIcon } from "lucide-react";
 import { Separator } from "../ui/separator";
-import { EditAnnouncement } from "./CreateAnnouncement";
+// import { CreateAnnouncement } from "./CreateAnnouncement";
 
 export const AnnOptions = () => {
   return (
@@ -22,7 +23,8 @@ export const AnnOptions = () => {
         className="min-w-[12rem] bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg py-2"
       >
         <DropdownMenuItem className="flex items-center gap-2 px-4 py-2 hover:bg-white/20 rounded-lg transition">
-          <EditAnnouncement />
+          {/* <CreateAnnouncement /> */}
+          Create Announcement
         </DropdownMenuItem>
 
         <DropdownMenuItem className="px-4 py-2 hover:bg-white/20 rounded-lg transition">

@@ -54,7 +54,7 @@ export default function GroupComp({
               <ListItemAvatar>
                 <Avatar
                   alt={name}
-                  src={image}
+                  src={image!}
                   className="ring-2 ring-white/50"
                 />
               </ListItemAvatar>

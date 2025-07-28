@@ -16,7 +16,7 @@ const Members = ({ params: { group_id } }: Params) => {
     
   return (
     <div>
-      <MenuAppBar href={"/dashboard/groups"} />
+      <MenuAppBar />
       <div className="w-full">
       {/* <ComplList /> */}
       <MemberList group_id={group_id}/>

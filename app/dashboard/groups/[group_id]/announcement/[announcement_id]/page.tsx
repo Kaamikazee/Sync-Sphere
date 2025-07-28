@@ -26,7 +26,7 @@ const page = async ({ params: { group_id, announcement_id } }: Params) => {
   const userRole = await getUserGroupRole(group_id, session.user.id)
   return (
     <div>
-      <AnnView announcement={announcementDetail!} userRole={userRole}/>
+      <AnnView announcement={announcementDetail!} userRole={userRole!}/>
     </div>
   );
 };

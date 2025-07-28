@@ -23,7 +23,7 @@ function getColorBySeconds(seconds: number) {
   return "bg-gray-800 text-gray-400";
 }
 
-function formatTime(seconds) {
+function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return `${h}h ${m}m`;
@@ -38,7 +38,7 @@ function formatHMS(total: number) {
 
 export default function CalendarComp({ userId }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date(2025, 6));
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDay, setSelectedDay] = useState<{ date: Date; seconds: number } | null>(null);
 
   const { data: logs, isLoading, error } = useCalendarData(userId);
 

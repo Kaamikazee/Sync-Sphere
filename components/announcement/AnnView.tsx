@@ -1,7 +1,7 @@
 "use client";
 
 import { Separator } from "../ui/separator";
-import Image from "next/image";
+// import Image from "next/image";
 import { Announcement, UserPermission } from "@prisma/client";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -20,18 +20,19 @@ import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import TrailingNode from "../tiptap-extension/trailing-node-extension";
 import Link from "@tiptap/extension-link";
 import { EditAnnouncement } from "./EditAnnouncement";
+import Image from "@tiptap/extension-image";
 
 interface Props {
   // totals: UserTotal[];
   announcement: Announcement;
   userRole: UserPermission
-  isOpen: boolean;
-  onClose: () => void;
+  // isOpen: boolean;
+  // onClose: () => void;
 }
 
 export const AnnView = ({ announcement, userRole }: Props) => {
   // const [open, setOpen] = useState(false)
-
+  
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -56,7 +57,7 @@ export const AnnView = ({ announcement, userRole }: Props) => {
       TrailingNode,
       Link.configure({ openOnClick: false }),
     ],
-    content: announcement.content,
+    content: typeof announcement.content === "string" ? announcement.content : "",
     editable: false,
     injectCSS: false,
   });

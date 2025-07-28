@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { FirstStep } from "@/components/onboarding/FirstStep";
 import { OnboardingFormProvider } from "@/context/OnboardingForm";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";

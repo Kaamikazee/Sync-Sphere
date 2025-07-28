@@ -93,7 +93,7 @@ export default function MemberComp({
         >
           <ListItem alignItems="flex-start">
             <ListItemAvatar>
-              <Avatar alt="Remy Sharp" src={image} />
+              <Avatar alt="Remy Sharp" src={image!} />
             </ListItemAvatar>
             <ListItemText
               primary={name}

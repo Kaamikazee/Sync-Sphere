@@ -70,7 +70,7 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
       socket.once("connect", join);
     }
 
-    const handleStart = ({ userId, startTime }) => {
+    const handleStart = ({ userId, startTime }: { userId: string; startTime: string | number | Date }) => {
       setMembers((prev) =>
         prev.map((m) =>
           m.id === userId
@@ -80,7 +80,7 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
       );
     };
 
-    const handleStop = ({ userId, totalSeconds }) => {
+    const handleStop = ({ userId, totalSeconds }: { userId: string; totalSeconds: number }) => {
       setMembers((prev) =>
         prev.map((m) =>
           m.id === userId

@@ -74,6 +74,7 @@ import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss";
+import { JsonValue } from "next-auth/adapters";
 
 
 const MainToolbarContent = ({
@@ -186,7 +187,7 @@ export interface SimpleEditorHandle {
 }
 
 
-export const SimpleEditor = React.forwardRef<SimpleEditorHandle, {initialContent?: JSON}>(({initialContent}, ref) => {
+export const SimpleEditor = React.forwardRef<SimpleEditorHandle, {initialContent?: JsonValue}>(({initialContent}, ref) => {
   const isMobile = useMobile();
   const windowSize = useWindowSize();
   const [mobileView, setMobileView] = React.useState<
@@ -227,7 +228,10 @@ export const SimpleEditor = React.forwardRef<SimpleEditorHandle, {initialContent
       TrailingNode,
       Link.configure({ openOnClick: false }),
     ],
-    content: initialContent ?? "",
+    content:
+      typeof initialContent === "string" || typeof initialContent === "object"
+        ? initialContent ?? ""
+        : "",
   });
 
   const bodyRect = useCursorVisibility({

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
 import { getFocusAreas, getFocusAreaTotals, getGroups, getTodos, getTotalSecondsOfUser, getUserPomodoroSettings } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
@@ -32,7 +33,7 @@ const SimpleTimer = async () => {
           timeSpentOfFA={timeSpentOfFA!}
           todos= {todos!}
           groups={groups}
-          pomodoroSettings={pomodoroSettings}
+          pomodoroSettings={pomodoroSettings!}
           />
           </>
 );

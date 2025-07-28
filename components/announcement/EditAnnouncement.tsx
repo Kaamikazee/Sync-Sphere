@@ -127,7 +127,7 @@ export function EditAnnouncement({ annId, content, title: annTitle }: Props) {
 
               {/* Editor Content */}
               <div className="flex-1 px-6 py-4 overflow-y-auto text-black prose">
-                <SimpleEditor ref={editorRef} initialContent={content} />
+                <SimpleEditor ref={editorRef} initialContent={content as JsonValue} />
               </div>
             </motion.div>
           </>

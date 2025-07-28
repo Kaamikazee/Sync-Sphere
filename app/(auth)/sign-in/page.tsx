@@ -1,5 +1,6 @@
 import { AuthCard } from "@/components/auth/AuthCard";
 import { Metadata } from "next";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
     title: "Sign In - test-app",
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
 const signIn = () => {
     return (
         <div>
-            <AuthCard signInCard/>
+             <Suspense fallback={<div>Loading...</div>}>
+                    <AuthCard />
+                  </Suspense>
         </div>
     )
 }

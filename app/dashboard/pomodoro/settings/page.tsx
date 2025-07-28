@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { SettingsContainer } from "@/components/dashboard/pomodoro/SettingsContainer";
 import { getUserPomodoroSettings } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
@@ -11,7 +12,7 @@ const PomodoroSettings = async () => {
   return (
     <>
         <main className="flex flex-col gap-2 h-full">
-            <SettingsContainer pomodoroSettings={pomodoroSettings} />
+            <SettingsContainer pomodoroSettings={pomodoroSettings!} />
         </main>
     </>
   )
