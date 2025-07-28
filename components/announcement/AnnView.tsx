@@ -57,12 +57,12 @@ export const AnnView = ({ announcement, userRole }: Props) => {
       TrailingNode,
       Link.configure({ openOnClick: false }),
     ],
-    content: typeof announcement.content === "string" ? announcement.content : "",
+     // @ts-expect-error : it's an expected error
+    content: announcement.content,
     editable: false,
     injectCSS: false,
   });
 
-  console.log("wHAT IS GETTING BACK: ", announcement);
 
   return (
     <div className="fixed inset-0 flex items-start sm:items-center justify-center overflow-auto p-6 bg-gradient-to-br from-purple-600/40 via-blue-500/40 to-indigo-600/40 backdrop-blur-xl">
