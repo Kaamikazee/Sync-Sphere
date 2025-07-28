@@ -8,7 +8,7 @@ import {
   HoverCardTrigger,
 } from "../ui/hover-card";
 import { useMemo, useState } from "react";
-import { domain } from "@/lib/api";
+import { baseUrl, domain } from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { Button } from "../ui/button";
@@ -50,7 +50,7 @@ export const InviteContent = ({
       }
     };
 
-    return `${domain}/dashboard/invite/${
+    return `${baseUrl}/dashboard/invite/${
       codes.inviteCode
     }?role=${selectedRole}&shareCode=${shareCode()}`;
   }, [codes, selectedRole]);
