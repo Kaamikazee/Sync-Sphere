@@ -8,7 +8,7 @@ import {
   HoverCardTrigger,
 } from "../ui/hover-card";
 import { useMemo, useState } from "react";
-import { baseUrl, domain } from "@/lib/api";
+import { baseUrl } from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { Button } from "../ui/button";
