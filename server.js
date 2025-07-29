@@ -46,8 +46,8 @@ app.prepare().then(() => {
 
         const baseline = activity.timeSpent;
         io.emit("activityStarted", { activityId, startTime, baseline });
-      } catch {
-        console.log(error);
+      } catch (error) {
+        console.log("Error starting activity:", error);
       }
     });
 

@@ -1,16 +1,23 @@
-import { redirect } from "next/navigation";
+// lib/CheckCompOnb.ts
 import { getAuthSession } from "./auth";
+import { redirect } from "next/navigation";
+import db from "./db";
 
 export const checkIfUserCompleteOnboarding = async (currentPath: string) => {
-  try {
-    const session = await getAuthSession();
+  const session = await getAuthSession();
 
-    if (!session) redirect("/sign-in");
-    if (session.user.completedOnboarding && currentPath === "/onboarding")
-      redirect("/dashboard");
-    
-    return session;
-  } catch (error) {
-    console.error("Error checking onboarding status:", error);
+  if (!session) {
+    redirect("/sign-in"); // 🔁 hard redirect
   }
+
+  const dbUser = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { completedOnboarding: true },
+  });
+
+  if (dbUser?.completedOnboarding && currentPath === "/onboarding") {
+    redirect("/dashboard"); // 🔁 hard redirect
+  }
+
+  return session; // ✅ Return session directly as before
 };

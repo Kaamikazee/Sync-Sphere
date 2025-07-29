@@ -140,7 +140,8 @@ export const authOptions: NextAuthOptions = {
         username: dbUser.username,
         name: dbUser.name,
         email: dbUser.email,
-        picture: dbUser.image
+        picture: dbUser.image,
+        completedOnboarding: dbUser.completedOnboarding // ✅ Add this line
       }
     }
   }
