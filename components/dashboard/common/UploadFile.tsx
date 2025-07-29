@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loadingState";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Trash2, UploadCloud } from "lucide-react";
-import { useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
@@ -23,16 +24,26 @@ interface Props<> {
   onSubmit?: any;
   schema: z.ZodObject<any>;
   getImagePreview?: React.Dispatch<React.SetStateAction<string>>;
-  hideFileName?: boolean
-  isUploading?: boolean
-  isPending?: boolean
-  hideBtn?: boolean
+  hideFileName?: boolean;
+  isUploading?: boolean;
+  isPending?: boolean;
+  hideBtn?: boolean;
 }
 
-export function Uploadfile({ form, onSubmit, schema, getImagePreview, hideFileName, isPending, isUploading, hideBtn }: Props) {
+export function Uploadfile({
+  form,
+  onSubmit,
+  schema,
+  getImagePreview,
+  hideFileName,
+  isPending,
+  isUploading,
+  hideBtn,
+}: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const onFileHandler = (providedFile: File) => {
     const result = schema
@@ -50,12 +61,20 @@ export function Uploadfile({ form, onSubmit, schema, getImagePreview, hideFileNa
       form.clearErrors("file");
       form.setValue("file", providedFile);
       setFile(providedFile);
-      if (getImagePreview) getImagePreview(URL.createObjectURL(providedFile));
+      const objectUrl = URL.createObjectURL(providedFile);
+      setPreviewUrl(objectUrl);
+      if (getImagePreview) getImagePreview(objectUrl);
     } else {
       const errors = result.error.flatten().fieldErrors.file;
       errors?.forEach((error) => form.setError("file", { message: error }));
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -132,84 +151,112 @@ export function Uploadfile({ form, onSubmit, schema, getImagePreview, hideFileNa
                   Group Icon
                 </FormLabel>
                 <FormControl>
-                <div
-                  className={cn(
-                    `${
-                      dragActive ? "bg-primary/20" : "bg-muted"
-                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 p-4 sm:p-6 cursor-pointer hover:bg-muted/90 duration-200 transition-colors ring-offset-background rounded-md relative border border-muted-foreground text-muted-foreground flex flex-col justify-center items-center w-[15rem]`,
-                    "w-full"
-                  )}
-                  onDragEnter={handleDragEnter}
-                  onDrop={handleDrop}
-                  onDragLeave={handleDragLeave}
-                  onDragOver={handleDragOver}
-                  onClick={() => {
-                    if (inputRef.current) {
-                      inputRef?.current.click();
-                    }
-                  }}
-                  
-                  onKeyDown={(e) => {
-                    if (inputRef.current && e.key === "Enter") {
-                      inputRef?.current.click();
-                    }
-                  }}
-                  role="presentation"
-                  tabIndex={0}
-                >
-                  <Input
-                    placeholder="file Input"
-                    className="sr-only"
-                    type="file"
-                    multiple={true}
-                    {...field}
-                    ref={inputRef}
-                    value={undefined}
-                    onChange={handleChange}
-                    accept="image/*"
-                  />
+                  <div
+                    className={cn(
+                      `${
+                        dragActive ? "bg-primary/20" : "bg-muted"
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 p-4 sm:p-6 cursor-pointer hover:bg-muted/90 duration-200 transition-colors ring-offset-background rounded-md relative border border-muted-foreground text-muted-foreground flex flex-col justify-center items-center w-[15rem]`,
+                      "w-full"
+                    )}
+                    onDragEnter={handleDragEnter}
+                    onDrop={handleDrop}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onClick={() => {
+                      if (inputRef.current) {
+                        inputRef?.current.click();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (inputRef.current && e.key === "Enter") {
+                        inputRef?.current.click();
+                      }
+                    }}
+                    role="presentation"
+                    tabIndex={0}
+                  >
+                    <Input
+                      placeholder="file Input"
+                      className="sr-only"
+                      type="file"
+                      multiple={true}
+                      {...field}
+                      ref={inputRef}
+                      value={undefined}
+                      onChange={handleChange}
+                      accept="image/*"
+                    />
 
-
-
-                  <UploadCloud size={30} />
-                  <p className="text-sm font-semibold uppercase text-primary mt-5">
-                    Upload
-                  </p>
-                  <p className="text-xs mt-1 text-center">Only .jpeg, .jpg, .png, .webp, .gif types are supported</p>
-                </div>
-
-                
+                    {previewUrl ? (
+                      <Image
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-24 h-24 object-cover rounded-full border border-white/30"
+                        height={200}
+                        width={200}
+                      />
+                    ) : (
+                      <>
+                        <UploadCloud size={30} />
+                        <p className="text-sm font-semibold uppercase text-primary mt-5">
+                          Upload
+                        </p>
+                        <p className="text-xs mt-1 text-center">
+                          Only .jpeg, .jpg, .png, .webp, .gif types are
+                          supported
+                        </p>
+                      </>
+                    )}
+                    {previewUrl && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 text-destructive bg-white/30 hover:bg-white/50 rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile();
+                          setPreviewUrl(null);
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
+                  </div>
                 </FormControl>
                 <FormMessage />
                 {file && !hideFileName && (
-                    <div className="flex items-center flex-row space-x-5 text-sm mt-4">
-                        <p>{file.name}</p>
-                        <Button  className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => removeFile()}
-                    variant={"ghost"}
-                    size={"icon"}>
-                        <Trash2 size={18} />
+                  <div className="flex items-center flex-row space-x-5 text-sm mt-4">
+                    <p>{file.name}</p>
+                    <Button
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => removeFile()}
+                      variant={"ghost"}
+                      size={"icon"}
+                    >
+                      <Trash2 size={18} />
                     </Button>
-                    </div>
+                  </div>
                 )}
               </FormItem>
             )}
-          />{!hideBtn && <Button
-            disabled={!form.formState.isValid || isUploading}
-            type="submit"
-            onClick={form.handleSubmit(onSubmit)} 
-            className="w-full mt-10 max-w-md dark:text-white font-semibold"
-          >
-            {isUploading || isPending ? (
-              <LoadingState loadingText={"Creating. Please Wait"}/>
-            ) : (
-              <>
-                {"Create"}
-                <ArrowRight className="ml-2" width={18} height={18} />
-              </>
-            )}
-          </Button>}
-          
+          />
+          {!hideBtn && (
+            <Button
+              disabled={!form.formState.isValid || isUploading}
+              type="submit"
+              onClick={form.handleSubmit(onSubmit)}
+              className="w-full mt-10 max-w-md dark:text-white font-semibold"
+            >
+              {isUploading || isPending ? (
+                <LoadingState loadingText={"Creating. Please Wait"} />
+              ) : (
+                <>
+                  {"Create"}
+                  <ArrowRight className="ml-2" width={18} height={18} />
+                </>
+              )}
+            </Button>
+          )}
         </form>
       </Form>
     </div>

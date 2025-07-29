@@ -82,7 +82,6 @@ export const AddGroupForm = ({onSetOpen}: Props) => {
   return (
     <div>
         <Uploadfile form={form} onSubmit={onSubmit} schema={groupSchema} isUploading={isUploading} isPending={isPending} />
-      
     </div>
   );
 }

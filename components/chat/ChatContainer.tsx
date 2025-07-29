@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
 import Image from "next/image";
@@ -62,7 +62,7 @@ export const ChatContainer = ({
   const [typingUsers, setTypingUsers] = useState<
     { userId: string; userName: string }[]
   >([]);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const TYPING_TIMEOUT = 1500;
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -72,7 +72,7 @@ export const ChatContainer = ({
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const key = e.key;
     if (key.length !== 1) return;
     socket?.emit("typing", { groupId, userId, userName });
@@ -85,20 +85,19 @@ export const ChatContainer = ({
     }, TYPING_TIMEOUT);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  setDraft(e.target.value);
-  socket?.emit("typing", { groupId, userId, userName });
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setDraft(e.target.value);
+    socket?.emit("typing", { groupId, userId, userName });
 
-  if (typingTimeoutRef.current) {
-    clearTimeout(typingTimeoutRef.current);
-  }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
-  typingTimeoutRef.current = setTimeout(() => {
-    socket?.emit("stopTyping", { groupId, userId });
-    typingTimeoutRef.current = null;
-  }, TYPING_TIMEOUT);
-};
-
+    typingTimeoutRef.current = setTimeout(() => {
+      socket?.emit("stopTyping", { groupId, userId });
+      typingTimeoutRef.current = null;
+    }, TYPING_TIMEOUT);
+  };
 
   const loadMoreMessages = useCallback(() => {
     if (!hasMore || loadingMore) return;
@@ -258,8 +257,8 @@ export const ChatContainer = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4">
-      <Card className="w-full max-w-3xl h-[100svh] sm:h-[90vh] flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 shadow-2xl rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
+    <div className="fixed inset-0 overflow-hidden flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4">
+      <Card className="w-full max-w-3xl max-h-[100dvh] sm:max-h-[90vh] h-full flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 shadow-2xl rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
         {/* Header */}
         <CardHeader className="sticky top-0 bg-white/10 backdrop-blur-md border-b border-white/25 z-10 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200 hover:bg-white/20">
           <CardTitle className="text-lg sm:text-2xl font-bold flex items-center bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent tracking-wide">
@@ -292,7 +291,7 @@ export const ChatContainer = ({
         {/* Messages */}
         <CardContent
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1"
+          className="flex-1 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1 overscroll-behavior-contain"
         >
           {loadingMore && (
             <div className="text-center text-white/70 text-xs">
@@ -372,7 +371,7 @@ export const ChatContainer = ({
         </CardContent>
 
         {/* Footer */}
-        <CardFooter className="sticky bottom-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2">
+        <CardFooter className="bottom-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2">
           {!isAutoScroll && (
             <button
               onClick={() => {
@@ -401,12 +400,16 @@ export const ChatContainer = ({
           )}
 
           <div className="flex gap-2 items-center">
-            <Input
+            {/* <Input
               onFocus={() => {
                 if (typeof window !== "undefined") {
                   setTimeout(() => {
-                    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }, 300); // wait for keyboard animation
+                    bottomRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "end",
+                    });
+                  }, 100);
+                  // wait for keyboard animation
                 }
               }}
               ref={inputRef}
@@ -418,7 +421,28 @@ export const ChatContainer = ({
               }}
               placeholder="Type a message…"
               className="flex-1 bg-white/20 text-white placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
+            /> */}
+            <textarea
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => {
+                handleChange(e);
+                e.target.style.height = "auto"; // Reset height
+                e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
+              }}
+              onKeyDown={(e) => {
+                handleKeyDown(e);
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              rows={1}
+              placeholder="Type a message…"
+              style={{ maxHeight: "120px" }}
+              className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 text-white placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
             />
+
             <Button
               onClick={send}
               className="bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-2 rounded-full shadow transform hover:scale-110 transition-transform duration-200"

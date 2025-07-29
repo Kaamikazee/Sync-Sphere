@@ -24,13 +24,14 @@ export const AddGroup = () => {
   const [open, setOpen] = useState(false);
 
   return (
+    <div>
   <Dialog open={open} onOpenChange={setOpen}>
     <HoverCard openDelay={250} closeDelay={250}>
       <HoverCardTrigger>
         <div className="flex justify-center items-center">
           <div
             className="flex flex-col justify-center items-center p-6 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg transition hover:scale-[1.03] hover:shadow-2xl"
-          >
+            >
             <DialogTrigger className="flex flex-col justify-center items-center cursor-pointer">
               <CirclePlusIcon size={55} className="text-white mb-2" />
               <span className="text-white text-xl font-semibold">
@@ -57,6 +58,7 @@ export const AddGroup = () => {
       </DialogContent>
     </HoverCard>
   </Dialog>
+            </div>
 )
 ;
 };
