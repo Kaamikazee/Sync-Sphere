@@ -85,6 +85,21 @@ export const ChatContainer = ({
     }, TYPING_TIMEOUT);
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  setDraft(e.target.value);
+  socket?.emit("typing", { groupId, userId, userName });
+
+  if (typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+  }
+
+  typingTimeoutRef.current = setTimeout(() => {
+    socket?.emit("stopTyping", { groupId, userId });
+    typingTimeoutRef.current = null;
+  }, TYPING_TIMEOUT);
+};
+
+
   const loadMoreMessages = useCallback(() => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
@@ -235,20 +250,34 @@ export const ChatContainer = ({
     setReplyTo(null);
   };
 
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4">
-      <Card className="w-full max-w-3xl h-[100dvh] sm:h-[90vh] flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 shadow-2xl rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
+    <div className="fixed inset-0 overflow-hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4">
+      <Card className="w-full max-w-3xl h-[100svh] sm:h-[90vh] flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 shadow-2xl rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
         {/* Header */}
         <CardHeader className="sticky top-0 bg-white/10 backdrop-blur-md border-b border-white/25 z-10 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200 hover:bg-white/20">
           <CardTitle className="text-lg sm:text-2xl font-bold flex items-center bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent tracking-wide">
-            <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden mr-2 shrink-0">
-              <Image
-                src={groupImage}
-                alt="Group Image"
-                fill
-                className="object-cover"
-              />
+            <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden mr-2 shrink-0 bg-white/10">
+              {groupImage ? (
+                <Image
+                  src={groupImage}
+                  alt="Group Image"
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full text-sm sm:text-base font-bold text-white bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600">
+                  {groupName?.charAt(0).toUpperCase() || "?"}
+                </div>
+              )}
             </div>
+
             {groupName}
           </CardTitle>
           <CardDescription className="text-[10px] sm:text-xs text-white/80 mt-1 sm:mt-0 italic">
@@ -373,9 +402,16 @@ export const ChatContainer = ({
 
           <div className="flex gap-2 items-center">
             <Input
+              onFocus={() => {
+                if (typeof window !== "undefined") {
+                  setTimeout(() => {
+                    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }, 300); // wait for keyboard animation
+                }
+              }}
               ref={inputRef}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={handleChange}
               onKeyDown={(e) => {
                 handleKeyDown(e);
                 if (e.key === "Enter") send();

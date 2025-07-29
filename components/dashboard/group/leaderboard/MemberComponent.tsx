@@ -143,7 +143,7 @@ export function MemberComponent({
       <form>
         <DialogTrigger asChild>
           <div
-            className="flex items-center justify-between py-3 px-4 sm:py-4 sm:px-6 
+            className="flex items-center justify-between py-3 px-2 sm:py-4 sm:px-6 
           rounded-xl relative
           text-white/90 transition-transform duration-200
           hover:scale-100 sm:hover:scale-105
@@ -179,7 +179,9 @@ export function MemberComponent({
                 warningId ? "opacity-40 pointer-events-none" : ""
               }`}
             >
-              <span className="text-base sm:text-xl font-bold text-white">
+              <span
+                className="text-base sm:text-xl font-bold text-[#2c2c2c]"
+              >
                 #{index + 1}
               </span>
               <div className="relative w-10 h-10">
@@ -202,16 +204,17 @@ export function MemberComponent({
                 )}
               </div>
 
-              <span className="text-sm sm:text-lg font-medium">
+              <span
+                className="text-sm sm:text-lg font-medium text-[#2c2c2c]
+"
+              >
                 {name ?? "Anonymous"}
               </span>
             </div>
 
             {/* Timer */}
             <span
-              className={`text-sm sm:text-xl font-mono ${
-                warningId ? "opacity-40" : ""
-              }`}
+              className={`text-sm sm:text-xl font-mono text-[#2c2c2c] ${warningId ? "opacity-40" : ""}`}
             >
               {base}
             </span>

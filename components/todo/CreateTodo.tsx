@@ -66,76 +66,76 @@ export function CreateTodo({ focusAreaId }: Props) {
   };
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      {/* Trigger to open the dialog */}
-      <DialogTrigger asChild>
-        <Button
-          className="bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform"
-          variant="outline"
-        >
-          ➕ Create a new todo
-        </Button>
-      </DialogTrigger>
+  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <DialogTrigger asChild>
+      <Button
+        className="bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform px-4 py-2 text-sm sm:text-base"
+        variant="outline"
+      >
+        ➕ Create a new todo
+      </Button>
+    </DialogTrigger>
 
-      {/* Content with form inside */}
-      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all">
-        <DialogHeader>
-          <DialogTitle className="text-white text-xl">📝 New Todo</DialogTitle>
-          <DialogDescription className="text-white/80">
-            Fill in the details for your todo. Click {`"Save"`} to confirm.
-          </DialogDescription>
-        </DialogHeader>
+    <DialogContent className="w-[90vw] max-w-xs sm:max-w-sm md:max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all p-4 sm:p-6">
+      <DialogHeader>
+        <DialogTitle className="text-white text-lg sm:text-xl">
+          📝 New Todo
+        </DialogTitle>
+        <DialogDescription className="text-white/80 text-sm sm:text-base">
+          Fill in the details for your todo. Click <strong>Save</strong> to confirm.
+        </DialogDescription>
+      </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="grid gap-6 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="todo-name" className="text-white">
-              Todo Title
-            </Label>
-            <Input
-              id="todo-name"
-              name="title"
-              value={todoName}
-              onChange={(e) => setTodoName(e.target.value)}
-              placeholder="Enter title"
-              className="bg-white/10 text-white placeholder:text-white/40 backdrop-blur-md border border-white/20 focus:ring-lime-400"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="grid gap-5 pt-4">
+        <div className="space-y-2">
+          <Label htmlFor="todo-name" className="text-white text-sm">
+            Todo Title
+          </Label>
+          <Input
+            id="todo-name"
+            name="title"
+            value={todoName}
+            onChange={(e) => setTodoName(e.target.value)}
+            placeholder="Enter title"
+            className="bg-white/10 text-white placeholder:text-white/40 backdrop-blur-md border border-white/20 focus:ring-lime-400 text-sm"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="todo-content" className="text-white">
-              Todo Content
-            </Label>
-            <Input
-              id="todo-content"
-              name="content"
-              value={todoContent}
-              onChange={(e) => setTodoContent(e.target.value)}
-              placeholder="Enter content"
-              type="text"
-              className="bg-white/10 text-white placeholder:text-white/40 backdrop-blur-md border border-white/20 focus:ring-lime-400"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="todo-content" className="text-white text-sm">
+            Todo Content
+          </Label>
+          <Input
+            id="todo-content"
+            name="content"
+            value={todoContent}
+            onChange={(e) => setTodoContent(e.target.value)}
+            placeholder="Enter content"
+            className="bg-white/10 text-white placeholder:text-white/40 backdrop-blur-md border border-white/20 focus:ring-lime-400 text-sm"
+          />
+        </div>
 
-          <DialogFooter className="gap-2 mt-2">
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform hover:text-shadow-white"
-              >
-                Cancel
-              </Button>
-            </DialogClose>
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-2 mt-4">
+          <DialogClose asChild>
             <Button
-              type="submit"
-              disabled={isLoading}
-              className="bg-gradient-to-r from-lime-400 via-green-400 to-emerald-500 text-white shadow-md hover:scale-105 transition-transform"
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform text-sm sm:text-base"
             >
-              {isLoading ? "Saving..." : "✅ Save Todo"}
+              Cancel
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+          </DialogClose>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full sm:w-auto bg-gradient-to-r from-lime-400 via-green-400 to-emerald-500 text-white shadow-md hover:scale-105 transition-transform text-sm sm:text-base"
+          >
+            {isLoading ? "Saving..." : "✅ Save Todo"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
+);
+
 }

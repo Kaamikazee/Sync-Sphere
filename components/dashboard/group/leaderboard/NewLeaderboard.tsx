@@ -23,7 +23,12 @@ interface Props {
   groupName?: string;
 }
 
-export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props) => {
+export const NewLeaderboard = ({
+  uuserId,
+  groupId,
+  uuserName,
+  groupName,
+}: Props) => {
   const [members, setMembers] = useState<MemberWithTimer[]>([]);
   const [loading, setLoading] = useState(true);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
@@ -55,8 +60,6 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
     setLoading(isLoading);
   }, [membersData, isLoading]);
 
-
-
   // 🔌 Join and leave socket group correctly
   useEffect(() => {
     const join = () => {
@@ -70,7 +73,13 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
       socket.once("connect", join);
     }
 
-    const handleStart = ({ userId, startTime }: { userId: string; startTime: string | number | Date }) => {
+    const handleStart = ({
+      userId,
+      startTime,
+    }: {
+      userId: string;
+      startTime: string | number | Date;
+    }) => {
       setMembers((prev) =>
         prev.map((m) =>
           m.id === userId
@@ -80,7 +89,13 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
       );
     };
 
-    const handleStop = ({ userId, totalSeconds }: { userId: string; totalSeconds: number }) => {
+    const handleStop = ({
+      userId,
+      totalSeconds,
+    }: {
+      userId: string;
+      totalSeconds: number;
+    }) => {
       setMembers((prev) =>
         prev.map((m) =>
           m.id === userId
@@ -149,48 +164,51 @@ export const NewLeaderboard = ({ uuserId, groupId, uuserName, groupName }: Props
   }
 
   return (
-  <div className="p-4 sm:p-6 bg-purple-500/10 sm:bg-gradient-to-br sm:from-purple-500/30 sm:via-blue-400/30 sm:to-indigo-500/30 
+    <div
+      className="p-2 sm:p-6 bg-purple-500/10 sm:bg-gradient-to-br sm:from-purple-500/30 sm:via-blue-400/30 sm:to-indigo-500/30 
     backdrop-blur-none sm:backdrop-blur-md 
     border border-white/20 shadow-md sm:shadow-lg 
     flex justify-center 
     transition-transform duration-300 
-    sm:hover:shadow-2xl sm:hover:scale-105">
-    
-    <div className="w-full max-w-3xl space-y-3 sm:space-y-4 px-1 sm:px-0">
-      <h2 className="text-xl sm:text-3xl font-extrabold text-white mb-2 text-center">
-        Group Leaderboard
-      </h2>
+    sm:hover:shadow-2xl sm:hover:scale-105"
+    >
+      <div className="w-full max-w-3xl space-y-3 sm:space-y-4 px-1 sm:px-0">
+        <h2
+          className="text-xl sm:text-3xl font-extrabold text-[#5b3e96] mb-2 text-center"
+        >
+          Group Leaderboard
+        </h2>
 
-      <ul className="divide-y divide-white/20 rounded-xl sm:rounded-2xl overflow-hidden 
+        <ul
+          className="divide-y divide-white/20 rounded-xl sm:rounded-2xl overflow-hidden 
         shadow-lg sm:shadow-2xl 
         bg-white/5 sm:bg-white/10 
         border border-white/20 
-        backdrop-blur-none sm:backdrop-blur-md">
-        
-        {sorted.map((member, index) => {
-          const base = formatHMS(getLiveTotalSeconds(member));
-          const isOnline = onlineUserIds.includes(member.id);
-          return (
-            <li key={member.id}>
-              <MemberComponent
-                name={member.name}
-                index={index}
-                image={member.image}
-                id={member.id}
-                base={base}
-                uusername={uuserName!}
-                groupName={groupName!}
-                warningMessage={member.warningMessage}
-                groupId={groupId}
-                warningId={member.warningId}
-                isOnline={isOnline}
-              />
-            </li>
-          );
-        })}
-      </ul>
+        backdrop-blur-none sm:backdrop-blur-md"
+        >
+          {sorted.map((member, index) => {
+            const base = formatHMS(getLiveTotalSeconds(member));
+            const isOnline = onlineUserIds.includes(member.id);
+            return (
+              <li key={member.id}>
+                <MemberComponent
+                  name={member.name}
+                  index={index}
+                  image={member.image}
+                  id={member.id}
+                  base={base}
+                  uusername={uuserName!}
+                  groupName={groupName!}
+                  warningMessage={member.warningMessage}
+                  groupId={groupId}
+                  warningId={member.warningId}
+                  isOnline={isOnline}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
-  </div>
-);
-
+  );
 };
