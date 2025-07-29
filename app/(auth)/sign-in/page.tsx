@@ -3,8 +3,8 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-    title: "Sign In - test-app",
-    description: "test-app - Sign In Page",
+    title: "Sign In - SyncSphere",
+    description: "SyncSphere - Sign In Page",
 }
 const signIn = () => {
     return (
