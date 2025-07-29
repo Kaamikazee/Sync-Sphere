@@ -132,103 +132,126 @@ export function MemberComponent({
     mutate();
   };
   return (
-    <Dialog>
-      <form>
-        <DialogTrigger asChild>
-          <div
-            className="flex items-center justify-between py-4 px-6 hover:scale-105 transition-all duration-300 text-white/90
-             hover:bg-white/10 hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:ring-2 hover:ring-white/30
-             rounded-xl relative"
-          >
-            {warningId && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-red-300/80 bg-blur rounded-xl border-2 border-red-400 shadow-2xl animate-pulse">
-                <span className="text-white font-bold text-lg flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 text-yellow-300 animate-bounce"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
-                    />
-                  </svg>
-                  {warningMessage}
-                </span>
-              </div>
-            )}
-            <div
-              className={`flex items-center space-x-4 ${
-                warningId ? "opacity-40 pointer-events-none" : ""
-              }`}
-            >
-              <span className="text-xl font-bold text-white">#{index + 1}</span>
-              <div className="relative">
-                <Image
-                  src={image ?? "/default-avatar.png"}
-                  alt={`${name ?? "User"} avatar`}
-                  width={40}
-                  height={40}
-                  className="rounded-full ring-2 ring-white/50 size-10 hover:ring-white/80"
-                />
-                {isOnline && (
-                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
-                )}
-              </div>
-              <span className="text-lg">{name ?? "Anonymous"}</span>
+  <Dialog>
+    <form>
+      <DialogTrigger asChild>
+        <div
+          className="flex items-center justify-between py-3 px-4 sm:py-4 sm:px-6 
+          rounded-xl relative
+          text-white/90 transition-transform duration-200
+          hover:scale-100 sm:hover:scale-105
+          hover:bg-white/10 sm:hover:shadow-[0_0_25px_rgba(255,255,255,0.3)]
+          hover:ring-0 sm:hover:ring-2 sm:hover:ring-white/30"
+        >
+          {/* Warning Overlay */}
+          {warningId && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-red-400/80 rounded-xl border border-red-500 shadow-md sm:shadow-2xl animate-pulse">
+              <span className="text-white font-bold text-sm sm:text-lg flex items-center gap-2 text-center px-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-300 animate-bounce"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
+                  />
+                </svg>
+                {warningMessage}
+              </span>
             </div>
-            <span
-              className={`text-xl font-mono ${warningId ? "opacity-40" : ""}`}
-            >
-              {base}
-            </span>
+          )}
+
+          {/* Main Content */}
+          <div
+            className={`flex items-center gap-3 sm:gap-4 ${
+              warningId ? "opacity-40 pointer-events-none" : ""
+            }`}
+          >
+            <span className="text-base sm:text-xl font-bold text-white">#{index + 1}</span>
+            <div className="relative">
+              <Image
+                src={image ?? "/default-avatar.png"}
+                alt={`${name ?? "User"} avatar`}
+                width={40}
+                height={40}
+                className="rounded-full ring-2 ring-white/40 size-10 hover:ring-white/70"
+              />
+              {isOnline && (
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full" />
+              )}
+            </div>
+            <span className="text-sm sm:text-lg font-medium">{name ?? "Anonymous"}</span>
           </div>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader className="flex items-center space-x-4">
+
+          {/* Timer */}
+          <span
+            className={`text-sm sm:text-xl font-mono ${warningId ? "opacity-40" : ""}`}
+          >
+            {base}
+          </span>
+        </div>
+      </DialogTrigger>
+
+      {/* Dialog Content */}
+      <DialogContent className="max-w-full sm:max-w-[425px] p-4 sm:p-6 overflow-y-auto">
+        <DialogHeader className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
             <Image
               src={image ?? "/default-avatar.png"}
               alt={`${name ?? "User"} avatar`}
               width={40}
               height={40}
-              className="rounded-full ring-2 ring-white/50 size-10 hover:ring-white/80"
+              className="rounded-full ring-2 ring-white/40 size-10 hover:ring-white/70"
             />
-            <DialogTitle>{name}</DialogTitle>
-            <DialogTitle className="inline-flex items-center justify-center text-lg font-semibold">
-              {base}
-            </DialogTitle>
-          </DialogHeader>
-          <DialogFooter>
-            {/* <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose> */}
-            <Link href={`/profile/${id}/reports`}>
-            <Button>Reports</Button>
-            </Link>
-            <Button type="submit" disabled={isPending} onClick={handleWakeUp}>
-              Wake up
-            </Button>
-            {!warningId ?  <Button
+            <DialogTitle className="text-base sm:text-lg">{name}</DialogTitle>
+          </div>
+          <DialogTitle className="text-sm sm:text-lg font-semibold font-mono">
+            {base}
+          </DialogTitle>
+        </DialogHeader>
+
+        <DialogFooter className="mt-4 sm:mt-6 flex flex-wrap justify-end gap-2">
+          <Link href={`/profile/${id}/reports`}>
+            <Button size="sm" className="min-w-[100px]">Reports</Button>
+          </Link>
+          <Button
+            size="sm"
+            type="submit"
+            disabled={isPending}
+            onClick={handleWakeUp}
+          >
+            Wake Up
+          </Button>
+          {!warningId ? (
+            <Button
+              size="sm"
               type="submit"
-              variant={"destructive"}
+              variant="destructive"
               disabled={isWarningPending}
               onClick={handleWarning}
             >
               Issue Warning
-            </Button> : <Button type="submit"
-              variant={"outline"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              type="submit"
+              variant="outline"
               disabled={isCancelWarningPending}
               onClick={HandleCancelWarning}
             >
               Cancel Warning
-              </Button>}
-          </DialogFooter>
-        </DialogContent>
-      </form>
-    </Dialog>
-  );
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </form>
+  </Dialog>
+);
+
 }

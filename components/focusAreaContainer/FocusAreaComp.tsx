@@ -210,13 +210,17 @@ export function FocusAreaComp({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white/5 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/10">
+    <div
+      className="flex flex-row items-center justify-between gap-2 sm:gap-4 p-2 sm:p-4 bg-white/10 rounded-xl sm:rounded-2xl shadow-md sm:shadow-2xl border border-white/10 w-full max-w-full overflow-x-auto no-scrollbar"
+      style={{ willChange: "transform" }}
+    >
       {/* Play / Pause Button */}
       <motion.div
-        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full"
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full mr-2"
         whileHover="hover"
         whileTap="tap"
         variants={iconVariants}
+        style={{ willChange: "transform" }}
       >
         <AnimatePresence mode="wait">
           {!running && (
@@ -226,12 +230,13 @@ export function FocusAreaComp({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: -10 }}
               transition={{ duration: 0.2 }}
+              style={{ willChange: "transform" }}
             >
               {IsFocusRunning ? (
                 <PauseCircle
                   onClick={onStop}
                   className="cursor-pointer text-white"
-                  size={30}
+                  size={28}
                 />
               ) : (
                 <ResumeTimer onStart={onStart} />
@@ -245,30 +250,30 @@ export function FocusAreaComp({
       <Accordion
         type="single"
         collapsible
-        className="flex-1 min-w-[300px] max-w-3xl"
+        className="flex-1 min-w-[200px] max-w-full sm:max-w-3xl mx-2"
         defaultValue="item-2"
       >
         <AccordionItem
           value="item-1"
-          className="bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-lg rounded-2xl px-6 py-2 hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300"
+          className="bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-2 sm:px-6 py-2 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300"
         >
-          <AccordionTrigger className="cursor-pointer flex justify-between items-center w-full text-lg font-medium">
-            <span className="truncate w-[40%]">{name}</span>
+          <AccordionTrigger className="cursor-pointer flex justify-between items-center w-full text-base sm:text-lg font-medium">
+            <span className="truncate w-[60%] sm:w-[40%]">{name}</span>
             <span className="font-bold">{formatHMS(displayTime)}</span>
           </AccordionTrigger>
 
-          <AccordionContent className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-gray-900 font-semibold py-4 px-5 rounded-xl shadow-inner mt-3">
+          <AccordionContent className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-gray-900 font-semibold py-2 sm:py-4 px-2 sm:px-5 rounded-lg sm:rounded-xl shadow-inner mt-2 sm:mt-3">
             {/* Todos Heading */}
-            <h2 className="text-center text-2xl font-extrabold bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 bg-clip-text text-transparent drop-shadow-sm mb-4">
+            <h2 className="text-center text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 bg-clip-text text-transparent drop-shadow-sm mb-2 sm:mb-4">
               Todos
             </h2>
 
-            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl py-2 px-3 shadow-md mb-4">
+            <div className="backdrop-blur-sm sm:backdrop-blur-md bg-white/10 border border-white/20 rounded-lg sm:rounded-xl py-2 px-2 sm:px-3 shadow-sm sm:shadow-md mb-2 sm:mb-4">
               {todos.length > 0 ? (
                 todos.map((t) => (
                   <div
                     key={t.id}
-                    className="text-white text-base font-medium mb-2 flex items-center"
+                    className="text-white text-sm sm:text-base font-medium mb-2 flex items-center"
                   >
                     <motion.span
                       className="flex items-center gap-2 cursor-pointer"
@@ -279,7 +284,7 @@ export function FocusAreaComp({
                   </div>
                 ))
               ) : (
-                <h1 className="text-white text-lg font-semibold text-center">
+                <h1 className="text-white text-base sm:text-lg font-semibold text-center">
                   ― No Todos ―
                 </h1>
               )}
@@ -294,22 +299,24 @@ export function FocusAreaComp({
 
       {/* Edit Button */}
       <motion.div
-        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2 ml-2"
         whileHover="hover"
         whileTap="tap"
         variants={iconVariants}
+        style={{ willChange: "transform" }}
       >
-        <Edit className="cursor-pointer" size={30} />
+        <Edit className="cursor-pointer" size={28} />
       </motion.div>
 
       {/* Delete Button */}
       <motion.div
-        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-lg rounded-full p-2"
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2 ml-2"
         whileHover="hover"
         whileTap="tap"
         variants={iconVariants}
+        style={{ willChange: "transform" }}
       >
-        <Trash2 className="cursor-pointer" size={30} />
+        <Trash2 className="cursor-pointer" size={28} />
       </motion.div>
     </div>
   );

@@ -45,87 +45,95 @@ export function SthElse({ groups, userId }: Props) {
   
 
   return (
-    <div className="relative max-w-3xl mx-auto mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-6">
-  {/* — render the group & its leaderboard — */}
-  {currentGroup ? (
-    
-    <div className="mb-8">
-      <h2 className="text-2xl font-bold text-white mb-4">
-        Group: <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text"><Link href={`groups/${currentGroup.id}`}>{currentGroup.name} </Link></span>
-      </h2>
-      <NewLeaderboard groupId={currentGroup.id} uuserId={userId} groupName={currentGroup.name}/>
-    </div>
-  ) : (
-    <p className="text-white/70">No group on this page.</p>
-  )}
-
-  {/* — pagination UI — */}
-  <Pagination className="mt-6">
-    <PaginationContent className="flex flex-wrap gap-2 justify-center">
-      <PaginationItem>
-        <PaginationPrevious
-          href="#"
-          className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition"
-          onClick={(e) => {
-            e.preventDefault();
-            goTo(currentPage - 1);
-          }}
+  <div className="relative max-w-3xl mx-auto mt-6 sm:mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-4 sm:p-6">
+    {/* — render the group & its leaderboard — */}
+    {currentGroup ? (
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-lg sm:text-2xl font-bold text-white mb-3 sm:mb-4">
+          Group:{" "}
+          <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text">
+            <Link href={`groups/${currentGroup.id}`}>{currentGroup.name}</Link>
+          </span>
+        </h2>
+        <NewLeaderboard
+          groupId={currentGroup.id}
+          uuserId={userId}
+          groupName={currentGroup.name}
         />
-      </PaginationItem>
+      </div>
+    ) : (
+      <p className="text-white/70 text-sm sm:text-base">
+        No group on this page.
+      </p>
+    )}
 
-      {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
-        <PaginationItem key={page}>
-          <PaginationLink
+    {/* — pagination UI — */}
+    <Pagination className="mt-5 sm:mt-6">
+      <PaginationContent className="flex flex-wrap gap-1 sm:gap-2 justify-center">
+        <PaginationItem>
+          <PaginationPrevious
             href="#"
-            isActive={page === currentPage}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              page === currentPage
-                ? "bg-indigo-500 text-white font-semibold"
-                : "bg-white/10 text-white hover:bg-white/20"
-            }`}
+            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition"
             onClick={(e) => {
               e.preventDefault();
-              goTo(page);
+              goTo(currentPage - 1);
             }}
-          >
-            {page}
-          </PaginationLink>
+          />
         </PaginationItem>
-      ))}
 
-      {pageCount > 5 && (
-        <>
-          <PaginationItem>
-            <PaginationEllipsis className="text-white/70" />
-          </PaginationItem>
-          <PaginationItem>
+        {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
+          <PaginationItem key={page}>
             <PaginationLink
               href="#"
-              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition"
+              isActive={page === currentPage}
+              className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition ${
+                page === currentPage
+                  ? "bg-indigo-500 text-white font-semibold"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
               onClick={(e) => {
                 e.preventDefault();
-                goTo(pageCount);
+                goTo(page);
               }}
             >
-              {pageCount}
+              {page}
             </PaginationLink>
           </PaginationItem>
-        </>
-      )}
+        ))}
 
-      <PaginationItem>
-        <PaginationNext
-          href="#"
-          className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition"
-          onClick={(e) => {
-            e.preventDefault();
-            goTo(currentPage + 1);
-          }}
-        />
-      </PaginationItem>
-    </PaginationContent>
-  </Pagination>
-</div>
+        {pageCount > 5 && (
+          <>
+            <PaginationItem>
+              <PaginationEllipsis className="text-white/70" />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink
+                href="#"
+                className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition"
+                onClick={(e) => {
+                  e.preventDefault();
+                  goTo(pageCount);
+                }}
+              >
+                {pageCount}
+              </PaginationLink>
+            </PaginationItem>
+          </>
+        )}
 
-  );
+        <PaginationItem>
+          <PaginationNext
+            href="#"
+            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition"
+            onClick={(e) => {
+              e.preventDefault();
+              goTo(currentPage + 1);
+            }}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  </div>
+);
+
 }

@@ -30,41 +30,48 @@ export default function FocusAreaContainer({
 
    const [activeId, setActiveId] = useState<string | null>(null);
   return (
-    <div>
-      <div className="flex flex-col gap-4 w-full max-w-xl">
-        {focusAreas.map((focusArea) => {
-          const focusAreaTodos = todos.filter(
-            (t) => t.focusAreaId === focusArea.id
-          );
-          return (
-            <div
-              key={focusArea.id}
-              className="bg-white/10 border border-white/20 backdrop-blur-lg rounded-xl p-4 shadow-lg hover:shadow-2xl transition duration-300"
-            >
-              <FocusAreaComp
-                focusArea={focusArea}
-                //   onUpdate={handleUpdate}
-                todos={focusAreaTodos}
-                timeSpent={timeSpent.find(m => m.focusAreaId === focusArea.id)?.totalDuration ?? 0}
-                handleStart={handleStart}
-                handleStop={handleStop}
-                setIsRunning={setIsRunning}
-                setStartTime={setStartTime}
-                setTime={setTime}
-                isRunning={isRunning}
-                isActive={focusArea.id === activeId}
-                 onActivate={() => setActiveId(focusArea.id)}
-              />
-            </div>
-          );
-        })}
-      </div>
+  <div className="w-full px-4 sm:px-0">
+    {/* Focus Area Cards */}
+    <div className="flex flex-col gap-4 w-full max-w-2xl mx-auto">
+      {focusAreas.map((focusArea) => {
+        const focusAreaTodos = todos.filter(
+          (t) => t.focusAreaId === focusArea.id
+        );
 
-      <div className="mt-auto w-full max-w-xl flex flex-col-reverse sm:flex-row sm:justify-end items-center gap-4">
-      <div className="bg-white/10 border border-white/20 rounded-xl p-3 backdrop-blur-md hover:scale-105 hover:shadow-xl transition">
+        const duration = timeSpent.find(
+          (m) => m.focusAreaId === focusArea.id
+        )?.totalDuration ?? 0;
+
+        return (
+          <div
+            key={focusArea.id}
+            className="bg-white/10 border border-white/20 backdrop-blur-lg rounded-xl p-4 transition-all duration-300 hover:shadow-none sm:hover:shadow-xl"
+          >
+            <FocusAreaComp
+              focusArea={focusArea}
+              todos={focusAreaTodos}
+              timeSpent={duration}
+              handleStart={handleStart}
+              handleStop={handleStop}
+              setIsRunning={setIsRunning}
+              setStartTime={setStartTime}
+              setTime={setTime}
+              isRunning={isRunning}
+              isActive={focusArea.id === activeId}
+              onActivate={() => setActiveId(focusArea.id)}
+            />
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Bottom Buttons */}
+    <div className="mt-6 w-full max-w-2xl mx-auto flex flex-col-reverse sm:flex-row sm:justify-end items-center gap-4">
+      <div className="bg-white/10 border border-white/20 rounded-xl p-3 backdrop-blur-md transition-all duration-300 sm:hover:scale-105 sm:hover:shadow-xl">
         <CreateFocusArea />
       </div>
     </div>
-    </div>
-  );
+  </div>
+);
+
 }
