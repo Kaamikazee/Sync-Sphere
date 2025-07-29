@@ -17,7 +17,7 @@ const ProviderSignInBtn = ({children, onLoading, providerName, ...props}: Props)
   const signInHandler = async () => {
     setShowLoggedInfo(true)
     try {
-        await signIn(providerName, {callbackUrl: `/`})
+        await signIn(providerName, {callbackUrl: `/onboarding`})
     } catch {
         // setShowLoggedInfo(false)
     }
