@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { FaUsers, FaClock, FaUserCircle, FaBars, FaTimes } from "react-icons/fa";
+import {
+  FaUsers,
+  FaClock,
+  FaUserCircle,
+  FaBars,
+  FaTimes,
+} from "react-icons/fa";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 
 export default function MenuAppBar() {
@@ -56,16 +62,18 @@ export default function MenuAppBar() {
       </nav>
 
       {/* Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
+      <div
+        className={`fixed inset-0 bg-black z-40 transition-opacity duration-300 ${
+          isMobileMenuOpen
+            ? "opacity-40 pointer-events-auto"
+            : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
 
       {/* Mobile Sheet Menu */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-64 bg-white/90 backdrop-blur-xl shadow-lg transform transition-transform duration-300 ${
+        className={`fixed top-0 right-0 z-50 h-full w-64 bg-white/90 backdrop-blur-xl shadow-lg transform transition-transform duration-300 ease-in-out ${
           isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >

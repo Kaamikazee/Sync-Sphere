@@ -1,13 +1,9 @@
-// components/NotificationDropdown.tsx
-"use client";
-
-import { Bell, AlertTriangle, AlarmClock } from "lucide-react";
+import { Bell, AlertTriangle, AlarmClock, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
-// import { socket } from "@/lib/socket";
 
 interface Notification {
   id: string;
@@ -18,8 +14,7 @@ interface Notification {
 }
 
 let socket: Socket | null = null;
-
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000';
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
 
 function useSocket() {
   useEffect(() => {
@@ -28,6 +23,7 @@ function useSocket() {
     }
   }, []);
 }
+
 export function NotificationDropdown() {
   useSocket();
   const [open, setOpen] = useState(false);
@@ -44,39 +40,46 @@ export function NotificationDropdown() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const { mutate: markAllRead } = useMutation({
-     mutationFn: async () => {
+    mutationFn: async () => {
       const { data } = await axios.put("/api/notifications/mark-as-read");
       return data;
     },
     onSuccess: () => {
-      // Refetching notifications or update state
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
-  useEffect(() => {
-    if (!socket) return;
-    // Listen for new notification events
-    const handler = () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    };
-    socket.on("notification:new", handler);
-    return () => {
-      socket?.off("notification:new", handler);
-    };
-  }, [queryClient]);
+ useEffect(() => {
+  if (!socket) return;
+
+  const handler = () => {
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  };
+
+  socket.on("notification:new", handler);
+
+  return () => {
+    socket?.off("notification:new", handler);
+  };
+}, [queryClient]);
+
 
   useEffect(() => {
-    if (open) markAllRead();
+    if (open) {
+      markAllRead();
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
   }, [open, markAllRead]);
 
   return (
-    <div className="relative">
+    <>
       <button
         className="relative p-2 rounded-full bg-white/10 hover:bg-white/20 transition"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => setOpen(true)}
       >
-        <Bell className="text-white" />
+        <Bell className="text-black md:text-white" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-full">
             {unreadCount}
@@ -84,34 +87,62 @@ export function NotificationDropdown() {
         )}
       </button>
 
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="absolute right-0 mt-2 w-80 bg-white text-black rounded-xl shadow-2xl z-50 overflow-hidden"
-        >
-          <div className="p-4 border-b font-semibold text-lg">Notifications</div>
-          <ul className="max-h-72 overflow-y-auto divide-y">
-            {notifications.length === 0 && (
-              <li className="p-4 text-gray-500 text-center">No notifications</li>
-            )}
-            {notifications.map((n) => (
-              <li key={n.id} className={`flex items-start gap-3 p-3 ${n.isRead ? "bg-white" : "bg-gray-100"}`}>
-                {n.type === "WARNING" ? (
-                  <AlertTriangle className="text-yellow-500" size={20} />
+      <AnimatePresence>
+        {open && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+              className="fixed inset-0 bg-black z-40"
+            />
+
+            {/* Slide Panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed top-0 right-0 w-full max-w-sm h-full bg-white z-50 shadow-xl flex flex-col"
+            >
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold">Notifications</h2>
+                <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-black">
+                  <X />
+                </button>
+              </div>
+              <ul className="overflow-y-auto divide-y flex-1">
+                {notifications.length === 0 ? (
+                  <li className="p-4 text-gray-500 text-center">No notifications</li>
                 ) : (
-                  <AlarmClock className="text-blue-500" size={20} />
+                  notifications.map((n) => (
+                    <li
+                      key={n.id}
+                      className={`flex items-start gap-3 p-4 ${
+                        n.isRead ? "bg-white" : "bg-gray-100"
+                      }`}
+                    >
+                      {n.type === "WARNING" ? (
+                        <AlertTriangle className="text-yellow-500" size={20} />
+                      ) : (
+                        <AlarmClock className="text-blue-500" size={20} />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">{n.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </li>
+                  ))
                 )}
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{n.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-      )}
-    </div>
+              </ul>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
