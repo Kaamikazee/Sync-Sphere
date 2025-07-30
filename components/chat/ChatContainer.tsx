@@ -238,16 +238,20 @@ export const ChatContainer = ({
   }, [groupId, userId]);
 
   const send = () => {
-    if (!draft.trim()) return;
-    socket?.emit("groupMessage", {
-      groupId,
-      fromUserId: userId,
-      text: draft,
-      replyToId: replyTo?.id || null,
-    });
-    setDraft("");
-    setReplyTo(null);
-  };
+  if (!draft.trim()) return;
+  socket?.emit("groupMessage", {
+    groupId,
+    fromUserId: userId,
+    text: draft,
+    replyToId: replyTo?.id || null,
+  });
+  setDraft("");
+  setReplyTo(null);
+  setTimeout(() => {
+    inputRef.current?.focus(); // <-- refocus after sending
+  }, 0);
+};
+
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -401,17 +405,19 @@ export const ChatContainer = ({
 
           <div className="flex gap-2 items-center">
             <textarea
-              onFocus={() => {
-                if (typeof window !== "undefined" && window.innerWidth < 768) {
-                  setTimeout(() => {
-                    bottomRef.current?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "end",
-                    });
-                  }, 300);
-                  // wait for keyboard animation
-                }
-              }}
+              // onFocus={() => {
+              //   if (typeof window !== "undefined" && window.innerWidth < 768) {
+              //     setTimeout(() => {
+              //       // wait longer than keyboard open animation (usually ~300-400ms)
+              //       requestAnimationFrame(() => {
+              //         bottomRef.current?.scrollIntoView({
+              //           behavior: "smooth",
+              //           block: "end",
+              //         });
+              //       });
+              //     }, 500); // try 500–600ms instead of 300
+              //   }
+              // }}
               ref={inputRef}
               value={draft}
               onChange={(e) => {
@@ -421,10 +427,10 @@ export const ChatContainer = ({
               }}
               onKeyDown={(e) => {
                 handleKeyDown(e);
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
+                // if (e.key === "Enter" && !e.shiftKey) {
+                //   e.preventDefault();
+                //   send();
+                // }
               }}
               rows={1}
               placeholder="Type a message…"
