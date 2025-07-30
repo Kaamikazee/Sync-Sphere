@@ -5,7 +5,7 @@ import next from "next";
 import { Server } from "socket.io";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
-import { messaging } from "firebase-admin";
+// import { messaging } from "firebase-admin";
 
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3001;
@@ -395,41 +395,41 @@ app.prepare().then(() => {
   });
 
   // 🔔 SEND PUSH NOTIFICATIONS TO OTHER USERS
-  try {
-    const groupMembers = await prisma.subscription.findMany({
-      where: {
-        groupId,
-        NOT: { userId: fromUserId }, // exclude sender
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            fcmToken: true, // make sure you store this
-          },
-        },
-      },
-    });
+//   try {
+//     const groupMembers = await prisma.subscription.findMany({
+//       where: {
+//         groupId,
+//         NOT: { userId: fromUserId }, // exclude sender
+//       },
+//       include: {
+//         user: {
+//           select: {
+//             name: true,
+//             fcmToken: true, // make sure you store this
+//           },
+//         },
+//       },
+//     });
 
-    for (const member of groupMembers) {
-      if (!member.user.fcmToken) continue; // skip if no token
+//     for (const member of groupMembers) {
+//       if (!member.user.fcmToken) continue; // skip if no token
 
-      await messaging.send({
-        token: member.user.fcmToken,
-        notification: {
-          title: saved.sender.name,
-          body: text,
-        },
-        data: {
-          type: "MESSAGE",
-          groupId,
-          messageId: saved.id,
-        },
-      });
-    }
-  } catch (error) {
-    console.error("Error sending FCM notifications:", error);
-  }
+//       await messaging.send({
+//         token: member.user.fcmToken,
+//         notification: {
+//           title: saved.sender.name,
+//           body: text,
+//         },
+//         data: {
+//           type: "MESSAGE",
+//           groupId,
+//           messageId: saved.id,
+//         },
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Error sending FCM notifications:", error);
+//   }
 });
 
     
