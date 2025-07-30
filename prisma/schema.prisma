@@ -22,6 +22,7 @@ model User {
   emailVerified        DateTime?
   hashedPassword       String?
   image                String?
+  fcmToken             String?
   sessions             Session[]
   accounts             Account[]
   completedOnboarding  Boolean                @default(false)

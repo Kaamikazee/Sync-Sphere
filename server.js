@@ -5,6 +5,7 @@ import next from "next";
 import { Server } from "socket.io";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
+import { messaging } from "firebase-admin";
 
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3001;
@@ -16,6 +17,7 @@ app.prepare().then(() => {
   const server = express();
   const httpServer = createServer(server);
 
+  server.use(express.static("public"));
   server.use(cors()); // Required for cross-origin WebSocket connections
 
   // Initialize Socket.io
@@ -350,55 +352,87 @@ app.prepare().then(() => {
         .emit("userStopTyping", { userId });
     });
 
-    socket.on(
-      "groupMessage",
-      async ({ groupId, fromUserId, text, replyToId }) => {
-        const chat = await prisma.chat.findFirst({
-          where: {
-            groupId,
+    socket.on("groupMessage", async ({ groupId, fromUserId, text, replyToId }) => {
+  const chat = await prisma.chat.findFirst({
+    where: { groupId },
+  });
+
+  if (!chat) return socket.emit("error", "Chat not found");
+
+  const saved = await prisma.message.create({
+    data: {
+      chat: { connect: { id: chat.id } },
+      sender: { connect: { id: fromUserId } },
+      content: text,
+      replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
+    },
+    include: {
+      sender: true,
+      replyTo: {
+        include: {
+          sender: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  // Notify everyone in the group
+  io.to(`chat_${chat.id}`).emit("newMessage", {
+    id: saved.id,
+    chatId: saved.chatId,
+    senderId: saved.senderId,
+    content: saved.content,
+    createdAt: saved.createdAt,
+    senderName: saved.sender.name,
+    senderImage: saved.sender.image,
+    replyTo: saved.replyTo
+      ? {
+          id: saved.replyTo.id,
+          senderName: saved.replyTo.sender.name,
+          content: saved.replyTo.content,
+        }
+      : null,
+  });
+
+  // 🔔 SEND PUSH NOTIFICATIONS TO OTHER USERS
+  try {
+    const groupMembers = await prisma.subscription.findMany({
+      where: {
+        groupId,
+        NOT: { userId: fromUserId }, // exclude sender
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            fcmToken: true, // make sure you store this
           },
-        });
+        },
+      },
+    });
 
-        if (!chat) return socket.emit("error", "Chat not found");
+    for (const member of groupMembers) {
+      if (!member.user.fcmToken) continue; // skip if no token
 
-        const saved = await prisma.message.create({
-          data: {
-            chat: { connect: { id: chat.id } },
-            sender: { connect: { id: fromUserId } },
-            content: text,
-            replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
-          },
-          include: {
-            sender: true,
+      await messaging.send({
+        token: member.user.fcmToken,
+        notification: {
+          title: saved.sender.name,
+          body: text,
+        },
+        data: {
+          type: "MESSAGE",
+          groupId,
+          messageId: saved.id,
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Error sending FCM notifications:", error);
+  }
+});
 
-            replyTo: {
-              include: {
-                sender: {
-                  select: { name: true },
-                },
-              },
-            },
-          },
-        });
-        io.to(`chat_${chat.id}`).emit("newMessage", {
-          id: saved.id,
-          chatId: saved.chatId,
-          senderId: saved.senderId,
-          content: saved.content,
-          createdAt: saved.createdAt,
-          senderName: saved.sender.name,
-          senderImage: saved.sender.image,
-
-          replyTo: saved.replyTo
-            ? {
-                id: saved.replyTo.id,
-                senderName: saved.replyTo.sender.name,
-                content: saved.replyTo.content,
-              }
-            : null,
-        });
-      }
-    );
+    
 
     socket.on("leaveGroup", async ({ groupId, userId }) => {
       const chat = await prisma.chat.findFirst({ where: { groupId } });
