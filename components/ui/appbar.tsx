@@ -104,7 +104,7 @@ export default function MenuAppBar() {
             <FaClock className="w-5 h-5" />
             <span>Timer</span>
           </Link>
-          <div onClick={() => setMobileMenuOpen(false)}>
+          <div>
             <NotificationDropdown />
           </div>
           <Link
