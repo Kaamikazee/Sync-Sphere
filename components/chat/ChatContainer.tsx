@@ -419,13 +419,13 @@ export const ChatContainer = ({
               style={{ maxHeight: "120px" }}
               className="w-full pr-10 resize-none overflow-auto bg-white/20 text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 pl-3 text-sm transition-all duration-200"
             />
-            <button
+            <Button
               type="button"
               onClick={send}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-1.5 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
             >
               <Send size={16} />
-            </button>
+            </Button>
           </div>
         </CardFooter>
       </Card>
