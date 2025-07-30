@@ -238,19 +238,21 @@ export const ChatContainer = ({
   }, [groupId, userId]);
 
   const send = () => {
-    if (!draft.trim()) return;
-    socket?.emit("groupMessage", {
-      groupId,
-      fromUserId: userId,
-      text: draft,
-      replyToId: replyTo?.id || null,
-    });
-    setDraft("");
-    setReplyTo(null);
-    setTimeout(() => {
-      inputRef.current?.focus(); // <-- refocus after sending
-    }, 0);
-  };
+  if (!draft.trim()) return;
+  socket?.emit("groupMessage", {
+    groupId,
+    fromUserId: userId,
+    text: draft,
+    replyToId: replyTo?.id || null,
+  });
+  setDraft("");
+
+  if (inputRef.current) {
+    inputRef.current.style.height = "auto";
+  }
+  setReplyTo(null);
+};
+
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -402,14 +404,27 @@ export const ChatContainer = ({
             </div>
           )}
 
-          <div className="relative flex-1">
+          <div className="flex gap-2 items-center">
             <textarea
+              // onFocus={() => {
+              //   if (typeof window !== "undefined" && window.innerWidth < 768) {
+              //     setTimeout(() => {
+              //       // wait longer than keyboard open animation (usually ~300-400ms)
+              //       requestAnimationFrame(() => {
+              //         bottomRef.current?.scrollIntoView({
+              //           behavior: "smooth",
+              //           block: "end",
+              //         });
+              //       });
+              //     }, 500); // try 500–600ms instead of 300
+              //   }
+              // }}
               ref={inputRef}
               value={draft}
               onChange={(e) => {
                 handleChange(e);
-                e.target.style.height = "auto";
-                e.target.style.height = `${e.target.scrollHeight}px`;
+                e.target.style.height = "auto"; // Reset height
+                e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
               }}
               onKeyDown={(e) => {
                 handleKeyDown(e);
@@ -417,14 +432,14 @@ export const ChatContainer = ({
               rows={1}
               placeholder="Type a message…"
               style={{ maxHeight: "120px" }}
-              className="w-full pr-10 resize-none overflow-auto bg-white/20 text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 pl-3 text-sm transition-all duration-200"
+              className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 	text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
             />
+
             <Button
-              type="button"
               onClick={send}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-1.5 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
+              className="bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-1 md:p-2 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
             >
-              <Send size={16} />
+              <Send size={18} />
             </Button>
           </div>
         </CardFooter>
