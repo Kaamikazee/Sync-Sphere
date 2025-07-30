@@ -44,11 +44,11 @@ const Group = async ({ params: { group_id } }: Params) => {
             <h1 className="text-5xl font-extrabold text-gray-800">
               Group Dashboard
             </h1>
-            <p className="text-lg text-gray-600">
+            {/* <p className="text-lg text-gray-600">
               You are{" "}
               <span className="font-semibold text-indigo-600">{userRole}</span>{" "}
               of this group
-            </p>
+            </p> */}
           </header>
 
           {/* Action Buttons */}

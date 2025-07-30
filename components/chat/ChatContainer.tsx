@@ -238,18 +238,23 @@ export const ChatContainer = ({
   }, [groupId, userId]);
 
   const send = () => {
-  if (!draft.trim()) return;
+  const text = inputRef.current?.value?.trim();
+  if (!text) return;
+
   socket?.emit("groupMessage", {
     groupId,
     fromUserId: userId,
-    text: draft,
+    text,
     replyToId: replyTo?.id || null,
   });
-  setDraft("");
+
+  if (inputRef.current) {
+    inputRef.current.value = ""; // clear input manually
+    inputRef.current.style.height = "auto"; // reset height
+  }
+
+  setDraft(""); // optional: update state for typing events
   setReplyTo(null);
-  setTimeout(() => {
-    inputRef.current?.focus(); // <-- refocus after sending
-  }, 0);
 };
 
 
@@ -420,10 +425,16 @@ export const ChatContainer = ({
               // }}
               ref={inputRef}
               value={draft}
-              onChange={(e) => {
-                handleChange(e);
-                e.target.style.height = "auto"; // Reset height
-                e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
+              // onChange={(e) => {
+              //   handleChange(e);
+              //   e.target.style.height = "auto"; // Reset height
+              //   e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
+              // }}
+              onInput={(e) => {
+                handleChange(e as React.ChangeEvent<HTMLTextAreaElement>);
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = `${el.scrollHeight}px`;
               }}
               onKeyDown={(e) => {
                 handleKeyDown(e);
