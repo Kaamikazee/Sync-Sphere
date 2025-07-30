@@ -23,12 +23,16 @@ export const metadata: Metadata = {
   title: "Sync Sphere",
   description: "Track time & do more with your group in real time!",
   manifest: "/manifest.json",
-  themeColor: "#2563eb",
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
 };
+
+export const viewport = {
+  themeColor: "#2563eb", // ✅ move it here
+};
+
 
 
 export default function RootLayout({
