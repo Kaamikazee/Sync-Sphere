@@ -400,29 +400,18 @@ export const ChatContainer = ({
           )}
 
           <div className="flex gap-2 items-center">
-            {/* <Input
+            <textarea
               onFocus={() => {
-                if (typeof window !== "undefined") {
+                if (typeof window !== "undefined" && window.innerWidth < 768) {
                   setTimeout(() => {
                     bottomRef.current?.scrollIntoView({
                       behavior: "smooth",
                       block: "end",
                     });
-                  }, 100);
+                  }, 300);
                   // wait for keyboard animation
                 }
               }}
-              ref={inputRef}
-              value={draft}
-              onChange={handleChange}
-              onKeyDown={(e) => {
-                handleKeyDown(e);
-                if (e.key === "Enter") send();
-              }}
-              placeholder="Type a message…"
-              className="flex-1 bg-white/20 text-white placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
-            /> */}
-            <textarea
               ref={inputRef}
               value={draft}
               onChange={(e) => {
@@ -440,7 +429,7 @@ export const ChatContainer = ({
               rows={1}
               placeholder="Type a message…"
               style={{ maxHeight: "120px" }}
-              className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 text-white placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
+              className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 	text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
             />
 
             <Button
