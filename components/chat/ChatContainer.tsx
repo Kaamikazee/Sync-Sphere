@@ -238,21 +238,20 @@ export const ChatContainer = ({
   }, [groupId, userId]);
 
   const send = () => {
-  if (!draft.trim()) return;
-  socket?.emit("groupMessage", {
-    groupId,
-    fromUserId: userId,
-    text: draft,
-    replyToId: replyTo?.id || null,
-  });
-  setDraft("");
+    if (!draft.trim()) return;
+    socket?.emit("groupMessage", {
+      groupId,
+      fromUserId: userId,
+      text: draft,
+      replyToId: replyTo?.id || null,
+    });
+    setDraft("");
 
-  if (inputRef.current) {
-    inputRef.current.style.height = "auto";
-  }
-  setReplyTo(null);
-};
-
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+    setReplyTo(null);
+  };
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -436,6 +435,7 @@ export const ChatContainer = ({
             />
 
             <Button
+              type="button"
               onClick={send}
               className="bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-1 md:p-2 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
             >
