@@ -105,7 +105,7 @@ export default function MenuAppBar() {
             <span>Timer</span>
           </Link>
           <div>
-            <NotificationDropdown />
+            <NotificationDropdown /> Notifications
           </div>
           <Link
             className="flex items-center gap-2 text-black hover:text-indigo-500 transition-colors"
