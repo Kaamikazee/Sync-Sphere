@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -405,19 +405,6 @@ export const ChatContainer = ({
 
           <div className="flex gap-2 items-center">
             <textarea
-              // onFocus={() => {
-              //   if (typeof window !== "undefined" && window.innerWidth < 768) {
-              //     setTimeout(() => {
-              //       // wait longer than keyboard open animation (usually ~300-400ms)
-              //       requestAnimationFrame(() => {
-              //         bottomRef.current?.scrollIntoView({
-              //           behavior: "smooth",
-              //           block: "end",
-              //         });
-              //       });
-              //     }, 500); // try 500–600ms instead of 300
-              //   }
-              // }}
               ref={inputRef}
               value={draft}
               onChange={(e) => {
@@ -434,13 +421,14 @@ export const ChatContainer = ({
               className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 	text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
             />
 
-            <Button
+            <button
+            onMouseDown={(e) => e.preventDefault()} 
               type="button"
               onClick={send}
               className="bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-1 md:p-2 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
             >
               <Send size={18} />
-            </Button>
+            </button>
           </div>
         </CardFooter>
       </Card>
