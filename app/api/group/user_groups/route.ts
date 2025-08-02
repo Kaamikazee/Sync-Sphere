@@ -14,14 +14,28 @@ export const GET = async (request: Request) => {
       },
       include: {
         group: true,
+        user: {
+          select: {
+            name: true,
+          }
+        }
+      },
+      orderBy: {
+        group: {
+          createdAt: "desc",
+        },
       },
     });
 
-    const group = subscriptions.map((subscription) => subscription.group);
+    // Attach user name to each group object
+    const groupsWithUserName = subscriptions.map((subscription) => ({
+      ...subscription.group,
+      userName: subscription.user?.name || null,
+    }));
 
-    if (!group) return NextResponse.json([], { status: 200 });
+    if (!groupsWithUserName) return NextResponse.json([], { status: 200 });
 
-    return NextResponse.json(group, { status: 200 });
+    return NextResponse.json(groupsWithUserName, { status: 200 });
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }

@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { FaClock, FaComments, FaTasks, FaBullhorn } from 'react-icons/fa'
 import { ReactNode } from 'react'
 
-// pages/index.tsx
+// ⛔ Do NOT make this an `async function` component when using getServerSideProps
 export default function Home() {
   return (
     <main className="min-h-screen flex flex-col">
@@ -13,10 +14,11 @@ export default function Home() {
         <p className="text-lg sm:text-xl max-w-2xl mb-8">
           A real-time productivity and accountability platform—track focus, chat, set goals, and get things done together.
         </p>
-        <Link className='className="bg-white text-indigo-600 font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-shadow"' href="/dashboard">
-           
-            Get Started
-          
+        <Link
+          className="bg-white text-indigo-600 font-semibold px-6 py-3 rounded-xl hover:shadow-lg transition-shadow"
+          href="/dashboard"
+        >
+          Get Started
         </Link>
       </section>
 
@@ -32,12 +34,8 @@ export default function Home() {
                 <div className="h-12 w-12 flex items-center justify-center bg-indigo-100 rounded-full mb-4">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-semibold mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600">
-                  {feature.description}
-                </p>
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
               </Card>
             ))}
           </div>
@@ -50,10 +48,11 @@ export default function Home() {
           <h2 className="text-2xl font-bold mb-4">
             Ready to boost your productivity?
           </h2>
-          <Link className='className="inline-block bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors"' href="/sign-up">
-             
-              Create Your Free Account
-            
+          <Link
+            className="inline-block bg-indigo-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            href="/sign-up"
+          >
+            Create Your Free Account
           </Link>
         </div>
       </section>
@@ -73,10 +72,9 @@ export default function Home() {
   )
 }
 
+// Redirect logic should be handled in middleware.ts at the project root for app directory.
+
 // Feature Data and Card Component
-
-import { FaClock, FaComments, FaTasks, FaBullhorn } from 'react-icons/fa'
-
 const features: { title: string; description: string; icon: ReactNode }[] = [
   {
     title: 'Focus Timer',

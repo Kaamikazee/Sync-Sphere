@@ -5,16 +5,16 @@ import Divider from "@mui/material/Divider";
 import ListItemText from "@mui/material/ListItemText";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
 import Avatar from "@mui/material/Avatar";
-import { Group } from "@prisma/client";
 import { format } from "date-fns";
 import Link from "next/link";
+import { GroupsWithUserName } from "@/lib/api";
 
 interface Props {
-  group: Group;
+  group: GroupsWithUserName;
   href: string
 }
 export default function GroupComp({
-  group: { id, image, name, /* color, */ createdAt }, href
+  group: { id, image, name, /* color, */ createdAt, userName}, href
 }: Props) {
  return (
     <Link href={`${href}/${id}`}>
@@ -66,9 +66,9 @@ export default function GroupComp({
                 }
                 secondary={
                   <div className="flex justify-between text-sm mt-1">
-                    <span className="text-white/90">Ali Connors</span>
+                    <span className="text-white/90">{userName}</span>
                     <span className="text-white/80 font-mono">
-                      {format(createdAt, "yyyy-MM-dd")}
+                      {format(createdAt, "dd-MM-yyyy")}
                     </span>
                   </div>
                 }

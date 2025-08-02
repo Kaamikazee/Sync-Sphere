@@ -104,9 +104,6 @@ export default function MenuAppBar() {
             <FaClock className="w-5 h-5" />
             <span>Timer</span>
           </Link>
-          <div>
-            <NotificationDropdown /> Notifications
-          </div>
           <Link
             className="flex items-center gap-2 text-black hover:text-indigo-500 transition-colors"
             href="/profile"
@@ -115,6 +112,10 @@ export default function MenuAppBar() {
             <FaUserCircle className="w-5 h-5" />
             <span>Profile</span>
           </Link>
+
+          <div>
+            <NotificationDropdown /> Notifications
+          </div>
         </div>
       </div>
     </>

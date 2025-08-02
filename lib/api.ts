@@ -1,5 +1,5 @@
 import { GroupWithSubscribers } from "@/types/extended";
-import { Activity, Announcement, FocusArea, Group, Notification, PomodoroSettings, SegmentType, Todo, UserPermission } from "@prisma/client";
+import { Activity, Announcement, FocusArea, Group, GroupIconColor, Notification, PomodoroSettings, SegmentType, Todo, UserPermission } from "@prisma/client";
 
 export const baseUrl = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000';
 
@@ -7,6 +7,22 @@ export const domain =
   process.env.NODE_ENV !== "production"
     ? "http://localhost:3000"
     : "http://localhost:3000";
+
+
+export interface GroupsWithUserName {
+  userName: string | null;
+    name: string;
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    creatorId: string | null;
+    image: string | null;
+    color: GroupIconColor;
+    inviteCode: string;
+    adminCode: string;
+    canEditCode: string;
+    readOnlyCode: string;
+}
 
 export const getGroups = async (userId: string) => {
   const res = await fetch(`${baseUrl}/api/group/user_groups/?userId=${userId}`, {
@@ -18,7 +34,7 @@ export const getGroups = async (userId: string) => {
     return []
   }
 
-  return res.json() as Promise<Group[]>
+  return res.json() as Promise<GroupsWithUserName[]>
 };
 export const getGroup = async (group_id: string, userId: string) => {
   const res = await fetch(`${baseUrl}/api/group/get/group_details/${group_id}?userId=${userId}`, {

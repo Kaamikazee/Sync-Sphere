@@ -425,7 +425,7 @@ export const ChatContainer = ({
             onMouseDown={(e) => e.preventDefault()} 
               type="button"
               onClick={send}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-1 md:p-2 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
+              className="bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white p-2 rounded-full shadow transform hover:scale-110 transition-transform duration-200"
             >
               <Send size={18} />
             </button>
