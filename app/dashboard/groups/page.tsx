@@ -1,7 +1,8 @@
 import React from "react";
 import MenuAppBar from "@/components/ui/appbar";
-import { AddGroup } from "@/components/dashboard/group/AddGroup";
+// import { AddGroup } from "@/components/dashboard/group/AddGroup";
 import { GroupList } from "@/components/dashboard/group/GroupList";
+import Link from "next/link";
 
 const Groups = () => {
     
@@ -19,12 +20,15 @@ const Groups = () => {
 
   {/* Floating “Add Group” button */}
   <div className="fixed bottom-8 right-8">
-    <div
+    <Link
+      href="/groups"
       className="flex flex-col items-center justify-center p-4 bg-white/10 backdrop-blur-lg border border-white/20 rounded-full shadow-lg
                  transition-transform hover:scale-110 hover:shadow-2xl"
     >
-      <AddGroup />
-    </div>
+      {/* <ShowGroups /> */}
+      Show Groups
+      {/* <AddGroup /> */}
+    </Link>
   </div>
 </div>
 
