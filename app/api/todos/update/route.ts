@@ -1,6 +1,6 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { todoSchema } from "@/schemas/todoSchema";
+import { updateTodoSchema } from "@/schemas/updateTodoSchema";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   const body: unknown = await request.json();
-  const result = todoSchema.safeParse(body);
+  const result = updateTodoSchema.safeParse(body);
 
   if (!result.success) {
     return NextResponse.json("ERRORS.WRONG_DATA", {

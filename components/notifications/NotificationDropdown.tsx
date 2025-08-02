@@ -74,116 +74,120 @@ export function NotificationDropdown() {
   }, [open, markAllRead]);
 
   return (
-  <>
-    {/* Trigger button */}
-    <button
-      className="relative p-2 rounded-full bg-white/10 hover:bg-white/20 transition"
+    <div className="relative inline-block">
+      {/* Trigger button */}
+      <div 
       onClick={() => setOpen(true)}
-    >
-      <Bell className="text-black md:text-white" />
-      {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-full">
-          {unreadCount}
-        </span>
-      )}
-    </button>
-
-    {/* Mobile Slide-in Drawer */}
-    <AnimatePresence>
-      {open && (
-        <div className="md:hidden">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 bg-black z-40"
-          />
-
-          {/* Slide Panel */}
-          <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed top-0 right-0 w-full max-w-sm h-full bg-white z-50 shadow-xl flex flex-col"
-          >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Notifications</h2>
-              <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-black">
-                <X />
-              </button>
-            </div>
-            <ul className="overflow-y-auto divide-y flex-1">
-              {notifications.length === 0 ? (
-                <li className="p-4 text-gray-500 text-center">No notifications</li>
-              ) : (
-                notifications.map((n) => (
-                  <li
-                    key={n.id}
-                    className={`flex items-start gap-3 p-4 ${
-                      n.isRead ? "bg-white" : "bg-gray-100"
-                    }`}
-                  >
-                    {n.type === "WARNING" ? (
-                      <AlertTriangle className="text-yellow-500" size={20} />
-                    ) : (
-                      <AlarmClock className="text-blue-500" size={20} />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">{n.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(n.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-
-    {/* Desktop Dropdown */}
-    {open && (
-      <div className="absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-lg border border-gray-200 z-50 hidden md:block">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Notifications</h2>
-          <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-black">
-            <X />
-          </button>
-        </div>
-        <ul className="max-h-96 overflow-y-auto divide-y">
-          {notifications.length === 0 ? (
-            <li className="p-4 text-gray-500 text-center">No notifications</li>
-          ) : (
-            notifications.map((n) => (
-              <li
-                key={n.id}
-                className={`flex items-start gap-3 p-4 ${
-                  n.isRead ? "bg-white" : "bg-gray-100"
-                }`}
-              >
-                {n.type === "WARNING" ? (
-                  <AlertTriangle className="text-yellow-500" size={20} />
-                ) : (
-                  <AlarmClock className="text-blue-500" size={20} />
-                )}
-                <div>
-                  <p className="text-sm font-medium">{n.message}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {new Date(n.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              </li>
-            ))
-          )}
-        </ul>
+      className="flex justify-center items-center gap-2 md:text-white cursor-pointer">
+      <button
+        className="relative p-2 rounded-full bg-gray-400 md:bg-white/10 hover:bg-white/20 transition"
+      >
+        <Bell className="text-black md:text-white" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-full">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+      Notifications
       </div>
-    )}
-  </>
+
+      {/* Mobile Slide-in Drawer */}
+      <AnimatePresence>
+        {open && (
+          <div className="md:hidden">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+              className="fixed inset-0 bg-black z-40"
+            />
+
+            {/* Slide Panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed top-0 right-0 w-full max-w-sm h-full bg-white z-50 shadow-xl flex flex-col"
+            >
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold">Notifications</h2>
+                <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-black">
+                  <X />
+                </button>
+              </div>
+              <ul className="overflow-y-auto divide-y flex-1">
+                {notifications.length === 0 ? (
+                  <li className="p-4 text-gray-500 text-center">No notifications</li>
+                ) : (
+                  notifications.map((n) => (
+                    <li
+                      key={n.id}
+                      className={`flex items-start gap-3 p-4 ${
+                        n.isRead ? "bg-white" : "bg-gray-100"
+                      }`}
+                    >
+                      {n.type === "WARNING" ? (
+                        <AlertTriangle className="text-yellow-500" size={20} />
+                      ) : (
+                        <AlarmClock className="text-blue-500" size={20} />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">{n.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Dropdown */}
+      {open && (
+        <div className="absolute right-0 mt-2 w-80 bg-white shadow-2xl rounded-xl border border-gray-200 z-50 hidden md:block animate-fade-in">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">Notifications</h2>
+            <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-black">
+              <X />
+            </button>
+          </div>
+          <ul className="max-h-96 overflow-y-auto divide-y">
+            {notifications.length === 0 ? (
+              <li className="p-4 text-gray-500 text-center">No notifications</li>
+            ) : (
+              notifications.map((n) => (
+                <li
+                  key={n.id}
+                  className={`flex items-start gap-3 p-4 ${
+                    n.isRead ? "bg-white" : "bg-gray-100"
+                  }`}
+                >
+                  {n.type === "WARNING" ? (
+                    <AlertTriangle className="text-yellow-500" size={20} />
+                  ) : (
+                    <AlarmClock className="text-blue-500" size={20} />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{n.message}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(n.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
 );
 
 }

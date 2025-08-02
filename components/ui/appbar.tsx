@@ -10,6 +10,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
+import { signOut } from "next-auth/react";
 
 export default function MenuAppBar() {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -42,13 +43,20 @@ export default function MenuAppBar() {
               <FaClock className="w-5 h-5" />
               <span>Timer</span>
             </Link>
-            <NotificationDropdown />
             <Link
-              className="text-white hover:text-indigo-200 transition-colors"
+              className="flex gap-2 text-white hover:text-indigo-200 transition-colors"
               href="/profile"
             >
               <FaUserCircle className="w-6 h-6" />
+              <span>Profile</span>
             </Link>
+            <NotificationDropdown />
+            <button
+              onClick={() => signOut()}
+              className="ml-2 px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-indigo-500 text-white font-semibold hover:from-pink-400 hover:to-indigo-400 transition-colors"
+            >
+              Logout
+            </button>
           </div>
 
           {/* Mobile menu toggle */}
@@ -114,8 +122,14 @@ export default function MenuAppBar() {
           </Link>
 
           <div>
-            <NotificationDropdown /> Notifications
+            <NotificationDropdown />
           </div>
+          <button
+            onClick={() => { setMobileMenuOpen(false); signOut(); }}
+            className="mt-4 px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-indigo-500 text-white font-semibold hover:from-pink-400 hover:to-indigo-400 transition-colors"
+          >
+            Logout
+          </button>
         </div>
       </div>
     </>
