@@ -36,7 +36,7 @@ export const GET = async () => {
     if (!allGroups) return NextResponse.json([], { status: 200 });
 
     // Remove the full subscribers array from the response
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars
     const responseGroups = allGroups.map(({ subscribers, ...rest }) => rest);
 
     return NextResponse.json(responseGroups, { status: 200 });

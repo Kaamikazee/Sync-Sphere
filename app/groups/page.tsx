@@ -3,8 +3,6 @@
 import { AddGroup } from "@/components/dashboard/group/AddGroup";
 import { ShowGroups } from "@/components/dashboard/group/ShowGroups";
 import { AllGroups, getAllGroups } from "@/lib/api";
-import Image from "next/image";
-// import Link from "next/link";
 
 export default async function AllGroupsPage() {
     
