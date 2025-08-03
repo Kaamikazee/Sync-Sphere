@@ -1,4 +1,6 @@
+import { DeleteGroup } from "@/components/dashboard/group/DeleteGroup";
 import { NewLeaderboard } from "@/components/dashboard/group/leaderboard/NewLeaderboard";
+import { LeaveGroup } from "@/components/dashboard/group/LeaveGroup";
 import { InviteUsers } from "@/components/inviteUsers/InviteUsers";
 import ActiveLink from "@/components/ui/active-link";
 import MenuAppBar from "@/components/ui/appbar";
@@ -44,16 +46,11 @@ const Group = async ({ params: { group_id } }: Params) => {
             <h1 className="text-5xl font-extrabold text-gray-800">
               Group Dashboard
             </h1>
-            {/* <p className="text-lg text-gray-600">
-              You are{" "}
-              <span className="font-semibold text-indigo-600">{userRole}</span>{" "}
-              of this group
-            </p> */}
           </header>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-center gap-4">
-            {(userRole === "CAN_EDIT" || userRole === "OWNER") && (
+            {(userRole === "ADMIN" || userRole === "OWNER") && (
               <InviteUsers group={group} />
             )}
 
@@ -75,6 +72,19 @@ const Group = async ({ params: { group_id } }: Params) => {
                 Announcement
               </div>
             </Link>
+
+            {/* Edit Group: Only for Admin/Owner */}
+            {(userRole === "ADMIN" || userRole === "OWNER") && (
+              <Link href={`${group_id}/edit`}>
+                <div className="px-6 py-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-400 hover:bg-gradient-to-r hover:from-yellow-300 hover:via-yellow-400 hover:to-orange-300 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">
+                  Edit Group
+                </div>
+              </Link>
+            )}
+
+            {/* Leave Group: Available for all users */}
+            {userRole !== "OWNER" ? <DeleteGroup groupId={group_id} /> : <LeaveGroup userId={session.user.id} groupId={group_id} />}
+
           </div>
 
           <Separator className="border-gray-300" />
