@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
 import { FocusArea, Group, PomodoroSettings, Todo } from "@prisma/client";
+import { FocusAreTotalsById } from "@/lib/api";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useRunningStore } from "@/stores/useGlobalTimer";
@@ -26,12 +27,12 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
 interface Props {
-  // totalSeconds: number;
+  totalSeconds: number;
   userId: string;
   isRunning: boolean;
   startTimeStamp: Date;
   focusAreas: FocusArea[];
-  // timeSpentOfFA: FocusAreTotalsById[];
+  timeSpentOfFA: FocusAreTotalsById[];
   todos: Todo[];
   groups: Group[];
   pomodoroSettings: PomodoroSettings;
@@ -66,31 +67,6 @@ export const SimpleTimerContainer = ({
   const [date, setDate] = useState<Date>(today);
   const [open, setOpen] = useState(false);
 
-  const { data: totalSeconds } = useQuery({
-    queryKey: ["totalSeconds", userId, date],
-    queryFn: () =>
-      axios
-        .get(`/api/timer/day?userId=${userId}&date=${date.toISOString()}`)
-        .then((res) => res.data),
-  });
-
-  const [timeSpent, setTimeSpent] = useState(totalSeconds);
-  const [time, setTime] = useState(timeSpent);
-  const baselineRef = useRef<number>(timeSpent);
-
-  const { data: focusAreaTotals } = useQuery({
-    queryKey: ["focusAreaTotals", userId, date],
-    queryFn: () =>
-      axios
-        .get(
-          `/api/focus_area/day/totals?userId=${userId}&date=${date.toISOString()}`
-        )
-        .then((res) => res.data),
-  });
-
-  console.log('TIME SPENT', timeSpent);
-  
-
   function changeDateBy(days: number) {
     setDate((prev) => {
       const newDate = new Date((prev ?? today).getTime());
@@ -98,6 +74,30 @@ export const SimpleTimerContainer = ({
       return normalizeToStartOfDay(newDate);
     });
   }
+
+  const { data: totalSeconds } = useQuery({
+    queryKey: ["dayData", userId, date],
+    queryFn: () =>
+      axios
+        .get(`/api/timer/day?userId=${userId}&date=${date.toISOString()}`)
+        .then((res) => res.data),
+  });
+
+  const [timeSpent, setTimeSpent] = useState(totalSeconds);
+
+  const [time, setTime] = useState(timeSpent);
+
+  const baselineRef = useRef<number>(timeSpent);
+
+  const { data: focusAreaTotals } = useQuery({
+    queryKey: ["dayData", userId, date],
+    queryFn: () =>
+      axios
+        .get(
+          `/api/focus_area/day/totals?userId=${userId}&date=${date.toISOString()}`
+        )
+        .then((res) => res.data),
+  });
 
   function formatHMS(total: number) {
     const h = Math.floor(total / 3600);
