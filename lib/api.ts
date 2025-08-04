@@ -33,6 +33,9 @@ export interface GroupsWithUserName {
   adminCode: string;
   canEditCode: string;
   readOnlyCode: string;
+  description: string | null;
+  password: string | null;
+  isPrivate: boolean;
 }
 
 export const getGroups = async (userId: string) => {

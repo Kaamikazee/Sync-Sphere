@@ -44,7 +44,7 @@ export const SignInCardContent = () => {
       const account = await signIn("credentials", {
         email: data.email,
         password: data.password,
-        // redirect: false,
+        redirect: false,
       });
 
       if (!account) {
