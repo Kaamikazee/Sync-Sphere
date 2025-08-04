@@ -27,8 +27,7 @@ export default async function AllGroupsPage() {
 
       <div className="fixed bottom-8 right-8">
     <div
-      className="flex flex-col items-center justify-center p-4 bg-white/10 backdrop-blur-lg border border-white/20 rounded-full shadow-lg
-                 transition-transform hover:scale-110 hover:shadow-2xl"
+      className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 border border-purple-400/40 rounded-full shadow-lg transition-transform hover:scale-110 hover:shadow-2xl"
     >
       <AddGroup />
     </div>
