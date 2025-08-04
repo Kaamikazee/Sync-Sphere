@@ -5,27 +5,32 @@ import { NextResponse } from "next/server";
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
+  const date = url.searchParams.get("date");
 
   if (!userId) {
     return NextResponse.json("ERRORS.NO_USER_API", { status: 400 });
   }
 
   const today = normalizeToStartOfDay(new Date());
-//   today.setHours(0, 0, 0, 0); // normalize to midnight
 
+  if (date && isNaN(new Date(date).getTime())) {
+    return NextResponse.json("ERRORS.INVALID_DATE", { status: 400 });
+  }
+
+  const finalDate = date ? normalizeToStartOfDay(new Date(date)) : today;
 
   try {
     let dailyTotal = await db.dailyTotal.findUnique({
       where: {
         userId_date: {
           userId,
-          date: today,
+          date: finalDate,
         },
       },
       select: {
         totalSeconds: true,
-          isRunning: true,
-          startTimestamp: true,
+        isRunning: true,
+        startTimestamp: true,
         user: {
           select: {
             id: true,
@@ -36,13 +41,16 @@ export const GET = async (request: Request) => {
       },
     });
 
-    // If no record exists, create one 
-    if (!dailyTotal) {
+    const isToday = finalDate.getTime() === today.getTime();
+
+    if (!dailyTotal && isToday) {
       dailyTotal = await db.dailyTotal.create({
         data: {
           userId,
-          date: today,
+          date: finalDate,
           totalSeconds: 0,
+          isRunning: false,
+          startTimestamp: null,
         },
         select: {
           totalSeconds: true,
@@ -59,8 +67,19 @@ export const GET = async (request: Request) => {
       });
     }
 
-    return NextResponse.json(dailyTotal, { status: 200 });
+    if (!dailyTotal) {
+      return NextResponse.json(
+        {
+          totalSeconds: 0,
+          isRunning: false,
+          startTimestamp: null,
+          user: null,
+        },
+        { status: 200 }
+      );
+    }
 
+    return NextResponse.json(dailyTotal, { status: 200 });
   } catch (err) {
     console.error("GET dailyTotal error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });

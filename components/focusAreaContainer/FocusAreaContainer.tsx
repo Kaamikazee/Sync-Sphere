@@ -27,6 +27,7 @@ export default function FocusAreaContainer({
   setTime,
   isRunning
 }: Props) {
+// console.log("TIME SPENT", timeSpent, focusAreas);
 
    const [activeId, setActiveId] = useState<string | null>(null);
   return (
