@@ -30,21 +30,21 @@ export default function MenuAppBar() {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
             <Link
-              className="flex items-center gap-2 text-white hover:text-indigo-200 transition-colors"
+              className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
               href="/dashboard/groups"
             >
               <FaUsers className="w-5 h-5" />
               <span>Groups</span>
             </Link>
             <Link
-              className="flex items-center gap-2 text-white hover:text-indigo-200 transition-colors"
+              className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
               href="/dashboard/timer"
             >
               <FaClock className="w-5 h-5" />
               <span>Timer</span>
             </Link>
             <Link
-              className="flex gap-2 text-white hover:text-indigo-200 transition-colors"
+              className="flex gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
               href="/profile"
             >
               <FaUserCircle className="w-6 h-6" />
@@ -53,7 +53,7 @@ export default function MenuAppBar() {
             <NotificationDropdown />
             <button
               onClick={() => signOut()}
-              className="ml-2 px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-indigo-500 text-white font-semibold hover:from-pink-400 hover:to-indigo-400 transition-colors"
+              className="ml-2 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-200 to-blue-400 text-blue-900 font-semibold hover:from-indigo-300 hover:to-blue-500 transition-colors"
             >
               Logout
             </button>
@@ -62,7 +62,7 @@ export default function MenuAppBar() {
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="md:hidden text-white focus:outline-none"
+            className="md:hidden text-blue-900 hover:text-indigo-600 focus:outline-none"
           >
             <FaBars className="w-6 h-6" />
           </button>
@@ -86,10 +86,10 @@ export default function MenuAppBar() {
         }`}
       >
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/30">
-          <span className="text-lg font-semibold text-black">Menu</span>
+          <span className="text-lg font-semibold text-blue-900">Menu</span>
           <button
             onClick={() => setMobileMenuOpen(false)}
-            className="text-gray-700 hover:text-red-500"
+            className="text-blue-900 hover:text-red-500"
           >
             <FaTimes className="w-5 h-5" />
           </button>
@@ -97,7 +97,7 @@ export default function MenuAppBar() {
 
         <div className="flex flex-col space-y-4 px-4 py-6">
           <Link
-            className="flex items-center gap-2 text-black hover:text-indigo-500 transition-colors"
+            className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
             href="/dashboard/groups"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -105,7 +105,7 @@ export default function MenuAppBar() {
             <span>Groups</span>
           </Link>
           <Link
-            className="flex items-center gap-2 text-black hover:text-indigo-500 transition-colors"
+            className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
             href="/dashboard/timer"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -113,7 +113,7 @@ export default function MenuAppBar() {
             <span>Timer</span>
           </Link>
           <Link
-            className="flex items-center gap-2 text-black hover:text-indigo-500 transition-colors"
+            className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
             href="/profile"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -126,7 +126,7 @@ export default function MenuAppBar() {
           </div>
           <button
             onClick={() => { setMobileMenuOpen(false); signOut(); }}
-            className="mt-4 px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-indigo-500 text-white font-semibold hover:from-pink-400 hover:to-indigo-400 transition-colors"
+            className="mt-4 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-200 to-blue-400 text-blue-900 font-semibold hover:from-indigo-300 hover:to-blue-500 transition-colors"
           >
             Logout
           </button>

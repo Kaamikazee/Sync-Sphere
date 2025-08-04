@@ -78,11 +78,11 @@ export function NotificationDropdown() {
       {/* Trigger button */}
       <div 
       onClick={() => setOpen(true)}
-      className="flex justify-center items-center gap-2 md:text-white cursor-pointer">
+      className="flex justify-center items-center gap-2 text-blue-900 hover:text-indigo-600 cursor-pointer">
       <button
-        className="relative p-2 rounded-full bg-gray-400 md:bg-white/10 hover:bg-white/20 transition"
+        className="relative p-2 rounded-full bg-gray-400 hover:bg-white/20 transition"
       >
-        <Bell className="text-black md:text-white" />
+        <Bell className=" text-blue-900 hover:text-indigo-600" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-full">
             {unreadCount}
