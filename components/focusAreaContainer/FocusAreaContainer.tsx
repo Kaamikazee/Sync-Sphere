@@ -39,7 +39,7 @@ export default function FocusAreaContainer({
           (t) => t.focusAreaId === focusArea.id
         );
 
-        const duration = timeSpent.find(
+        const duration = timeSpent?.find(
           (m) => m.focusAreaId === focusArea.id
         )?.totalDuration ?? 0;
 

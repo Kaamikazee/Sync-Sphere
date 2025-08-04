@@ -42,7 +42,7 @@ interface Props {
 
 export function FocusAreaComp({
   focusArea: { name, id: focusAreaId },
-  timeSpent: OldTimeSpent,
+  timeSpent,
   isRunning,
   todos,
   handleStart,
@@ -53,7 +53,7 @@ export function FocusAreaComp({
   isActive,
   onActivate,
 }: Props) {
-  const [timeSpent] = useState(OldTimeSpent);
+  // const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
   const running = useRunningStore((s) => s.running);
   const setRunning = useRunningStore((s) => s.setRunning);
@@ -66,6 +66,13 @@ export function FocusAreaComp({
   const resetStop = useRunningStore((state) => state.resetStop);
 
   const breakTimer = useBreakTimer();
+
+  useEffect(() => {
+  if (!IsFocusRunning) {
+    setDisplayTime(timeSpent);
+  }
+}, [timeSpent, IsFocusRunning]);
+
 
   useEffect(() => {
     setRunning(isRunning);

@@ -8,7 +8,11 @@ import { FocusArea, Group, PomodoroSettings, Todo } from "@prisma/client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "../ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -48,11 +52,13 @@ export const SimpleTimerContainer = ({
   const [date, setDate] = useState<Date>(today);
   const [open, setOpen] = useState(false);
 
-  const { data: totalSeconds, isLoading } = useQuery({
+  const { data: timerData } = useQuery({
     queryKey: ["totalSeconds", userId, date],
     queryFn: () =>
       axios
-        .get(`/api/simple_timer/day?userId=${userId}&date=${date.toISOString()}`)
+        .get(
+          `/api/simple_timer/day?userId=${userId}&date=${date.toISOString()}`
+        )
         .then((res) => res.data),
   });
 
@@ -60,9 +66,13 @@ export const SimpleTimerContainer = ({
     queryKey: ["focusAreaTotals", userId, date],
     queryFn: () =>
       axios
-        .get(`/api/focus_area/day/totals?userId=${userId}&date=${date.toISOString()}`)
+        .get(
+          `/api/focus_area/day/totals?userId=${userId}&date=${date.toISOString()}`
+        )
         .then((res) => res.data),
   });
+
+  console.log("Focus area totals data:", focusAreaTotals);
 
   const [time, setTime] = useState<number>(0);
   const baselineRef = useRef<number>(0);
@@ -80,17 +90,19 @@ export const SimpleTimerContainer = ({
   const triggerStop = useRunningStore((s) => s.triggerStop);
 
   useEffect(() => {
-    if (typeof totalSeconds === "number") {
-      setTime(totalSeconds);
-      baselineRef.current = totalSeconds;
+    if (timerData && typeof timerData.totalSeconds === "number") {
+      setTime(timerData.totalSeconds);
+      baselineRef.current = timerData.totalSeconds;
 
-      if (isRunning && startTimeStamp) {
-        const elapsed = Math.floor((Date.now() - new Date(startTimeStamp).getTime()) / 1000);
-        setTime(totalSeconds + elapsed);
-        setStartTime(new Date(startTimeStamp).getTime());
+      if (timerData.isRunning && timerData.startTimestamp) {
+        const elapsed = Math.floor(
+          (Date.now() - new Date(timerData.startTimestamp).getTime()) / 1000
+        );
+        setTime(timerData.totalSeconds + elapsed);
+        setStartTime(new Date(timerData.startTimestamp).getTime());
       }
     }
-  }, [totalSeconds, isRunning, startTimeStamp]);
+  }, [timerData]);
 
   useEffect(() => {
     setRunning(isRunning);
@@ -146,17 +158,10 @@ export const SimpleTimerContainer = ({
     setDate((prev) => {
       const newDate = new Date(prev.getTime());
       newDate.setDate(newDate.getDate() + days);
-      return normalizeToStartOfDay(newDate);
+      const normalized = normalizeToStartOfDay(newDate);
+      return normalized > today ? today : normalized;
     });
   };
-
-  if (isLoading || typeof totalSeconds !== "number") {
-    return (
-      <div className="text-center py-10 text-white/70 italic animate-pulse">
-        Loading timer...
-      </div>
-    );
-  }
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-4 bg-gradient-to-br from-sky-800/40 via-purple-800/30 to-indigo-800/40 backdrop-blur-sm">
@@ -198,7 +203,9 @@ export const SimpleTimerContainer = ({
               >
                 <Card
                   ref={glowRef}
-                  className={`relative mt-6 w-full sm:w-auto sm:min-w-[40rem] bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 backdrop-blur-md text-white rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-transform duration-300 gap-2 py-2 ${isPomodoro && "hidden"}`}
+                  className={`relative mt-6 w-full sm:w-auto sm:min-w-[40rem] bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 backdrop-blur-md text-white rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-transform duration-300 gap-2 py-2 ${
+                    isPomodoro && "hidden"
+                  }`}
                 >
                   <CardHeader className="justify-center items-center">
                     <CardTitle className="text-7xl sm:text-9xl">
@@ -260,19 +267,29 @@ export const SimpleTimerContainer = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 w-full max-w-xl">
-          <FocusAreaContainer
-            focusAreas={focusAreas}
-            timeSpent={focusAreaTotals}
-            handleStart={handleStart}
-            handleStop={handleStop}
-            setStartTime={setStartTime}
-            setIsRunning={setRunning}
-            setTime={setTime}
-            isRunning={running}
-            todos={todos}
-          />
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={date.toISOString()}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex flex-col gap-4 w-full max-w-xl">
+              <FocusAreaContainer
+                focusAreas={focusAreas}
+                timeSpent={focusAreaTotals || []}
+                handleStart={handleStart}
+                handleStop={handleStop}
+                setStartTime={setStartTime}
+                setIsRunning={setRunning}
+                setTime={setTime}
+                isRunning={running}
+                todos={todos}
+              />
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       <aside className="w-full">

@@ -17,9 +17,9 @@ export const GET = async (request: Request) => {
 
   try {
     // For future dates, return early with empty response
-    // if (finalDate > today) {
-    //   return NextResponse.json([], { status: 200 });
-    // }
+    if (finalDate > today) {
+      return NextResponse.json([], { status: 200 });
+    }
 
     const focusAreaTotals = await db.timerSegment.groupBy({
       by: ["focusAreaId"],
@@ -36,7 +36,7 @@ export const GET = async (request: Request) => {
 
     const result = focusAreaTotals.map((item) => ({
       focusAreaId: item.focusAreaId,
-      totalDuration: item._sum.duration ?? 0,
+      totalDuration: item._sum.duration ?? null,
     }));
 
     console.log("Resulting Focus Area Totals:", result);

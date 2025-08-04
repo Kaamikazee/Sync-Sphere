@@ -11,6 +11,7 @@ export const GET = async (request: Request) => {
   const today = normalizeToStartOfDay(new Date());
 
   try {
+
     const focusAreaTotals = await db.timerSegment.groupBy({
       by: ["focusAreaId"],
       where: {
