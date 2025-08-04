@@ -41,7 +41,10 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
     <div className="flex justify-center items-center">
       <div className="flex flex-col justify-center items-center p-4 sm:p-6 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg transition hover:scale-[1.03] hover:shadow-2xl">
         <div className="flex flex-col justify-center items-center cursor-pointer">
-          <CirclePlusIcon size={48} className="text-white mb-2 sm:size-[55px]" />
+          <CirclePlusIcon
+            size={48}
+            className="text-white mb-2 sm:size-[55px]"
+          />
           <span className="text-white text-lg sm:text-xl font-semibold text-center">
             {update ? "Update Group" : "Create Group"}
           </span>
@@ -57,10 +60,15 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
           {update ? "Update Group" : "Create a new Group"}
         </div>
         <div className="text-sm sm:text-base text-white/80 mb-6">
-          This will {update ? "update the group" : "create a new group"}. You can edit the group later on as well.
+          This will {update ? "update the group" : "create a new group"}. You
+          can edit the group later on as well.
         </div>
         {update ? (
-          <UpdateGroupForm onSetOpen={setOpen} groupId={groupId} group={group} />
+          <UpdateGroupForm
+            onSetOpen={setOpen}
+            groupId={groupId}
+            group={group}
+          />
         ) : (
           <AddGroupForm onSetOpen={setOpen} />
         )}
@@ -72,10 +80,11 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
     <div>
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild>
-            {TriggerButton}
-          </DrawerTrigger>
-          <DrawerContent className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar">
+          <DrawerTrigger asChild>{TriggerButton}</DrawerTrigger>
+          <DrawerContent
+            className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar pb-28"
+            style={{ scrollPaddingBottom: "7rem" }}
+          >
             <DrawerHeader>
               <DrawerTitle className="text-white text-xl">
                 {update ? "Update Group" : "Create Group"}
@@ -96,7 +105,8 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
                 {update ? "Update Group" : "Create a new Group"}
               </DialogTitle>
               <DialogDescription className="text-sm sm:text-base text-white/80 mb-6">
-                This will {update ? "update the group" : "create a new group"}. You can edit the group later on as well.
+                This will {update ? "update the group" : "create a new group"}.
+                You can edit the group later on as well.
               </DialogDescription>
             </DialogHeader>
             {Content}
@@ -105,5 +115,4 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
       )}
     </div>
   );
-
 };

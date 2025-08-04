@@ -14,6 +14,9 @@ export const GET = async () => {
             color: true,
             readOnlyCode: true,
             subscribers: true,
+            description: true,
+            isPrivate: true,
+            password: true,
             creator: {
                 select: {
                     name: true,

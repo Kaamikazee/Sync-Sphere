@@ -6,8 +6,7 @@ import { AllGroups, getAllGroups } from "@/lib/api";
 
 export default async function AllGroupsPage() {
     
-    const groups = await getAllGroups(); // Replace with your actual fetch logic
-    console.log("Fetched groups:", groups);
+    const groups = await getAllGroups();
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-900 px-4 py-6">

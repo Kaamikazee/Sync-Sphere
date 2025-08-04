@@ -367,6 +367,9 @@ export interface AllGroups {
   image: string | null;
   color: GroupIconColor;
   readOnlyCode: string;
+  description: string | null;
+  isPrivate: boolean;
+  password: string | null;
   creator: {
     name: string | null;
   } | null;
