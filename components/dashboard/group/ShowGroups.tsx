@@ -51,9 +51,11 @@ export function ShowGroups({ group }: Props) {
     }
   };
 
+  // http://localhost:3000/dashboard/group/cmbkvkmie0004ys5c79m92dyd
+
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      await axios.post(`/api/group/join/${group.id}`, { password });
+      await axios.post(`/api/group/join`, { groupId: group.id, password });
     },
     onError: (err: AxiosError) => {
       const error = err?.response?.data
@@ -66,7 +68,7 @@ export function ShowGroups({ group }: Props) {
       setShowMainDialog(false);
       setPassword("");
       router.refresh();
-      router.push(`/dashboard/group/${group.id}`);
+      router.push(`/dashboard/groups/${group.id}`);
     },
     mutationKey: ["joinGroup"],
   });

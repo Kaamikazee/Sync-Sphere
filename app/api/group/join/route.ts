@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         }
     })
 
-    if (user) {
+    if (user?.subscriptions[0]) {
         return new NextResponse("You are already a member of this group", {
           status: 404,
           statusText: "Already a member",
