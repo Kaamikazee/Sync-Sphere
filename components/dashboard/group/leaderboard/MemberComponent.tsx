@@ -25,6 +25,7 @@ interface Props {
   warningId?: string | null;
   groupId: string;
   isOnline?: boolean;
+  isMe?: boolean;
 }
 
 export function MemberComponent({
@@ -39,6 +40,7 @@ export function MemberComponent({
   warningId,
   groupId,
   isOnline = false,
+  isMe = false,
 }: Props) {
   const queryClient = useQueryClient();
   const { mutate, isPending } = useMutation({
@@ -143,12 +145,9 @@ export function MemberComponent({
       <form>
         <DialogTrigger asChild>
           <div
-            className="flex items-center justify-between py-3 px-2 sm:py-4 sm:px-6 
-          rounded-xl relative
-          text-white/90 transition-transform duration-200
-          hover:scale-100 sm:hover:scale-105
-          hover:bg-white/10 sm:hover:shadow-[0_0_25px_rgba(255,255,255,0.3)]
-          hover:ring-0 sm:hover:ring-2 sm:hover:ring-white/30"
+            className={`flex items-center justify-between py-3 px-2 sm:py-4 sm:px-6 rounded-xl relative text-white/90 transition-transform duration-200 hover:scale-100 sm:hover:scale-105 hover:bg-white/10 sm:hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:ring-0 sm:hover:ring-2 sm:hover:ring-white/30 ${
+              isMe && "ring-2 ring-indigo-500/80 bg-indigo-500/10"
+            }`}
           >
             {/* Warning Overlay */}
             {warningId && (
@@ -179,9 +178,7 @@ export function MemberComponent({
                 warningId ? "opacity-40 pointer-events-none" : ""
               }`}
             >
-              <span
-                className="text-base sm:text-xl font-bold text-[#2c2c2c]"
-              >
+              <span className="text-base sm:text-xl font-bold text-[#2c2c2c]">
                 #{index + 1}
               </span>
               <div className="relative w-10 h-10">
@@ -204,17 +201,21 @@ export function MemberComponent({
                 )}
               </div>
 
-              <span
-                className="text-sm sm:text-lg font-medium text-[#2c2c2c]
-"
-              >
+              <span className="text-sm sm:text-lg font-medium text-[#2c2c2c] flex items-center gap-1">
                 {name ?? "Anonymous"}
+                {isMe && (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold">
+                    You
+                  </span>
+                )}
               </span>
             </div>
 
             {/* Timer */}
             <span
-              className={`text-sm sm:text-xl font-mono text-[#2c2c2c] ${warningId ? "opacity-40" : ""}`}
+              className={`text-sm sm:text-xl font-mono text-[#2c2c2c] ${
+                warningId ? "opacity-40" : ""
+              }`}
             >
               {base}
             </span>

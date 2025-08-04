@@ -187,6 +187,7 @@ export const NewLeaderboard = ({
         backdrop-blur-none sm:backdrop-blur-md"
         >
           {sorted.map((member, index) => {
+            const isMe = member.id === uuserId;
             const base = formatHMS(getLiveTotalSeconds(member));
             const isOnline = onlineUserIds.includes(member.id);
             return (
@@ -203,6 +204,7 @@ export const NewLeaderboard = ({
                   groupId={groupId}
                   warningId={member.warningId}
                   isOnline={isOnline}
+                  isMe={isMe}
                 />
               </li>
             );
