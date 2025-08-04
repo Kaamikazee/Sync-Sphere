@@ -109,7 +109,7 @@ export const authOptions: NextAuthOptions = {
         session.user.username = token.username;
         session.user.completedOnboarding = !!token.completedOnboarding;
         session.user.bio = typeof token.bio === "string" ? token.bio : null;
-        session.user.joinedAt = typeof token.joinedAt === "string" ? token.joinedAt : null;
+        session.user.createdAt = token.createdAt
       }
 
       const user = await db.user.findUnique({
@@ -147,12 +147,14 @@ export const authOptions: NextAuthOptions = {
     token.picture = dbUser.image;
     token.completedOnboarding = dbUser.completedOnboarding;
     token.bio = dbUser.bio;
-    token.joinedAt = dbUser.createdAt;
+    token.createdAt = dbUser.createdAt;
   }
 
       return token; // ✅ Always return the token object
     }
   }
 };
+
+
 
 export const getAuthSession = () => getServerSession(authOptions);

@@ -8,6 +8,7 @@ const Settings = async () => {
   if (!session) {
     return <p>You need to sign in to access this page.</p>;
   }
+  
 
   return (
     <>

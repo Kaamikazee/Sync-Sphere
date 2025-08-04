@@ -7,7 +7,7 @@ declare module "next-auth/jwt" {
     surname?: string | null;
     completedOnboarding?: boolean;
     bio?: string | null;
-    joinedAt?: Date | null;
+    createdAt?: Date | null;
   }
 }
 
@@ -20,7 +20,7 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       bio?: string | null;
-      joinedAt?: Date | null;
+      createdAt?: Date | null;
       completedOnboarding?: boolean | null;
       username?: string | null;
     };

@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       if (
         user.subscriptions[0].userRole === "CAN_EDIT" ||
         user.subscriptions[0].userRole === "READ_ONLY" || 
-        user.subscriptions[0].userRole === "ADMIN" // Ensure OWNER cannot remove themselves
+        user.subscriptions[0].userRole === "ADMIN"
       ) {
         return NextResponse.json(
           "You don't have permission to do this action",

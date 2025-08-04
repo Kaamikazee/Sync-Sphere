@@ -18,6 +18,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
+import { Switch } from "@/components/ui/switch";
 
 interface Props<> {
   form: UseFormReturn<any>;
@@ -28,6 +29,8 @@ interface Props<> {
   isUploading?: boolean;
   isPending?: boolean;
   hideBtn?: boolean;
+  previewUrlUpdate?: string | null;
+  isUpdate?: boolean;
 }
 
 export function Uploadfile({
@@ -39,11 +42,13 @@ export function Uploadfile({
   isPending,
   isUploading,
   hideBtn,
+  previewUrlUpdate,
+  isUpdate = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(previewUrlUpdate || null);
 
   const onFileHandler = (providedFile: File) => {
     const result = schema
@@ -127,7 +132,7 @@ export function Uploadfile({
               name="groupName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-muted-foreground">
+                  <FormLabel className="text-gray-700">
                     Group Name
                   </FormLabel>
                   <FormControl>
@@ -142,12 +147,35 @@ export function Uploadfile({
               )}
             />
           </div>
+          <div>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-700">
+                    Description
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      className="bg-muted w-full"
+                      placeholder="Add description about group"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          
           <FormField
             control={form.control}
             name="file"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-muted-foreground mb-1.5 self-start">
+                <FormLabel className="text-gray-700 mb-1.5 self-start">
                   Group Icon
                 </FormLabel>
                 <FormControl>
@@ -155,7 +183,7 @@ export function Uploadfile({
                     className={cn(
                       `${
                         dragActive ? "bg-primary/20" : "bg-muted"
-                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 p-4 sm:p-6 cursor-pointer hover:bg-muted/90 duration-200 transition-colors ring-offset-background rounded-md relative border border-muted-foreground text-muted-foreground flex flex-col justify-center items-center w-[15rem]`,
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 p-4 sm:p-6 cursor-pointer hover:bg-muted/90 duration-200 transition-colors ring-offset-background rounded-md relative border border-gray-text-gray-700 text-gray-700 flex flex-col justify-center items-center w-[15rem]`,
                       "w-full"
                     )}
                     onDragEnter={handleDragEnter}
@@ -240,6 +268,50 @@ export function Uploadfile({
               </FormItem>
             )}
           />
+          {/* Switch for isPrivate */}
+          <FormField
+            control={form.control}
+            name="isPrivate"
+            render={({ field }) => (
+              <FormItem className="flex items-center space-x-4">
+                <FormLabel className="text-gray-700 mb-1.5 self-start">
+                  Private Group
+                </FormLabel>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Conditionally render inviteEmail field if isPrivate is true */}
+          {form.watch("isPrivate") && (
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-700">
+                    Password
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      className="bg-muted w-full"
+                      placeholder="Enter password"
+                      type="password"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           {!hideBtn && (
             <Button
               disabled={!form.formState.isValid || isUploading}
@@ -251,7 +323,7 @@ export function Uploadfile({
                 <LoadingState loadingText={"Creating. Please Wait"} />
               ) : (
                 <>
-                  {"Create"}
+                  {isUpdate ? "Update" : "Create"}
                   <ArrowRight className="ml-2" width={18} height={18} />
                 </>
               )}

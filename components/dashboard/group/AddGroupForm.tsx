@@ -26,6 +26,9 @@ export const AddGroupForm = ({onSetOpen}: Props) => {
     resolver: zodResolver(groupSchema),
     defaultValues: {
       groupName: "",
+      description: "",
+      isPrivate: false,
+      password: "",
     },
   });
 
@@ -76,12 +79,18 @@ export const AddGroupForm = ({onSetOpen}: Props) => {
     newGroup({
       groupName: data.groupName,
       file: groupImageURL,
+      description: data.description,
+      isPrivate: data.isPrivate,
+      password: data.password,
     });
   };
 
+  // If using .transform or .refine, extract the base object schema:
+const baseGroupSchema = groupSchema._def.schema; // For .transform/.refine
+
   return (
     <div>
-        <Uploadfile form={form} onSubmit={onSubmit} schema={groupSchema} isUploading={isUploading} isPending={isPending} />
+        <Uploadfile form={form} onSubmit={onSubmit} schema={baseGroupSchema} isUploading={isUploading} isPending={isPending} />
     </div>
   );
 }

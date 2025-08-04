@@ -1,16 +1,26 @@
 "use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
+  DialogTrigger,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerTrigger,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerClose,
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
@@ -18,6 +28,7 @@ import axios, { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TodoWorkDone } from "@prisma/client";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface Props {
   activityId?: string;
@@ -28,12 +39,12 @@ export function CreateTodo({ focusAreaId }: Props) {
   const router = useRouter();
   const [todoName, setTodoName] = useState("");
   const [todoContent, setTodoContent] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   const { mutate, isPending: isLoading } = useMutation({
     mutationFn: async () => {
       await axios.post(
-        // `/api/todos/new?activityId=${activityId}`,
         `/api/todos/new?focusAreaId=${focusAreaId}`,
         { title: todoName, content: todoContent, completed: TodoWorkDone.NOT_DONE }
       );
@@ -46,7 +57,7 @@ export function CreateTodo({ focusAreaId }: Props) {
     },
     onSuccess: () => {
       toast.success("Todo created successfully");
-      setIsDialogOpen(false)
+      setIsOpen(false);
       router.refresh();
     },
     mutationKey: ["createTodo"],
@@ -57,35 +68,24 @@ export function CreateTodo({ focusAreaId }: Props) {
     if (!todoName.trim() || !todoContent.trim()) {
       toast.error("Please fill out both fields.");
       return;
-    }
-    else if (todoName.trim().length > 20) {
+    } else if (todoName.trim().length > 20) {
       toast.error("Title can be max of 20 letters only");
       return;
     }
     mutate();
   };
 
-  return (
-  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-    <DialogTrigger asChild>
-      <Button
-        className="bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform px-4 py-2 text-sm sm:text-base"
-        variant="outline"
-      >
-        ➕ Create a new todo
-      </Button>
-    </DialogTrigger>
+  const Trigger = (
+    <Button
+      className="bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform px-4 py-2 text-sm sm:text-base"
+      variant="outline"
+    >
+      ➕ Create a new todo
+    </Button>
+  );
 
-    <DialogContent className="w-[90vw] max-w-xs sm:max-w-sm md:max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all p-4 sm:p-6">
-      <DialogHeader>
-        <DialogTitle className="text-white text-lg sm:text-xl">
-          📝 New Todo
-        </DialogTitle>
-        <DialogDescription className="text-white/80 text-sm sm:text-base">
-          Fill in the details for your todo. Click <strong>Save</strong> to confirm.
-        </DialogDescription>
-      </DialogHeader>
-
+  const Content = (
+    <>
       <form onSubmit={handleSubmit} className="grid gap-5 pt-4">
         <div className="space-y-2">
           <Label htmlFor="todo-name" className="text-white text-sm">
@@ -115,16 +115,29 @@ export function CreateTodo({ focusAreaId }: Props) {
           />
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-2 mt-4">
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform text-sm sm:text-base"
-            >
-              Cancel
-            </Button>
-          </DialogClose>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 mt-4">
+          {(isMobile ? (
+            <DrawerClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform text-sm sm:text-base"
+              >
+                Cancel
+              </Button>
+            </DrawerClose>
+          ) : (
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform text-sm sm:text-base"
+              >
+                Cancel
+              </Button>
+            </DialogClose>
+          ))}
+
           <Button
             type="submit"
             disabled={isLoading}
@@ -132,10 +145,40 @@ export function CreateTodo({ focusAreaId }: Props) {
           >
             {isLoading ? "Saving..." : "✅ Save Todo"}
           </Button>
-        </DialogFooter>
+        </div>
       </form>
-    </DialogContent>
-  </Dialog>
-);
+    </>
+  );
 
+  if (isMobile) {
+    return (
+      <Drawer open={isOpen} onOpenChange={setIsOpen}>
+        <DrawerTrigger asChild>{Trigger}</DrawerTrigger>
+        <DrawerContent className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar">
+          <DrawerHeader>
+            <DrawerTitle className="text-white text-lg sm:text-xl">📝 New Todo</DrawerTitle>
+            <DrawerDescription className="text-white/80 text-sm sm:text-base">
+              Fill in the details for your todo. Click <strong>Save</strong> to confirm.
+            </DrawerDescription>
+          </DrawerHeader>
+          <DrawerFooter className="pt-0">{Content}</DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{Trigger}</DialogTrigger>
+      <DialogContent className="w-[90vw] max-w-xs sm:max-w-sm md:max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle className="text-white text-lg sm:text-xl">📝 New Todo</DialogTitle>
+          <DialogDescription className="text-white/80 text-sm sm:text-base">
+            Fill in the details for your todo. Click <strong>Save</strong> to confirm.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="pt-0">{Content}</div>
+      </DialogContent>
+    </Dialog>
+  );
 }

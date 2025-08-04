@@ -14,24 +14,30 @@ import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
 import { Uploadfile } from "../common/UploadFile";
+import { Group } from "@prisma/client";
 
 interface Props {
     onSetOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    groupId: string | undefined;
+    group?: Group; // Optional group prop for updating
   }
 
-export const UpdateGroupForm = ({onSetOpen}: Props) => {
+export const UpdateGroupForm = ({onSetOpen, groupId, group}: Props) => {
   const [uploadError, setUploadError] = useState(false);
 
   const form = useForm<GroupSchema>({
     resolver: zodResolver(groupSchema),
     defaultValues: {
-      groupName: "",
+      groupName: group?.name || "",
+      description: group?.description || "",
+      isPrivate: group?.isPrivate || false,
+      password: "",
     },
   });
 
-  const { mutate: newGroup, isPending } = useMutation({
+  const { mutate: updateGroup, isPending } = useMutation({
     mutationFn: async (data: ApiGroupSchema) => {
-      const { data: result } = await axios.post("/api/group/new", data);
+      const { data: result } = await axios.post("/api/group/update", {data, groupId});
       return result;
     },
     onError: (err: AxiosError) => {
@@ -43,9 +49,9 @@ export const UpdateGroupForm = ({onSetOpen}: Props) => {
     },
     onSuccess: () => {
         onSetOpen(false)
-      toast.success("Your group has been created successfully!");
+      toast.success("Your group has been updated successfully!");
     },
-    mutationKey: ["newGroup"],
+    mutationKey: ["updateGroup"],
   });
 
   const { startUpload, isUploading } = useUploadThing("imageUploader", {
@@ -73,15 +79,21 @@ export const UpdateGroupForm = ({onSetOpen}: Props) => {
     }
     if (uploadError) return;
 
-    newGroup({
+    updateGroup({
       groupName: data.groupName,
       file: groupImageURL,
+      description: data.description,
+      isPrivate: data.isPrivate,
+      password: data.password,
     });
   };
 
+  // If using .transform or .refine, extract the base object schema:
+const baseGroupSchema = groupSchema._def.schema; // For .transform/.refine
+
   return (
     <div>
-        <Uploadfile form={form} onSubmit={onSubmit} schema={groupSchema} isUploading={isUploading} isPending={isPending} />
+        <Uploadfile isUpdate form={form} onSubmit={onSubmit} schema={baseGroupSchema} isUploading={isUploading} isPending={isPending} previewUrlUpdate={group?.image || null}/>
     </div>
   );
 }

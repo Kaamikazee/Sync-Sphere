@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
   }
 
-  const { groupName, file } = result.data;
+  const { groupName, file, description, isPrivate, password } = result.data;
 
   try {
     const user = await db.user.findUnique({
@@ -78,6 +78,9 @@ export async function POST(req: Request) {
             adminCode: uuidv4(),
             canEditCode: uuidv4(),
             readOnlyCode: uuidv4(),
+            description,
+            isPrivate,
+            password,
         }
     })
 

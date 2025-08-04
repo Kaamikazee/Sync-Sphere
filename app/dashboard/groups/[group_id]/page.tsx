@@ -85,7 +85,7 @@ const Group = async ({ params: { group_id } }: Params) => {
           {/* Edit Group Floating Button (Admin/Owner only) */}
           {(userRole === "ADMIN" || userRole === "OWNER") && (
             <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50">
-              <AddGroup update />
+              <AddGroup update groupId={group_id} group={group}/>
             </div>
           )}
 
