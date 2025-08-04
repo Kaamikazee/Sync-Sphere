@@ -8,9 +8,10 @@ import { toast } from "sonner";
 interface Props {
   userId: string;
   groupId: string;
+  groupName: string;
 }
 
-export const LeaveGroup = ({ userId, groupId }: Props) => {
+export const LeaveGroup = ({ userId, groupId, groupName }: Props) => {
     const router = useRouter();
   const { mutate, isPending } = useMutation({
     mutationFn: async ({
@@ -20,13 +21,14 @@ export const LeaveGroup = ({ userId, groupId }: Props) => {
       userId: string;
       groupId: string;
     }) => {
-      await axios.post("/api/group/users/remove", {
+      await axios.post("/api/group/leave", {
         userId,
         groupId,
       });
     },
     onSuccess: () => {
-        toast.success("You have left the group successfully");
+        toast.success(`You have left the group "${groupName}" successfully!`);
+        router.push("/dashboard/groups");
         router.refresh();
     },
     mutationKey: ["leaveGroup", userId, groupId],

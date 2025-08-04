@@ -51,7 +51,6 @@ export function ShowGroups({ group }: Props) {
     }
   };
 
-  // http://localhost:3000/dashboard/group/cmbkvkmie0004ys5c79m92dyd
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
