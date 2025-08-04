@@ -133,22 +133,24 @@ export const authOptions: NextAuthOptions = {
           email: token.email
         }
       });
-      if (!dbUser) {
-        token.id = user.id
-        return token;
-      }
+       if (!dbUser && user) {
+    token.id = user.id;
+    return token;
+  }
 
-      return {
-        id: dbUser.id,
-        username: dbUser.username,
-        name: dbUser.name,
-        surname: dbUser.surname,
-        email: dbUser.email,
-        picture: dbUser.image,
-        completedOnboarding: dbUser.completedOnboarding, // ✅ Add this line
-        bio: dbUser.bio, // ✅ Add this line
-        joinedAt: dbUser.createdAt,
-      }
+  if (dbUser) {
+    token.id = dbUser.id;
+    token.username = dbUser.username;
+    token.name = dbUser.name;
+    token.surname = dbUser.surname;
+    token.email = dbUser.email;
+    token.picture = dbUser.image;
+    token.completedOnboarding = dbUser.completedOnboarding;
+    token.bio = dbUser.bio;
+    token.joinedAt = dbUser.createdAt;
+  }
+
+      return token; // ✅ Always return the token object
     }
   }
 };

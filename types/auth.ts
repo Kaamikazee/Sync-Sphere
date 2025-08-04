@@ -6,6 +6,8 @@ declare module "next-auth/jwt" {
     username?: string | null;
     surname?: string | null;
     completedOnboarding?: boolean;
+    bio?: string | null;
+    joinedAt?: Date | null;
   }
 }
 
@@ -13,9 +15,14 @@ declare module "next-auth" {
   interface Session {
     user: User & {
       id: string;
-      username?: string | null;
-    completedOnboarding: boolean;
+      name?: string | null;
       surname?: string | null;
+      email?: string | null;
+      image?: string | null;
+      bio?: string | null;
+      joinedAt?: Date | null;
+      completedOnboarding?: boolean | null;
+      username?: string | null;
     };
   }
 }

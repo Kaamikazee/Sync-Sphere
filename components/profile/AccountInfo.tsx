@@ -42,7 +42,6 @@ export const AccountInfo = ({
       name: name ? name : "",
       surname: surname ? surname : "",
       bio: bio ? bio : "",
-      joinedAt: joinedAt ? joinedAt : "",
     },
   });
 
