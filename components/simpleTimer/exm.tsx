@@ -45,7 +45,7 @@ export const DatePaginatedTimer = ({focusAreas, todos, groups, pomodoroSettings,
     queryKey: ["dayData", userId, date],
     queryFn: () =>
       axios
-        .get(`/api/timer/day?userId=${userId}&date=${date.toISOString()}`)
+        .get(`/api/simple_timer/day?userId=${userId}&date=${date.toISOString()}`)
         .then((res) => res.data),
   });
   const { data: focusAreaTotals } = useQuery({

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { DatePaginatedTimer } from "@/components/simpleTimer/exm";
 // import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
+// import { SimpleTimerContainer } from "@/components/simpleTimer/SimpleTimer";
 import { getFocusAreas, getGroups, getTodos, getTotalSecondsOfUser, getUserPomodoroSettings } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
@@ -38,6 +39,7 @@ const SimpleTimer = async () => {
           todos= {todos!}
           groups={groups}
           pomodoroSettings={pomodoroSettings!}
+
           /> */}
 
           <DatePaginatedTimer 
