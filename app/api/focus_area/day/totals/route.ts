@@ -17,9 +17,9 @@ export const GET = async (request: Request) => {
 
   try {
     // For future dates, return early with empty response
-    if (finalDate > today) {
-      return NextResponse.json([], { status: 200 });
-    }
+    // if (finalDate > today) {
+    //   return NextResponse.json([], { status: 200 });
+    // }
 
     const focusAreaTotals = await db.timerSegment.groupBy({
       by: ["focusAreaId"],
