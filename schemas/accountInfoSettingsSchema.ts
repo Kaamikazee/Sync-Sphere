@@ -13,6 +13,8 @@ export const accountInfoSettingsSchema = z.object({
   }),
   name: z.string().optional(),
   surname: z.string().optional(),
+  bio: z.string().max(160, "SCHEMA.BIO.MAX_LENGTH").optional(),
+  joinedAt: z.string().optional(),
 });
 
 export type AccountInfoSettingsSchema = z.infer<

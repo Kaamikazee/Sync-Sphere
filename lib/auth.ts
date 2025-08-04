@@ -103,10 +103,13 @@ export const authOptions: NextAuthOptions = {
       if(token) {
         session.user.id = token.id;
         session.user.name = token.name;
+        session.user.surname = token.surname;
         session.user.email = token.email;
         session.user.image = token.picture;
         session.user.username = token.username;
         session.user.completedOnboarding = !!token.completedOnboarding;
+        session.user.bio = typeof token.bio === "string" ? token.bio : null;
+        session.user.joinedAt = typeof token.joinedAt === "string" ? token.joinedAt : null;
       }
 
       const user = await db.user.findUnique({
@@ -139,6 +142,7 @@ export const authOptions: NextAuthOptions = {
         id: dbUser.id,
         username: dbUser.username,
         name: dbUser.name,
+        surname: dbUser.surname,
         email: dbUser.email,
         picture: dbUser.image,
         completedOnboarding: dbUser.completedOnboarding, // ✅ Add this line

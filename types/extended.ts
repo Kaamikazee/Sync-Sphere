@@ -1,4 +1,28 @@
 import { Group, Message, UserPermission } from "@prisma/client";
+import "next-auth";
+
+declare module "next-auth" {
+  interface User {
+    bio?: string | null;
+    joinedAt?: string;
+    completedOnboarding?: boolean;
+    username?: string;
+  }
+
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      surname?: string | null;
+      email?: string | null;
+      image?: string | null;
+      bio?: string | null;
+      joinedAt?: string | null;
+      completedOnboarding?: boolean | null;
+      username?: string | null;
+    };
+  }
+}
 
 export interface SubscriptionUser {
     userRole: UserPermission;

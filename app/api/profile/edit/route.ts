@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
   }
 
-  const { username, name, surname } = result.data;
+  const { username, name, surname, bio } = result.data;
 
   try {
     const user = await db.user.findUnique({
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
         name,
         surname,
         username,
+        bio: typeof bio === "string" ? bio : null,
       },
     });
 

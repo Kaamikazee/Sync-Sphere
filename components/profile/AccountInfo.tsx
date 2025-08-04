@@ -30,7 +30,7 @@ interface Props {
 
 export const AccountInfo = ({
   session: {
-    user: { image, name, surname, username},
+    user: { image, name, surname, username, bio, joinedAt},
   },
 }: Props) => {
   const { update } = useSession();
@@ -41,8 +41,13 @@ export const AccountInfo = ({
       username: username!,
       name: name ? name : "",
       surname: surname ? surname : "",
+      bio: bio ? bio : "",
+      joinedAt: joinedAt ? joinedAt : "",
     },
   });
+
+  console.log("JOINED AT", joinedAt);
+  
 
   const { mutate: editProfile, isPending } = useMutation({
     mutationFn: async (updatedData: AccountInfoSettingsSchema) => {
@@ -148,16 +153,30 @@ export const AccountInfo = ({
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="bio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs uppercase text-gray-700">
+                      Bio
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        className="bg-white/20 text-gray-900 placeholder-gray-500 focus:bg-white/30 backdrop-blur-sm border-none rounded-xl"
+                        placeholder="Enter your bio (max 160 characters)"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Optional: Bio and Joined info */}
             <div className="space-y-4 mt-6 text-gray-900">
-              <div>
-                <p className="text-sm font-semibold">Bio</p>
-                <p className="text-sm text-gray-600 italic">
-                  I love building with Next.js and Prisma. {/* from db later */}
-                </p>
-              </div>
               <div>
                 <p className="text-sm font-semibold">Joined On</p>
                 <p className="text-sm text-gray-600">
