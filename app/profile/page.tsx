@@ -5,6 +5,9 @@ import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 const Settings = async () => {
   const session = await checkIfUserCompleteOnboarding('/profile');
+  if (!session) {
+    return <p>You need to sign in to access this page.</p>;
+  }
 
   return (
     <>

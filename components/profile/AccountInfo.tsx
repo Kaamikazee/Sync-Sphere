@@ -30,7 +30,7 @@ interface Props {
 
 export const AccountInfo = ({
   session: {
-    user: { image, name, surname, username },
+    user: { image, name, surname, username},
   },
 }: Props) => {
   const { update } = useSession();

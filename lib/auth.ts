@@ -106,7 +106,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.image = token.picture;
         session.user.username = token.username;
-        session.user.completedOnboarding = !!token.completedOnboarding
+        session.user.completedOnboarding = !!token.completedOnboarding;
       }
 
       const user = await db.user.findUnique({
@@ -141,7 +141,9 @@ export const authOptions: NextAuthOptions = {
         name: dbUser.name,
         email: dbUser.email,
         picture: dbUser.image,
-        completedOnboarding: dbUser.completedOnboarding // ✅ Add this line
+        completedOnboarding: dbUser.completedOnboarding, // ✅ Add this line
+        bio: dbUser.bio, // ✅ Add this line
+        joinedAt: dbUser.createdAt,
       }
     }
   }

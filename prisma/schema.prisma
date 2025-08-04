@@ -22,6 +22,7 @@ model User {
   emailVerified        DateTime?
   hashedPassword       String?
   image                String?
+  bio                  String?
   fcmToken             String?
   sessions             Session[]
   accounts             Account[]
@@ -40,6 +41,8 @@ model User {
   notifications        Notification[]
   receivedWarnings     Warning[]              @relation("ReceivedWarnings")
   issuedWarnings       Warning[]              @relation("IssuedWarnings")
+
+  createdAt DateTime @default(now())
 
   dailyTotal    DailyTotal[]
   focusAreas    FocusArea[]
@@ -91,6 +94,9 @@ model Group {
   creatorId     String?
   creator       User?          @relation("CreatedBy", fields: [creatorId], references: [id], onDelete: Cascade)
   image         String?
+  description   String?
+  isPrivate     Boolean        @default(false)
+  password       String?
   color         GroupIconColor @default(BLUE)
   inviteCode    String         @unique
   adminCode     String         @unique
