@@ -43,53 +43,10 @@ const Group = async ({ params: { group_id } }: Params) => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8 py-8">
           {/* Page Header */}
           <header className="text-center space-y-2">
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-blue-900 hover:text-indigo-600">
+            <h1 className="text-3xl sm:text-5xl font-mono font-extrabold text-blue-900 hover:text-indigo-600">
               Group Dashboard
             </h1>
-            <h1 className="text-5xl font-futuristic text-blue-600">Orbitron</h1>
-            <h1 className="text-5xl font-display text-purple-600">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-handwriting text-pink-500">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-mono text-gray-800">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-elegant text-teal-600">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-retro text-yellow-500">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-signature text-orange-400">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-headline text-red-600">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-boldmono text-green-600">
-              Group Dashboard
-            </h1>
-            <h1 className="text-5xl font-vintage text-indigo-700">
-              Group Dashboard
-            </h1>
-            <h1 className="text-4xl font-dancing text-rose-600">
-              Group Dashboard
-            </h1>
-            <h1 className="text-4xl font-caveat text-blue-600">Group Dashboard</h1>
-            <h1 className="text-4xl font-shadows text-gray-700">
-              Group Dashboard
-            </h1>
-            <h1 className="text-4xl font-vibes text-purple-500">Group Dashboard</h1>
-            <h1 className="text-4xl font-satisfy text-orange-600">Group Dashboard</h1>
-            <h1 className="text-4xl font-architect text-lime-600">
-              Group Dashboard
-            </h1>
-            <h1 className="text-4xl font-amatic text-amber-600">Group Dashboard</h1>
-            <h1 className="text-4xl font-just text-teal-500">
-              Group Dashboard
-            </h1>
+            
           </header>
 
           {/* Action Buttons */}
