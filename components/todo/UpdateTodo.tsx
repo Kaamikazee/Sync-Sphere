@@ -11,6 +11,16 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+
 import { Todo, TodoWorkDone } from "@prisma/client";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -18,6 +28,7 @@ import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 
 interface Props {
   todo: Todo;
@@ -28,7 +39,11 @@ export function UpdateTodo({ todo }: Props) {
   const [todoName, setTodoName] = React.useState(title);
   const [todoContent, setTodoContent] = React.useState(content);
   const [todoDone, setTodoDone] = React.useState<TodoWorkDone>(completed);
-  const [isEditingContent, setIsEditingContent] = React.useState(false); // 
+  const [isEditingContent, setIsEditingContent] = React.useState(false); //
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
+    undefined
+  );
+
   const router = useRouter();
 
   // Unified mutation accepting fields
@@ -49,7 +64,7 @@ export function UpdateTodo({ todo }: Props) {
     mutationKey: ["updateTodo", id],
   });
 
-  const {mutate, isPending: isDeleting} = useMutation({
+  const { mutate, isPending: isDeleting } = useMutation({
     mutationFn: async () => {
       await axios.delete(`/api/todos/delete?todoId=${id}`);
     },
@@ -64,7 +79,7 @@ export function UpdateTodo({ todo }: Props) {
       router.refresh();
     },
     mutationKey: ["deleteTodo", id],
-  })
+  });
 
   const handleStatusClick = (value: TodoWorkDone) => {
     setTodoDone(value);
@@ -77,30 +92,57 @@ export function UpdateTodo({ todo }: Props) {
       toast.error("Please fill out both fields.");
       return;
     }
-    updateMutation.mutate({ title: todoName, content: todoContent, completed: todoDone });
+    updateMutation.mutate({
+      title: todoName,
+      content: todoContent,
+      completed: todoDone,
+      date: selectedDate ? normalizeToStartOfDay(selectedDate) : undefined,
+    });
   };
 
-  const options: { value: TodoWorkDone; label: string; icon: React.ReactNode }[] = [
-    { value: "DONE", label: "Done", icon: <Star className="fill-emerald-400 w-6 h-6 animate-pulse" /> },
-    { value: "HALF_DONE", label: "Half Done", icon: <StarHalf className="fill-yellow-300 w-6 h-6" /> },
-    { value: "NOT_DONE", label: "Not Done", icon: <Star className="fill-red-400 w-6 h-6" /> },
+  const options: {
+    value: TodoWorkDone;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      value: "DONE",
+      label: "Done",
+      icon: <Star className="fill-emerald-400 w-6 h-6 animate-pulse" />,
+    },
+    {
+      value: "HALF_DONE",
+      label: "Half Done",
+      icon: <StarHalf className="fill-yellow-300 w-6 h-6" />,
+    },
+    {
+      value: "NOT_DONE",
+      label: "Not Done",
+      icon: <Star className="fill-red-400 w-6 h-6" />,
+    },
   ];
 
   const fillColors: Record<string, string> = {
-  DONE: "fill-green-300",
-  NOT_DONE: "fill-red-500",
-  HALF_DONE: "fill-yellow-300",
-};
+    DONE: "fill-green-300",
+    NOT_DONE: "fill-red-500",
+    HALF_DONE: "fill-yellow-300",
+  };
 
   return (
     <Drawer>
       <DrawerTrigger asChild>
         <motion.span
           initial={{ scale: 1 }}
-          whileHover={{ scale: 1.1, textShadow: '0px 0px 8px rgba(79, 70, 229, 0.8)' }}
+          whileHover={{
+            scale: 1.1,
+            textShadow: "0px 0px 8px rgba(79, 70, 229, 0.8)",
+          }}
           className={`flex items-center gap-1 cursor-pointer transition-colors duration-200 
-            ${todoDone === "DONE" ? 'text-emerald-400 line-through' : 'text-purple-200 hover:text-purple-400'}`
-          }
+            ${
+              todoDone === "DONE"
+                ? "text-emerald-400 line-through"
+                : "text-purple-200 hover:text-purple-400"
+            }`}
         >
           <Star className={fillColors[todoDone]} /> {todoName}
         </motion.span>
@@ -114,11 +156,55 @@ export function UpdateTodo({ todo }: Props) {
               {todoName}
               <Star className="fill-yellow-300 w-5 h-5 animate-spin-slow" />
             </DrawerTitle>
+
+            <div className="space-y-2">
+              <Label className="text-gray-100 font-semibold">
+                Migrate Todo to Date
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className="w-full justify-start text-left font-normal bg-gray-800 text-white border border-gray-600 hover:bg-gray-700"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? (
+                      format(selectedDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                onClick={() => {
+                  if (!selectedDate)
+                    return toast.error("Please select a date first");
+
+                  const midnightUTC = normalizeToStartOfDay(selectedDate);
+                  updateMutation.mutate({ date: midnightUTC });
+                }}
+                className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform"
+              >
+                📆 Migrate to Selected Date
+              </Button>
+            </div>
           </DrawerHeader>
 
           <div className="space-y-6 mt-2">
             <div className="space-y-2">
-              <Label className="text-gray-100 font-semibold">Status (click to update)</Label>
+              <Label className="text-gray-100 font-semibold">
+                Status (click to update)
+              </Label>
               <div className="flex gap-3">
                 {options.map(({ value, label, icon }) => (
                   <button
@@ -126,9 +212,11 @@ export function UpdateTodo({ todo }: Props) {
                     type="button"
                     onClick={() => handleStatusClick(value)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer shadow-lg transition-transform duration-200
-                      ${todoDone === value
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'}
+                      ${
+                        todoDone === value
+                          ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                      }
                     `}
                   >
                     {icon}
@@ -140,7 +228,12 @@ export function UpdateTodo({ todo }: Props) {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="todo-name" className="text-gray-100 font-semibold">Todo Title</Label>
+                <Label
+                  htmlFor="todo-name"
+                  className="text-gray-100 font-semibold"
+                >
+                  Todo Title
+                </Label>
                 <Input
                   id="todo-name"
                   name="title"
@@ -151,33 +244,39 @@ export function UpdateTodo({ todo }: Props) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="todo-content" className="text-gray-100 font-semibold">Todo Content</Label>
-               <div className="space-y-2">
-
-  {isEditingContent ? (
-    <textarea
-      id="todo-content"
-      name="content"
-      value={todoContent!}
-      onChange={(e) => setTodoContent(e.target.value)}
-      onBlur={() => setIsEditingContent(false)}
-      autoFocus
-      rows={4}
-      className="w-full resize-none bg-gray-800 text-white placeholder-gray-400 border border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
-    />
-  ) : (
-    <div
-      onClick={() => setIsEditingContent(true)}
-      className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg p-3 cursor-text hover:bg-gray-700 transition"
-    >
-      {todoContent?.trim() ? (
-        <p className="whitespace-pre-line">{todoContent}</p>
-      ) : (
-        <p className="text-gray-400 italic">Click to add content...</p>
-      )}
-    </div>
-  )}
-</div>
+                <Label
+                  htmlFor="todo-content"
+                  className="text-gray-100 font-semibold"
+                >
+                  Todo Content
+                </Label>
+                <div className="space-y-2">
+                  {isEditingContent ? (
+                    <textarea
+                      id="todo-content"
+                      name="content"
+                      value={todoContent!}
+                      onChange={(e) => setTodoContent(e.target.value)}
+                      onBlur={() => setIsEditingContent(false)}
+                      autoFocus
+                      rows={4}
+                      className="w-full resize-none bg-gray-800 text-white placeholder-gray-400 border border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  ) : (
+                    <div
+                      onClick={() => setIsEditingContent(true)}
+                      className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg p-3 cursor-text hover:bg-gray-700 transition"
+                    >
+                      {todoContent?.trim() ? (
+                        <p className="whitespace-pre-line">{todoContent}</p>
+                      ) : (
+                        <p className="text-gray-400 italic">
+                          Click to add content...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end items-center gap-3 pt-4 border-t border-gray-700">
@@ -188,13 +287,15 @@ export function UpdateTodo({ todo }: Props) {
                 >
                   {updateMutation.isPending ? "Updating..." : "🔄 Update All"}
                 </Button>
-                  <Button 
+                <Button
                   disabled={isDeleting}
                   type="button"
                   onClick={() => mutate()}
-                  variant="destructive" className="text-gray-200 hover:bg-gray-700">
-                    Delete
-                  </Button>
+                  variant="destructive"
+                  className="text-gray-200 hover:bg-gray-700"
+                >
+                  Delete
+                </Button>
               </div>
             </form>
           </div>

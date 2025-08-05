@@ -142,7 +142,7 @@ model Announcement {
   id        String                 @id @default(uuid())
   author    User                   @relation(fields: [userId], references: [id])
   userId    String
-  group     Group                  @relation(fields: [groupId], references: [id])
+  group     Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   groupId   String
   title     String
   content   Json
@@ -289,6 +289,7 @@ model Todo {
   title       String
   content     String?
   completed   TodoWorkDone @default(NOT_DONE)
+  date        DateTime // normalized to midnight
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   focusArea FocusArea @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)

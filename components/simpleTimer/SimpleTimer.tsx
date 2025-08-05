@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
-import { FocusArea, Group, PomodoroSettings, Todo } from "@prisma/client";
+import { FocusArea, Group, PomodoroSettings } from "@prisma/client";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useRunningStore } from "@/stores/useGlobalTimer";
@@ -27,7 +27,7 @@ interface Props {
   startTimeStamp: Date;
   focusAreas: FocusArea[];
   // timeSpentOfFA: FocusAreTotalsById[];
-  todos: Todo[];
+  // todos: Todo[];
   groups: Group[];
   pomodoroSettings: PomodoroSettings;
 }
@@ -43,7 +43,7 @@ export const SimpleTimerContainer = ({
   startTimeStamp,
   focusAreas,
   // timeSpentOfFA: focusAreaTotals,
-  todos,
+  // todos,
   groups,
   pomodoroSettings,
 }: Props) => {
@@ -71,6 +71,18 @@ export const SimpleTimerContainer = ({
         )
         .then((res) => res.data),
   });
+
+  const { data: todos = [] } = useQuery({
+    queryKey: ["todos", userId, date],
+    queryFn: () =>
+      axios
+        .get(
+          `/api/todos/day?userId=${userId}&date=${date.toISOString()}`
+        )
+        .then((res) => res.data),
+  });
+
+
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
   const [time, setTime] = useState(timeSpent);
   const running = useRunningStore((s) => s.running);

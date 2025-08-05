@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     title,
     content,
     completed, // default value
+    date, // Optional date field
   } = result.data;
 
   try {
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
         content,
         title,
         completed,
+        date
       },
     });
 

@@ -1,12 +1,16 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { todoSchema } from "@/schemas/todoSchema";
+import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const session = await getAuthSession();
   const url = new URL(request.url);
   const focusAreaId = url.searchParams.get("focusAreaId");
+
+  const today = normalizeToStartOfDay(new Date());
+    //   today.setHours(0, 0, 0, 0); // normalize to midnight
 
   if (!session?.user || !focusAreaId) {
     return new Response("Unauthorized", {
@@ -37,7 +41,8 @@ export async function POST(request: Request) {
         title,
         completed,
         focusAreaId,
-        userId: session.user.id
+        userId: session.user.id,
+        date: today, // Use the normalized date
       },
     });
 

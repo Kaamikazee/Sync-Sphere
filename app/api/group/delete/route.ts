@@ -71,7 +71,8 @@ export async function POST(req: Request) {
         statusText: "User removed from the group successfully",
         status: 200,
       });
-  } catch {
+  } catch (error) {
+    console.log(error);
     return NextResponse.json("We are currently having problems. Please try again", {
         status: 500,
         statusText: "Internal server error",

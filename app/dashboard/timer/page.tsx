@@ -4,7 +4,7 @@ import {
   getFocusAreas,
   // getFocusAreaTotals,
   getGroups,
-  getTodos,
+  // getTodos,
   getTotalSecondsOfUser,
   getUserPomodoroSettings,
 } from "@/lib/api";
@@ -24,7 +24,7 @@ const SimpleTimer = async () => {
   // const timeSpentOfFA = await getFocusAreaTotals(session.user.id)
   const pomodoroSettings = await getUserPomodoroSettings(session?.user.id);
 
-  const todos = await getTodos(session.user.id);
+  // const todos = await getTodos(session.user.id);
 
   /* 
  totalSeconds, // Need to fetch day wise
@@ -41,7 +41,7 @@ const SimpleTimer = async () => {
         startTimeStamp={startTime!}
         focusAreas={focusAreas!}
         // timeSpentOfFA={timeSpentOfFA!}
-        todos={todos!}
+        // todos={todos!}
         groups={groups}
         pomodoroSettings={pomodoroSettings!}
       />
