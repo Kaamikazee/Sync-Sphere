@@ -24,15 +24,13 @@ export const GET = async (request: Request) => {
       },
     });
 
-    
-
-
     if (!todos) {
       return NextResponse.json([], { status: 200 });
     }
 
     return NextResponse.json(todos, { status: 200 });
-  } catch {
+  } catch (err) {
+    console.log(err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }
 };

@@ -148,10 +148,18 @@ export function UpdateTodo({ todo }: Props) {
         </motion.span>
       </DrawerTrigger>
 
-      <DrawerContent className="bg-gradient-to-br from-purple-900 via-indigo-800 to-blue-900 backdrop-blur-xl shadow-2xl border-l-4 border-purple-500 rounded-t-3xl">
-        <div className="mx-auto w-full max-w-sm px-6 py-5">
+      <DrawerContent
+        className="bg-gradient-to-br from-purple-900 via-indigo-800 to-blue-900
+             backdrop-blur-xl shadow-2xl border-l-4 border-purple-500
+             rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1 w-full max-w-sm mx-auto px-6 py-5 overflow-hidden"
+        >
+          {/* Header + migration section */}
           <DrawerHeader>
-            <DrawerTitle className="flex items-center justify-center text-2xl font-extrabold text-white gap-2">
+            <DrawerTitle className="flex items-center justify-center text-2xl font-extrabold text-white gap-2 mb-3">
               <Star className="fill-yellow-300 w-5 h-5 animate-spin-slow" />
               {todoName}
               <Star className="fill-yellow-300 w-5 h-5 animate-spin-slow" />
@@ -189,10 +197,10 @@ export function UpdateTodo({ todo }: Props) {
                 onClick={() => {
                   if (!selectedDate)
                     return toast.error("Please select a date first");
-
                   const midnightUTC = normalizeToStartOfDay(selectedDate);
                   updateMutation.mutate({ date: midnightUTC });
                 }}
+                type="button"
                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform"
               >
                 📆 Migrate to Selected Date
@@ -200,7 +208,9 @@ export function UpdateTodo({ todo }: Props) {
             </div>
           </DrawerHeader>
 
-          <div className="space-y-6 mt-2">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto space-y-6 pr-1 mt-2 no-scrollbar">
+            {/* Status selector */}
             <div className="space-y-2">
               <Label className="text-gray-100 font-semibold">
                 Status (click to update)
@@ -211,13 +221,11 @@ export function UpdateTodo({ todo }: Props) {
                     key={value}
                     type="button"
                     onClick={() => handleStatusClick(value)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer shadow-lg transition-transform duration-200
-                      ${
-                        todoDone === value
-                          ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
-                          : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                      }
-                    `}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg transition-transform duration-200 ${
+                      todoDone === value
+                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }`}
                   >
                     {icon}
                     <span>{label}</span>
@@ -226,80 +234,79 @@ export function UpdateTodo({ todo }: Props) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="todo-name"
-                  className="text-gray-100 font-semibold"
-                >
-                  Todo Title
-                </Label>
-                <Input
-                  id="todo-name"
-                  name="title"
-                  value={todoName}
-                  onChange={(e) => setTodoName(e.target.value)}
-                  className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-600 focus:ring-2 focus:ring-blue-400"
-                />
-              </div>
+            {/* Todo Title */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="todo-name"
+                className="text-gray-100 font-semibold"
+              >
+                Todo Title
+              </Label>
+              <Input
+                id="todo-name"
+                name="title"
+                value={todoName}
+                onChange={(e) => setTodoName(e.target.value)}
+                className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-600 focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="todo-content"
-                  className="text-gray-100 font-semibold"
+            {/* Todo Content */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="todo-content"
+                className="text-gray-100 font-semibold"
+              >
+                Todo Content
+              </Label>
+              {isEditingContent ? (
+                <textarea
+                  id="todo-content"
+                  name="content"
+                  value={todoContent!}
+                  onChange={(e) => setTodoContent(e.target.value)}
+                  onBlur={() => setIsEditingContent(false)}
+                  autoFocus
+                  rows={4}
+                  className="w-full resize-none bg-gray-800 text-white placeholder-gray-400 border border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              ) : (
+                <div
+                  onClick={() => setIsEditingContent(true)}
+                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg p-3 cursor-text hover:bg-gray-700 transition"
                 >
-                  Todo Content
-                </Label>
-                <div className="space-y-2">
-                  {isEditingContent ? (
-                    <textarea
-                      id="todo-content"
-                      name="content"
-                      value={todoContent!}
-                      onChange={(e) => setTodoContent(e.target.value)}
-                      onBlur={() => setIsEditingContent(false)}
-                      autoFocus
-                      rows={4}
-                      className="w-full resize-none bg-gray-800 text-white placeholder-gray-400 border border-gray-600 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
+                  {todoContent?.trim() ? (
+                    <p className="whitespace-pre-line">{todoContent}</p>
                   ) : (
-                    <div
-                      onClick={() => setIsEditingContent(true)}
-                      className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg p-3 cursor-text hover:bg-gray-700 transition"
-                    >
-                      {todoContent?.trim() ? (
-                        <p className="whitespace-pre-line">{todoContent}</p>
-                      ) : (
-                        <p className="text-gray-400 italic">
-                          Click to add content...
-                        </p>
-                      )}
-                    </div>
+                    <p className="text-gray-400 italic">
+                      Click to add content...
+                    </p>
                   )}
                 </div>
-              </div>
-
-              <div className="flex justify-end items-center gap-3 pt-4 border-t border-gray-700">
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold px-6 py-2 rounded-full shadow-xl hover:scale-105 transition-transform"
-                >
-                  {updateMutation.isPending ? "Updating..." : "🔄 Update All"}
-                </Button>
-                <Button
-                  disabled={isDeleting}
-                  type="button"
-                  onClick={() => mutate()}
-                  variant="destructive"
-                  className="text-gray-200 hover:bg-gray-700"
-                >
-                  Delete
-                </Button>
-              </div>
-            </form>
+              )}
+            </div>
           </div>
-        </div>
+
+          {/* Footer buttons */}
+          <div className="pt-4 mt-4 border-t border-gray-700 flex justify-end items-center gap-3 shrink-0">
+            <Button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold px-6 py-2 rounded-full shadow-xl hover:scale-105 transition-transform"
+            >
+              {updateMutation.isPending ? "Updating..." : "🔄 Update All"}
+            </Button>
+            <Button
+              disabled={isDeleting}
+              type="button"
+              onClick={() => mutate()}
+              variant="destructive"
+              className="text-gray-200 hover:bg-gray-700"
+            >
+              Delete
+            </Button>
+          </div>
+        </form>
       </DrawerContent>
     </Drawer>
   );
