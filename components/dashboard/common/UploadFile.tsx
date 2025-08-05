@@ -316,7 +316,7 @@ export function Uploadfile({
               disabled={!form.formState.isValid || isUploading}
               type="submit"
               onClick={form.handleSubmit(onSubmit)}
-              className="w-full mt-10 max-w-md dark:text-white font-semibold pb-20"
+              className="w-full mt-10 max-w-md dark:text-white font-semibold"
             >
               {isUploading || isPending ? (
                 <LoadingState loadingText={"Creating. Please Wait"} />

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
 import { Uploadfile } from "../common/UploadFile";
 import { Group } from "@prisma/client";
+import { useRouter } from "next/navigation";
 
 interface Props {
     onSetOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -24,6 +25,7 @@ interface Props {
 
 export const UpdateGroupForm = ({onSetOpen, groupId, group}: Props) => {
   const [uploadError, setUploadError] = useState(false);
+  const router = useRouter();
 
   const form = useForm<GroupSchema>({
     resolver: zodResolver(groupSchema),
@@ -50,6 +52,7 @@ export const UpdateGroupForm = ({onSetOpen, groupId, group}: Props) => {
     onSuccess: () => {
         onSetOpen(false)
       toast.success("Your group has been updated successfully!");
+      router.refresh();
     },
     mutationKey: ["updateGroup"],
   });

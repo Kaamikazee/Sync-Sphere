@@ -14,6 +14,7 @@ import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useUploadThing } from "@/lib/uploadthing";
 import { Uploadfile } from "../common/UploadFile";
+import { useRouter } from "next/navigation";
 
 interface Props {
     onSetOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -21,6 +22,7 @@ interface Props {
 
 export const AddGroupForm = ({onSetOpen}: Props) => {
   const [uploadError, setUploadError] = useState(false);
+  const router = useRouter();
 
   const form = useForm<GroupSchema>({
     resolver: zodResolver(groupSchema),
@@ -47,6 +49,8 @@ export const AddGroupForm = ({onSetOpen}: Props) => {
     onSuccess: () => {
         onSetOpen(false)
       toast.success("Your group has been created successfully!");
+      router.push("/dashboard/groups");
+      router.refresh();
     },
     mutationKey: ["newGroup"],
   });

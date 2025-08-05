@@ -79,7 +79,7 @@ const Group = async ({ params: { group_id } }: Params) => {
 
             {/* Leave Group */}
             {userRole === "OWNER" ? (
-              <DeleteGroup groupId={group_id} />
+              <DeleteGroup groupId={group_id} groupName={group.name} />
             ) : (
               <LeaveGroup userId={session.user.id} groupId={group_id} groupName={group.name} />
             )}

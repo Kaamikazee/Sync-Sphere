@@ -82,10 +82,10 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerTrigger asChild>{TriggerButton}</DrawerTrigger>
           <DrawerContent
-            className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar pb-28"
+            className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl px-5 sm:px-8 pt-5 pb-28 sm:pt-8 flex flex-col min-h-[60vh] max-h-[90vh] overflow-y-auto no-scrollbar"
             style={{ scrollPaddingBottom: "7rem" }}
           >
-            <DrawerHeader>
+            <DrawerHeader className="shrink-0">
               <DrawerTitle className="text-white text-xl">
                 {update ? "Update Group" : "Create Group"}
               </DrawerTitle>
@@ -93,7 +93,8 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
                 Fill in the form below
               </DrawerDescription>
             </DrawerHeader>
-            {Content}
+
+            <div className="flex-1 overflow-y-auto">{Content}</div>
           </DrawerContent>
         </Drawer>
       ) : (

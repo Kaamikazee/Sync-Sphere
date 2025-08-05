@@ -7,23 +7,21 @@ import { toast } from "sonner";
 
 interface Props {
   groupId: string;
+  groupName: string;
 }
 
-export const DeleteGroup = ({ groupId }: Props) => {
-    const router = useRouter();
+export const DeleteGroup = ({ groupId, groupName }: Props) => {
+  const router = useRouter();
   const { mutate, isPending } = useMutation({
-    mutationFn: async ({
-      groupId,
-    }: {
-      groupId: string;
-    }) => {
+    mutationFn: async ({ groupId }: { groupId: string }) => {
       await axios.post("/api/group/delete", {
         groupId,
       });
     },
     onSuccess: () => {
-        toast.success("You have left the group successfully");
-        router.refresh();
+      toast.success(`You have deleted the group "${groupName}" successfully!`);
+      router.push("/dashboard/groups");
+      router.refresh();
     },
     mutationKey: ["deleteGroup"],
   });
