@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
@@ -49,6 +48,23 @@ export function UpdateTodo({ todo }: Props) {
     },
     mutationKey: ["updateTodo", id],
   });
+
+  const {mutate, isPending: isDeleting} = useMutation({
+    mutationFn: async () => {
+      await axios.delete(`/api/todos/delete?todoId=${id}`);
+    },
+    onError: (err: AxiosError) => {
+      const error = err?.response?.data
+        ? JSON.stringify(err.response.data)
+        : "Something went wrong.";
+      toast.error(error);
+    },
+    onSuccess: () => {
+      toast.success("Todo deleted successfully");
+      router.refresh();
+    },
+    mutationKey: ["deleteTodo", id],
+  })
 
   const handleStatusClick = (value: TodoWorkDone) => {
     setTodoDone(value);
@@ -172,11 +188,13 @@ export function UpdateTodo({ todo }: Props) {
                 >
                   {updateMutation.isPending ? "Updating..." : "🔄 Update All"}
                 </Button>
-                <DrawerClose asChild>
-                  <Button variant="outline" className="text-gray-200 hover:bg-gray-700">
-                    Cancel
+                  <Button 
+                  disabled={isDeleting}
+                  type="button"
+                  onClick={() => mutate()}
+                  variant="destructive" className="text-gray-200 hover:bg-gray-700">
+                    Delete
                   </Button>
-                </DrawerClose>
               </div>
             </form>
           </div>

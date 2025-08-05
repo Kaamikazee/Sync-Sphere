@@ -5,6 +5,7 @@ import { getSocket } from "@/lib/socket";
 import { MemberComponent } from "./MemberComponent";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { UserPermission } from "@prisma/client";
 
 export interface MemberWithTimer {
   id: string;
@@ -15,6 +16,7 @@ export interface MemberWithTimer {
   startTimestamp: Date | null | string;
   warningMessage: string | null;
   warningId: string | null;
+  Role: UserPermission;
 }
 
 interface Props {
@@ -210,6 +212,7 @@ export const NewLeaderboard = ({
             const isMe = member.id === uuserId;
             const base = formatHMS(getLiveTotalSeconds(member));
             const isOnline = onlineUserIds.includes(member.id);
+            // const isAdminOrOwner = member.
             return (
               <li key={member.id}>
                 <MemberComponent
@@ -225,6 +228,7 @@ export const NewLeaderboard = ({
                   warningId={member.warningId}
                   isOnline={isOnline}
                   isMe={isMe}
+                  role={member.Role}
                 />
               </li>
             );

@@ -47,6 +47,7 @@ export const GET = async (request: Request) => {
           startTimestamp: subs.user.dailyTotal[0]?.startTimestamp ?? null,
           warningMessage: warnings.length > 0 ? warnings[0].message : null, // assuming you show latest only
           warningId: warnings.length > 0 ? warnings[0].id : null,
+          Role: subs.userRole,
         },
       };
     });
