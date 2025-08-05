@@ -19,6 +19,7 @@ import { useBreakStore } from "@/stores/useBreakStore";
 import { ResumeTimer } from "./ResumeTimer";
 import { toast } from "sonner";
 import { useBreakTimer } from "@/stores/useBreakTimer";
+import { cn } from "@/lib/utils";
 
 const iconVariants = {
   hover: { scale: 1.2, rotate: 10 },
@@ -53,7 +54,7 @@ export function FocusAreaComp({
   setTime,
   isActive,
   onActivate,
-  isToday
+  isToday,
 }: Props) {
   // const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
@@ -70,11 +71,10 @@ export function FocusAreaComp({
   const breakTimer = useBreakTimer();
 
   useEffect(() => {
-  if (!IsFocusRunning) {
-    setDisplayTime(timeSpent);
-  }
-}, [timeSpent, IsFocusRunning]);
-
+    if (!IsFocusRunning) {
+      setDisplayTime(timeSpent);
+    }
+  }, [timeSpent, IsFocusRunning]);
 
   useEffect(() => {
     setRunning(isRunning);
@@ -271,35 +271,37 @@ export function FocusAreaComp({
             <span className="font-bold">{formatHMS(displayTime)}</span>
           </AccordionTrigger>
 
-          <AccordionContent className="bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-gray-900 font-semibold py-2 sm:py-4 px-2 sm:px-5 rounded-lg sm:rounded-xl shadow-inner mt-2 sm:mt-3">
-            {/* Todos Heading */}
-            <h2 className="text-center text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 bg-clip-text text-transparent drop-shadow-sm mb-2 sm:mb-4">
-              Todos
-            </h2>
-
-            <div className="backdrop-blur-sm sm:backdrop-blur-md bg-white/10 border border-white/20 rounded-lg sm:rounded-xl py-2 px-2 sm:px-3 shadow-sm sm:shadow-md mb-2 sm:mb-4">
-              {todos.length > 0 ? (
+          <AccordionContent
+            className={cn(
+              "rounded-lg mt-2 px-3 py-2 font-semibold text-gray-900",
+              "bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400",
+              "shadow-none sm:shadow-md sm:rounded-xl sm:mt-3 sm:px-5 sm:py-4",
+              "backdrop-blur-0 sm:backdrop-blur-md"
+            )}
+          >
+            <div className="flex flex-col gap-4">
+              {todos.length === 0 ? (
+                <p className="text-sm italic text-gray-100/80">No todos yet</p>
+              ) : (
                 todos.map((t) => (
-                  <div
-                    key={t.id}
-                    className="text-white text-sm sm:text-base font-medium mb-2 flex items-center"
-                  >
-                    <motion.span
-                      className="flex items-center gap-2 cursor-pointer"
-                      whileHover={{ scale: 1.1 }}
+                  <div key={t.id} className="w-full">
+                    {/* Mobile: no animation | Desktop: motion enabled */}
+                    <div className="block sm:hidden">
+                      <UpdateTodo todo={t} />
+                    </div>
+
+                    <motion.div
+                      className="hidden sm:flex items-center gap-2"
+                      whileHover={{ scale: 1.03 }}
+                      transition={{ type: "spring", stiffness: 300 }}
                     >
                       <UpdateTodo todo={t} />
-                    </motion.span>
+                    </motion.div>
                   </div>
                 ))
-              ) : (
-                <h1 className="text-white text-base sm:text-lg font-semibold text-center">
-                  ― No Todos ―
-                </h1>
               )}
             </div>
-
-            <div className="flex justify-center items-center">
+            <div className="flex justify-center items-center mt-2">
               <CreateTodo focusAreaId={focusAreaId} />
             </div>
           </AccordionContent>
