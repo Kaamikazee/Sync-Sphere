@@ -70,11 +70,11 @@ export default function FocusAreaContainer({
     </div>
 
     {/* Bottom Buttons */}
-    <div className="mt-6 w-full max-w-2xl mx-auto flex flex-col-reverse sm:flex-row sm:justify-end items-center gap-4">
+    {isToday && <div className="mt-6 w-full max-w-2xl mx-auto flex flex-col-reverse sm:flex-row sm:justify-end items-center gap-4">
       <div className="bg-white/10 border border-white/20 rounded-xl p-3 backdrop-blur-md transition-all duration-300 sm:hover:scale-105 sm:hover:shadow-xl">
         <CreateFocusArea />
       </div>
-    </div>
+    </div>}
   </div>
 );
 

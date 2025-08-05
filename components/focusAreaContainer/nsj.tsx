@@ -1,6 +1,12 @@
 "use client";
 
 import { CreateTodo } from "@/components/todo/CreateTodo";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { FocusArea, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
@@ -56,7 +62,6 @@ export function FocusAreaComp({
   const setRunning = useRunningStore((s) => s.setRunning);
   const [IsFocusRunning, setIsFocusRunning] = useState(false);
   const [displayTime, setDisplayTime] = useState(timeSpent);
-  const [open, setOpen] = useState(false);
 
   const breakReason = useBreakStore((s) => s.breakReason);
 
@@ -214,83 +219,63 @@ export function FocusAreaComp({
   }
 
   return (
-  <div className="w-full max-w-full overflow-x-auto no-scrollbar px-2 sm:px-4">
-    <div className="bg-white/10 rounded-xl sm:rounded-2xl shadow-md sm:shadow-2xl border border-white/10 p-2 sm:p-4 space-y-2">
-      {/* Top Row: Play/Pause + Header + Buttons */}
-      <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
-        {/* Play / Pause Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-1"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <AnimatePresence mode="wait">
-            {!running && isToday && (
-              <motion.div
-                key={IsFocusRunning ? "pause" : "play"}
-                initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                {IsFocusRunning ? (
-                  <PauseCircle
-                    onClick={onStop}
-                    className="cursor-pointer text-white"
-                    size={28}
-                  />
-                ) : (
-                  <ResumeTimer onStart={onStart} />
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+    <div
+      className="flex flex-row items-center justify-between gap-2 sm:gap-4 p-2 sm:p-4 bg-white/10 rounded-xl sm:rounded-2xl shadow-md sm:shadow-2xl border border-white/10 w-full max-w-full overflow-x-auto no-scrollbar"
+      style={{ willChange: "transform" }}
+    >
+      {/* Play / Pause Button */}
+      <motion.div
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full mr-2"
+        whileHover="hover"
+        whileTap="tap"
+        variants={iconVariants}
+        style={{ willChange: "transform" }}
+      >
+        <AnimatePresence mode="wait">
+          {!running && isToday && (
+            <motion.div
+              key={IsFocusRunning ? "pause" : "play"}
+              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              transition={{ duration: 0.2 }}
+              style={{ willChange: "transform" }}
+            >
+              {IsFocusRunning ? (
+                <PauseCircle
+                  onClick={onStop}
+                  className="cursor-pointer text-white"
+                  size={28}
+                />
+              ) : (
+                <ResumeTimer onStart={onStart} />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-        {/* Clickable Header */}
-        <div
-          onClick={() => setOpen((prev) => !prev)}
-          className="cursor-pointer flex-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-2 sm:px-6 py-2 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300 flex justify-between items-center text-base sm:text-lg font-medium"
+      {/* Accordion */}
+      <Accordion
+        type="single"
+        collapsible
+        className="flex-1 min-w-[200px] max-w-full sm:max-w-3xl mx-2"
+        defaultValue="item-2"
+      >
+        <AccordionItem
+          value="item-1"
+          className="bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-2 sm:px-6 py-2 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300"
         >
-          <span className="truncate mr-4">{name}</span>
-          <span className="font-bold">{formatHMS(displayTime)}</span>
-        </div>
+          <AccordionTrigger className="cursor-pointer flex justify-between items-center w-full text-base sm:text-lg font-medium">
+            <span className="truncate w-[60%] sm:w-[40%]">{name}</span>
+            <span className="font-bold">{formatHMS(displayTime)}</span>
+          </AccordionTrigger>
 
-        {/* Edit Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <Edit className="cursor-pointer" size={28} />
-        </motion.div>
-
-        {/* Delete Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <Trash2 className="cursor-pointer" size={28} />
-        </motion.div>
-      </div>
-
-      {/* Expandable Content */}
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+          <AccordionContent
             className={cn(
-              "overflow-hidden rounded-lg px-3 py-2 font-semibold text-gray-900",
+              "rounded-lg mt-2 px-3 py-2 font-semibold text-gray-900",
               "bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400",
-              "shadow-none sm:shadow-md sm:rounded-xl sm:px-5 sm:py-4",
+              "shadow-none sm:shadow-md sm:rounded-xl sm:mt-3 sm:px-5 sm:py-4",
               "backdrop-blur-0 sm:backdrop-blur-md"
             )}
           >
@@ -300,6 +285,7 @@ export function FocusAreaComp({
               ) : (
                 todos.map((t) => (
                   <div key={t.id} className="w-full">
+                    {/* Mobile: no animation | Desktop: motion enabled */}
                     <div className="block sm:hidden">
                       <UpdateTodo todo={t} />
                     </div>
@@ -320,11 +306,31 @@ export function FocusAreaComp({
                 <CreateTodo focusAreaId={focusAreaId} />
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  </div>
-);
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
+      {/* Edit Button */}
+      <motion.div
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2 ml-2"
+        whileHover="hover"
+        whileTap="tap"
+        variants={iconVariants}
+        style={{ willChange: "transform" }}
+      >
+        <Edit className="cursor-pointer" size={28} />
+      </motion.div>
+
+      {/* Delete Button */}
+      <motion.div
+        className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2 ml-2"
+        whileHover="hover"
+        whileTap="tap"
+        variants={iconVariants}
+        style={{ willChange: "transform" }}
+      >
+        <Trash2 className="cursor-pointer" size={28} />
+      </motion.div>
+    </div>
+  );
 }
