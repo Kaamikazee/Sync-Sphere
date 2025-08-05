@@ -4,7 +4,7 @@ import { CreateTodo } from "@/components/todo/CreateTodo";
 import { FocusArea, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { Edit, PauseCircle, Trash2 } from "lucide-react";
+import { ChevronDown, Edit, PauseCircle, Trash2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";
@@ -214,117 +214,135 @@ export function FocusAreaComp({
   }
 
   return (
-  <div className="w-full max-w-full overflow-x-auto no-scrollbar px-2 sm:px-4">
-    <div className="bg-white/10 rounded-xl sm:rounded-2xl shadow-md sm:shadow-2xl border border-white/10 p-2 sm:p-4 space-y-2">
-      {/* Top Row: Play/Pause + Header + Buttons */}
-      <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
-        {/* Play / Pause Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-1"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <AnimatePresence mode="wait">
-            {!running && isToday && (
-              <motion.div
-                key={IsFocusRunning ? "pause" : "play"}
-                initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                {IsFocusRunning ? (
-                  <PauseCircle
-                    onClick={onStop}
-                    className="cursor-pointer text-white"
-                    size={28}
-                  />
-                ) : (
-                  <ResumeTimer onStart={onStart} />
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+    <div className="w-full max-w-full overflow-x-auto no-scrollbar px-2 sm:px-4">
+      <div className="bg-white/10 rounded-xl sm:rounded-2xl shadow-md sm:shadow-2xl border border-white/10 p-2 sm:p-4 space-y-2">
+        {/* Top Row: Play/Pause + Header + Buttons */}
+        <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
+          {/* Play / Pause Button */}
+          <motion.div
+            className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-1"
+            whileHover="hover"
+            whileTap="tap"
+            variants={iconVariants}
+          >
+            <AnimatePresence mode="wait">
+              {!running && isToday && (
+                <motion.div
+                  key={IsFocusRunning ? "pause" : "play"}
+                  initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {IsFocusRunning ? (
+                    <PauseCircle
+                      onClick={onStop}
+                      className="cursor-pointer text-white"
+                      size={28}
+                    />
+                  ) : (
+                    <ResumeTimer onStart={onStart} />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
-        {/* Clickable Header */}
-        <div
-          onClick={() => setOpen((prev) => !prev)}
-          className="cursor-pointer flex-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-2 sm:px-6 py-2 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300 flex justify-between items-center text-base sm:text-lg font-medium"
-        >
-          <span className="truncate mr-4">{name}</span>
-          <span className="font-bold">{formatHMS(displayTime)}</span>
+              
+          {/* Clickable Header */}
+          <div
+            onClick={() => setOpen((prev) => !prev)}
+            className="cursor-pointer flex-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-5 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300 flex justify-between items-center text-base sm:text-lg font-semibold sm:font-bold min-h-[64px]"
+          >
+            <div className="flex items-center gap-3 overflow-hidden">
+              <span className="truncate mr-2">{name}</span>
+              <ChevronDown className="w-5 h-5 opacity-80" />
+            </div>
+            <span className="font-bold">{formatHMS(displayTime)}</span>
+          </div>
+
+          {/* Edit Button */}
+          <motion.div
+            className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
+            whileHover="hover"
+            whileTap="tap"
+            variants={iconVariants}
+          >
+            <Edit className="cursor-pointer" size={28} />
+          </motion.div>
+
+          {/* Delete Button */}
+          <motion.div
+            className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
+            whileHover="hover"
+            whileTap="tap"
+            variants={iconVariants}
+          >
+            <Trash2 className="cursor-pointer" size={28} />
+          </motion.div>
         </div>
 
-        {/* Edit Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <Edit className="cursor-pointer" size={28} />
-        </motion.div>
-
-        {/* Delete Button */}
-        <motion.div
-          className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
-          whileHover="hover"
-          whileTap="tap"
-          variants={iconVariants}
-        >
-          <Trash2 className="cursor-pointer" size={28} />
-        </motion.div>
-      </div>
-
-      {/* Expandable Content */}
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className={cn(
-              "overflow-hidden rounded-lg px-3 py-2 font-semibold text-gray-900",
-              "bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400",
-              "shadow-none sm:shadow-md sm:rounded-xl sm:px-5 sm:py-4",
-              "backdrop-blur-0 sm:backdrop-blur-md"
-            )}
-          >
-            <div className="flex flex-col gap-4">
-              {todos.length === 0 ? (
-                <p className="text-sm italic text-gray-100/80">No todos yet</p>
-              ) : (
-                todos.map((t) => (
-                  <div key={t.id} className="w-full">
-                    <div className="block sm:hidden">
-                      <UpdateTodo todo={t} />
-                    </div>
-
-                    <motion.div
-                      className="hidden sm:flex items-center gap-2"
-                      whileHover={{ scale: 1.03 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      <UpdateTodo todo={t} />
-                    </motion.div>
-                  </div>
-                ))
+        {/* Expandable Content */}
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              key="content"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className={cn(
+                "overflow-hidden rounded-lg px-3 py-2 font-semibold text-gray-900",
+                "bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400",
+                "shadow-none sm:shadow-md sm:rounded-xl sm:px-5 sm:py-4",
+                "backdrop-blur-0 sm:backdrop-blur-md"
               )}
-            </div>
-            {isToday && (
-              <div className="flex justify-center items-center mt-2">
-                <CreateTodo focusAreaId={focusAreaId} />
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  </div>
-);
+            >
+              <h2 className="text-xl sm:text-2xl font-extrabold mb-2 sm:mb-4 drop-shadow-sm ">
+                <span
+                  className="bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-400 text-transparent bg-clip-text inline-block"
+                  style={{
+                    backgroundSize: "100% 100%",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  Todos
+                </span>
+              </h2>
 
+              <div className="flex flex-col gap-4">
+                {todos.length === 0 ? (
+                  <p className="text-sm italic text-gray-100/80">
+                    No todos yet
+                  </p>
+                ) : (
+                  todos.map((t) => (
+                    <div key={t.id} className="w-full">
+                      <div className="block sm:hidden">
+                        <UpdateTodo todo={t} />
+                      </div>
+
+                      <motion.div
+                        className="hidden sm:flex items-center gap-2"
+                        whileHover={{ scale: 1.03 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                      >
+                        <UpdateTodo todo={t} />
+                      </motion.div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {isToday && (
+                <div className="flex justify-center items-center mt-2">
+                  <CreateTodo focusAreaId={focusAreaId} />
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
 }

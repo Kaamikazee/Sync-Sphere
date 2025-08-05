@@ -173,6 +173,33 @@ export function UpdateTodo({ todo }: Props) {
               <Star className="fill-yellow-300 w-5 h-5 animate-spin-slow" />
             </DrawerTitle>
 
+            {/* Status selector */}
+            <div className="space-y-2">
+              <Label className="text-gray-100 font-semibold">
+                Status (click to update)
+              </Label>
+              <div className="flex gap-3">
+                {options.map(({ value, label, icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => handleStatusClick(value)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg transition-transform duration-200 ${
+                      todoDone === value
+                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
+                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    }`}
+                  >
+                    {icon}
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DrawerHeader>
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto space-y-6 pr-1 mt-2 no-scrollbar">
             <div className="space-y-2">
               <Label className="text-gray-100 font-semibold">
                 Migrate Todo to Date
@@ -213,33 +240,6 @@ export function UpdateTodo({ todo }: Props) {
               >
                 📆 Migrate to Selected Date
               </Button>
-            </div>
-          </DrawerHeader>
-
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto space-y-6 pr-1 mt-2 no-scrollbar">
-            {/* Status selector */}
-            <div className="space-y-2">
-              <Label className="text-gray-100 font-semibold">
-                Status (click to update)
-              </Label>
-              <div className="flex gap-3">
-                {options.map(({ value, label, icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => handleStatusClick(value)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg transition-transform duration-200 ${
-                      todoDone === value
-                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
-                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    }`}
-                  >
-                    {icon}
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Todo Title */}
