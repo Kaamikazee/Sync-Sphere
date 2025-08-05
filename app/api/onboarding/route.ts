@@ -5,9 +5,7 @@ import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  console.log("API endpoint hit");
   const session = await getAuthSession();
-  console.log("Session:", session);
 
   if (!session?.user) {
     return new Response("User not authenticated", {
@@ -17,19 +15,12 @@ export async function POST(req: Request) {
   }
 
   const body: unknown = await req.json();
-  console.log("Request body:", body);
 
   const result = onboardingSchema.safeParse(body);
-  console.log("Validation result:", result);
 
   if (!result.success) {
-    console.log(
-      "Validation errors:",
-      JSON.stringify(result.error.errors, null, 2)
-    );
     return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
   }
-  console.log("RESULT DATA: ", result.data);
 
   const { name, surname, username } = result.data;
 
@@ -39,17 +30,14 @@ export async function POST(req: Request) {
         id: session.user.id,
       },
     });
-    console.log("User Found: ", user);
 
     if (!user) {
-      console.log("User not Found");
       return new NextResponse("ERRORS.NO_USER_API", {
         status: 404,
         statusText: "User not found",
       });
     }
 
-    console.log("User getting updated");
     await db.user.update({
         where: {
         id: user.id,
@@ -61,7 +49,6 @@ export async function POST(req: Request) {
         surname,
       },
     });
-    console.log("User updated");
 
     const today = normalizeToStartOfDay(new Date())
 
@@ -89,12 +76,10 @@ export async function POST(req: Request) {
     });
     
 
-    console.log("Onboarding completed successfully");
     return NextResponse.json("OK", {
       status: 200,
     });
-  } catch (error){
-    console.error("Database error:", error);
+  } catch {
     return NextResponse.json("ERRORS.DB_ERROR", {
       status: 406,
       statusText: "Internal server error",

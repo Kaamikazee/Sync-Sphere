@@ -16,7 +16,6 @@ export async function POST(req: Request) {
 
   const body: unknown = await req.json();
 
-  console.log("Received body:", body);
 
   const { data, groupId } = body as any;
   const input = { ...data, groupId };

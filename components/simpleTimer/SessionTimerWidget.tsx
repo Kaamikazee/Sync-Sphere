@@ -51,7 +51,7 @@ export const SessionTimerWidget = () => {
   if (!running && currentSessionTime === 0) return null;
 
   return (
-    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 bg-gradient-to-r from-white/20 via-white/10 to-white/5 text-white border border-white/20 backdrop-blur-lg rounded-lg shadow-md text-xs sm:text-sm font-medium w-[90%] max-w-xs text-center">
+    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 bg-gradient-to-r from-white/20 via-white/10 to-white/5 text-white border border-white/20 backdrop-blur-lg rounded-lg shadow-md text-xs sm:text-sm font-medium w-[75%] sm:w-[90%] max-w-xs px-1 sm:px-3 text-center">
       <span className="font-mono truncate block">
         ⏱️ Focused for {formatHMS(currentSessionTime)}
       </span>

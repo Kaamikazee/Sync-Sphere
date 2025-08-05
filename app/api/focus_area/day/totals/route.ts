@@ -12,7 +12,6 @@ export const GET = async (request: Request) => {
 
   const today = normalizeToStartOfDay(new Date());
   const finalDate = date ? normalizeToStartOfDay(new Date(date)) : today;
-  console.log("Final Date:", finalDate);
   
 
   try {
@@ -32,14 +31,11 @@ export const GET = async (request: Request) => {
       },
     });
 
-    console.log("Focus Area Totals:", focusAreaTotals);
 
     const result = focusAreaTotals.map((item) => ({
       focusAreaId: item.focusAreaId,
       totalDuration: item._sum.duration ?? null,
     }));
-
-    console.log("Resulting Focus Area Totals:", result);
     
 
     return NextResponse.json(result, { status: 200 });

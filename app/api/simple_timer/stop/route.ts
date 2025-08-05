@@ -54,7 +54,6 @@ export const POST = async (request: Request) => {
       },
     });
 
-    console.log("Fetched dailyTotal:", existing);
 
     if (!existing) {
       return NextResponse.json("ERRORS.NOT_RUNNING", { status: 404 });

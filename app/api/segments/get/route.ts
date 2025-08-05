@@ -11,8 +11,6 @@ export const GET = async (request: Request) => {
   if (!userId) {
     return NextResponse.json({ error: "Missing userId" }, { status: 400 });
   }
-
-  console.log();
   
 
   const targetDate = dateParam

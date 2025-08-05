@@ -25,7 +25,6 @@ export const GET = async () => {
         }, 
     });
 
-    console.log("Groupss form s,;:", groups);
     
 
     // Attach user name and subscribers count to each group object
@@ -34,7 +33,6 @@ export const GET = async () => {
       userName: group.creator?.name || null,
       subscribersCount: Array.isArray(group.subscribers) ? group.subscribers.length : 0,
     }));
-    console.log("allGroups:", allGroups);
 
     if (!allGroups) return NextResponse.json([], { status: 200 });
 
@@ -44,7 +42,6 @@ export const GET = async () => {
 
     return NextResponse.json(responseGroups, { status: 200 });
   } catch {
-    console.log("DB ERROR");
     
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }

@@ -23,7 +23,7 @@ export default function LoadingScreen() {
             <div className="relative bg-white/10 p-6 rounded-2xl border border-white/20 shadow-xl backdrop-blur-md space-y-6">
               <div className="h-16 w-2/3 mx-auto bg-white/20 rounded-lg" />
               <div className="flex justify-center mt-2">
-                <div className="w-24 h-10 bg-red-500/50 rounded-xl" />
+                <div className="w-24 h-10 bg-white/20 rounded-xl" />
               </div>
               <div className="w-20 h-4 bg-white/20 rounded-md ml-auto" />
               <div className="w-32 h-5 bg-white/20 rounded mx-auto" />

@@ -5,7 +5,6 @@ export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const announcementId = url.searchParams.get("announcementId");
 
-  console.log("Back ID:", announcementId)
 
   if (!announcementId)
     return NextResponse.json("No such user found", { status: 404 });
@@ -17,7 +16,6 @@ export const GET = async (request: Request) => {
       },
     });
 
-    console.log("BAck Det:",announcementDetail);
     
 
     if (!announcementDetail)

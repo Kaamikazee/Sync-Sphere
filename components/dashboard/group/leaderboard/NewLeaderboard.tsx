@@ -64,7 +64,6 @@ export const NewLeaderboard = ({
   // 🔌 Join and leave socket group correctly
   useEffect(() => {
     const join = () => {
-      console.log("Joining group:", groupId);
       socket.emit("joinGroup", { groupId, userId: uuserId });
     };
 
@@ -118,7 +117,6 @@ export const NewLeaderboard = ({
     socket.on("online-users", handleOnlineUsers);
 
     return () => {
-      console.log("Leaving group:", groupId);
       socket.emit("leaveGroup", { groupId, userId: uuserId });
       socket.off("timer-started", handleStart);
       socket.off("timer-stopped", handleStop);

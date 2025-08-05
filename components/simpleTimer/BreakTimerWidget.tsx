@@ -43,7 +43,7 @@ export const BreakTimerWidget = () => {
 
   return (
     <div
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs px-3 py-2 text-center text-xs sm:text-sm font-medium rounded-lg shadow-md  bg-gray-800 animate-pulse transition-all duration-300 bg-gradient-to-r from-white/20 via-white/10 to-white/5 backdrop-blur-lg border border-white/20 text-white"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[75%] sm:w-[90%] max-w-xs px-1 sm:px-3 py-2 text-center text-xs sm:text-sm font-medium rounded-lg shadow-md  bg-gray-800 animate-pulse transition-all duration-300 bg-gradient-to-r from-white/20 via-white/10 to-white/5 backdrop-blur-lg border border-white/20 text-white"
     >
       💤 Break Time: {formatHMS(liveDuration)} ⏱️
     </div>

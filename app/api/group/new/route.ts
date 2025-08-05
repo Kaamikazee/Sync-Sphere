@@ -17,10 +17,8 @@ export async function POST(req: Request) {
 
   const body: unknown = await req.json();
 
-  console.log("Body from FORM: ", body);
   
   const result = apiGroupSchema.safeParse(body);
-  console.log("Result after: ",result);
   
 
   if (!result.success) {
