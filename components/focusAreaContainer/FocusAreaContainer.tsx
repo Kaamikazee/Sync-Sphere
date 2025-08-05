@@ -13,7 +13,8 @@ interface Props {
   setStartTime: (arg: number) => void;
   setIsRunning: (arg: boolean) => void;
   setTime: (arg: number) => void;
-  isRunning: boolean
+  isRunning: boolean;
+  isToday: boolean;
 }
 
 export default function FocusAreaContainer({
@@ -25,7 +26,8 @@ export default function FocusAreaContainer({
   setIsRunning,
   setStartTime,
   setTime,
-  isRunning
+  isRunning,
+  isToday,
 }: Props) {
 // console.log("TIME SPENT", timeSpent, focusAreas);
 
@@ -60,6 +62,7 @@ export default function FocusAreaContainer({
               isRunning={isRunning}
               isActive={focusArea.id === activeId}
               onActivate={() => setActiveId(focusArea.id)}
+              isToday={isToday}
             />
           </div>
         );

@@ -33,7 +33,7 @@ const SimpleTimer = async () => {
 */
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       <SimpleTimerContainer
         // totalSeconds={total!}
         userId={session.user.id}
@@ -45,7 +45,7 @@ const SimpleTimer = async () => {
         groups={groups}
         pomodoroSettings={pomodoroSettings!}
       />
-    </>
+    </div>
   );
 };
 

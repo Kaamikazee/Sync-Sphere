@@ -30,6 +30,7 @@ interface Props {
   todos: Todo[];
   timeSpent: number;
   isRunning: boolean;
+  isToday: boolean;
   handleStart: () => void;
   handleStop: () => void;
   setStartTime: (arg: number) => void;
@@ -52,6 +53,7 @@ export function FocusAreaComp({
   setTime,
   isActive,
   onActivate,
+  isToday
 }: Props) {
   // const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
@@ -230,7 +232,7 @@ export function FocusAreaComp({
         style={{ willChange: "transform" }}
       >
         <AnimatePresence mode="wait">
-          {!running && (
+          {!running && isToday && (
             <motion.div
               key={IsFocusRunning ? "pause" : "play"}
               initial={{ opacity: 0, scale: 0.8, y: 10 }}

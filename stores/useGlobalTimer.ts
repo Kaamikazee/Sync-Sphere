@@ -11,7 +11,13 @@ interface TimerState {
 
 export const useRunningStore = create<TimerState>((set) => ({
   running: false,
-  setRunning: (value) => set({ running: value }),
+  setRunning: (value) => {
+    if (value === true) {
+      // Reset start time when starting
+      localStorage.removeItem("focusStartTime");
+    }
+    set({ running: value });
+  },
   stopRequested: false,
   triggerStop: () => set({ stopRequested: true }),
   resetStop: () => set({ stopRequested: false }),

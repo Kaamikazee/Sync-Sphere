@@ -17,7 +17,7 @@ export default async function GroupList() {
   const userGroups = await getGroups(session.user.id);
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600 flex flex-col gap-6 items-center">
+    <div className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 bg-gradient-to-br from-indigo-700 via-purple-700 to-pink-600 flex flex-col gap-6 items-center mt-5">
       {userGroups.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full max-w-6xl">
           {userGroups.map((group) => (
