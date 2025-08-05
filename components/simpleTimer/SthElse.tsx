@@ -45,21 +45,24 @@ export function SthElse({ groups, userId }: Props) {
   
 
   return (
-  <div className="relative max-w-3xl mx-auto mt-6 sm:mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-4 sm:p-6">
-    {/* — render the group & its leaderboard — */}
+  <div className="relative max-w-3xl mx-auto mt-6 sm:mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl px-3 py-4 sm:p-6">
+    {/* Group Info & Leaderboard */}
     {currentGroup ? (
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-lg sm:text-2xl font-bold text-white mb-3 sm:mb-4">
+        <h2 className="text-base sm:text-2xl font-bold text-white mb-2 sm:mb-4 leading-snug">
           Group:{" "}
-          <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text">
+          <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text break-words">
             <Link href={`groups/${currentGroup.id}`}>{currentGroup.name}</Link>
           </span>
         </h2>
-        <NewLeaderboard
-          groupId={currentGroup.id}
-          uuserId={userId}
-          groupName={currentGroup.name}
-        />
+
+        <div className="overflow-x-auto">
+          <NewLeaderboard
+            groupId={currentGroup.id}
+            uuserId={userId}
+            groupName={currentGroup.name}
+          />
+        </div>
       </div>
     ) : (
       <p className="text-white/70 text-sm sm:text-base">
@@ -67,13 +70,14 @@ export function SthElse({ groups, userId }: Props) {
       </p>
     )}
 
-    {/* — pagination UI — */}
+    {/* Pagination */}
     <Pagination className="mt-5 sm:mt-6">
       <PaginationContent className="flex flex-wrap gap-1 sm:gap-2 justify-center">
+        {/* Previous */}
         <PaginationItem>
           <PaginationPrevious
             href="#"
-            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition"
+            className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 text-sm rounded-lg transition"
             onClick={(e) => {
               e.preventDefault();
               goTo(currentPage - 1);
@@ -81,12 +85,13 @@ export function SthElse({ groups, userId }: Props) {
           />
         </PaginationItem>
 
+        {/* Page Numbers */}
         {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
           <PaginationItem key={page}>
             <PaginationLink
               href="#"
               isActive={page === currentPage}
-              className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition ${
+              className={`px-3 py-1.5 rounded-lg text-sm transition ${
                 page === currentPage
                   ? "bg-indigo-500 text-white font-semibold"
                   : "bg-white/10 text-white hover:bg-white/20"
@@ -101,6 +106,7 @@ export function SthElse({ groups, userId }: Props) {
           </PaginationItem>
         ))}
 
+        {/* Ellipsis + Last Page */}
         {pageCount > 5 && (
           <>
             <PaginationItem>
@@ -109,7 +115,7 @@ export function SthElse({ groups, userId }: Props) {
             <PaginationItem>
               <PaginationLink
                 href="#"
-                className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition"
+                className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-sm transition"
                 onClick={(e) => {
                   e.preventDefault();
                   goTo(pageCount);
@@ -121,10 +127,11 @@ export function SthElse({ groups, userId }: Props) {
           </>
         )}
 
+        {/* Next */}
         <PaginationItem>
           <PaginationNext
             href="#"
-            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-sm transition"
+            className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 text-sm rounded-lg transition"
             onClick={(e) => {
               e.preventDefault();
               goTo(currentPage + 1);
@@ -135,5 +142,6 @@ export function SthElse({ groups, userId }: Props) {
     </Pagination>
   </div>
 );
+
 
 }

@@ -14,74 +14,66 @@ interface Props {
   href: string
 }
 export default function GroupComp({
-  group: { id, image, name, /* color, */ createdAt, userName}, href
+  group: { id, image, name, /* color, */ createdAt, creatorName}, href
 }: Props) {
  return (
-    <Link href={`${href}/${id}`}>
-      
-        <div
+  <Link href={`${href}/${id}`}>
+    <div
+      className="
+        p-4 sm:p-6
+        bg-gradient-to-br from-purple-500/40 via-blue-400/40 to-indigo-500/40
+        backdrop-blur-md border border-white/25 shadow-xl
+        flex justify-center
+        hover:shadow-2xl hover:scale-[1.02] sm:hover:scale-105
+        transition-transform duration-300
+      "
+    >
+      <List
+        className="
+          w-full max-w-full sm:max-w-md
+          bg-white/10 backdrop-blur-md
+          rounded-2xl overflow-hidden
+          border border-white/20
+          shadow-md
+        "
+      >
+        <ListItem
+          alignItems="flex-start"
           className="
-            p-6
-            bg-gradient-to-br
-              from-purple-500/40
-              via-blue-400/40
-              to-indigo-500/40
-            backdrop-blur-md
-            border border-white/25
-            shadow-xl
-            flex justify-center
-            hover:shadow-2xl hover:scale-105
-            transition-transform duration-300
+            flex items-start gap-3 sm:gap-4
+            p-4 sm:p-5 transition-colors
+            hover:bg-white/10
           "
         >
-          <List
-            className="
-              w-full max-w-md
-              bg-white/10 backdrop-blur-md
-              rounded-2xl overflow-hidden
-              border border-white/20
-              shadow-md
-            "
-          >
-            <ListItem
-              alignItems="flex-start"
-              className="
-                flex items-start gap-4
-                p-5 transition-colors
-                hover:bg-white/10
-              "
-            >
-              <ListItemAvatar>
-                <Avatar
-                  alt={name}
-                  src={image!}
-                  className="ring-2 ring-white/50"
-                />
-              </ListItemAvatar>
-              <ListItemText
-                primary={
-                  <span className="text-white text-lg font-semibold">
-                    {name}
-                  </span>
-                }
-                secondary={
-                  <div className="flex justify-between text-sm mt-1">
-                    <span className="text-white/90">{userName}</span>
-                    <span className="text-white/80 font-mono">
-                      {format(createdAt, "dd-MM-yyyy")}
-                    </span>
-                  </div>
-                }
-              />
-            </ListItem>
-            <Divider
-              variant="inset"
-              component="li"
-              className="border-white/30"
+          <ListItemAvatar>
+            <Avatar
+              alt={name}
+              src={image!}
+              className="ring-2 ring-white/50 w-10 h-10 sm:w-12 sm:h-12"
             />
-          </List>
-        </div>
-      
-    </Link>
-  );
+          </ListItemAvatar>
+
+          <ListItemText
+            primary={
+              <span className="text-white text-base sm:text-lg font-semibold">
+                {name}
+              </span>
+            }
+            secondary={
+              <div className="flex flex-col sm:flex-row sm:justify-between text-xs sm:text-sm mt-1">
+                <span className="text-white/90">{creatorName}</span>
+                <span className="text-white/80 font-mono sm:text-right">
+                  {format(createdAt, "dd-MM-yyyy")}
+                </span>
+              </div>
+            }
+          />
+        </ListItem>
+
+        <Divider variant="inset" component="li" className="border-white/30" />
+      </List>
+    </div>
+  </Link>
+);
+
 }

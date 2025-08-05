@@ -141,153 +141,149 @@ export function MemberComponent({
     mutate();
   };
   return (
-    <Dialog>
-      <form>
-        <DialogTrigger asChild>
-          <div
-            className={`flex items-center justify-between py-3 px-2 sm:py-4 sm:px-6 rounded-xl relative text-white/90 transition-transform duration-200 hover:scale-100 sm:hover:scale-105 hover:bg-white/10 sm:hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:ring-0 sm:hover:ring-2 sm:hover:ring-white/30 ${
-              isMe && "ring-2 ring-indigo-500/80 bg-indigo-500/10"
-            }`}
-          >
-            {/* Warning Overlay */}
-            {warningId && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-red-400/80 rounded-xl border border-red-500 shadow-md sm:shadow-2xl animate-pulse">
-                <span className="text-white font-bold text-sm sm:text-lg flex items-center gap-2 text-center px-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-300 animate-bounce"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
-                    />
-                  </svg>
-                  {warningMessage}
-                </span>
-              </div>
-            )}
-
-            {/* Main Content */}
-            <div
-              className={`flex items-center gap-3 sm:gap-4 ${
-                warningId ? "opacity-40 pointer-events-none" : ""
-              }`}
-            >
-              <span className="text-base sm:text-xl font-bold text-[#2c2c2c]">
-                #{index + 1}
-              </span>
-              <div className="relative w-10 h-10">
-                {image ? (
-                  <Image
-                    src={image}
-                    alt={`${name ?? "User"} avatar`}
-                    width={40}
-                    height={40}
-                    className="rounded-full ring-2 ring-white/40 size-10 hover:ring-white/70 object-cover"
+  <Dialog>
+    <form>
+      <DialogTrigger asChild>
+        <div
+          className={`flex items-center justify-between px-3 py-2 sm:px-6 sm:py-4 
+            rounded-xl relative text-white/90 transition-transform duration-200 
+            hover:scale-100 sm:hover:scale-105 
+            hover:bg-white/10 sm:hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] 
+            hover:ring-0 sm:hover:ring-2 sm:hover:ring-white/30 
+            ${isMe ? "ring-2 ring-indigo-500/80 bg-indigo-500/10" : ""}
+          `}
+        >
+          {/* Warning Overlay */}
+          {warningId && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-red-400/80 rounded-xl border border-red-500 shadow-md sm:shadow-2xl animate-pulse px-2 text-center">
+              <span className="text-white font-bold text-xs sm:text-base flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-300 animate-bounce"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
                   />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/40 hover:ring-white/70">
-                    {name?.charAt(0).toUpperCase() || "?"}
-                  </div>
-                )}
-
-                {isOnline && (
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full" />
-                )}
-              </div>
-
-              <span className="text-sm sm:text-lg font-medium text-[#2c2c2c] flex items-center gap-1">
-                {name ?? "Anonymous"}
-                {isMe && (
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold">
-                    You
-                  </span>
-                )}
+                </svg>
+                {warningMessage}
               </span>
             </div>
+          )}
 
-            {/* Timer */}
-            <span
-              className={`text-sm sm:text-xl font-mono text-[#2c2c2c] ${
-                warningId ? "opacity-40" : ""
-              }`}
-            >
-              {base}
-            </span>
-          </div>
-        </DialogTrigger>
+          {/* Left section: Rank, Avatar, Name */}
+          <div className={`flex items-center gap-2 sm:gap-4 ${warningId ? "opacity-40 pointer-events-none" : ""}`}>
+            <span className="text-sm sm:text-lg font-bold text-[#2c2c2c]">#{index + 1}</span>
 
-        {/* Dialog Content */}
-        <DialogContent className="max-w-full sm:max-w-[425px] p-4 sm:p-6 overflow-y-auto">
-          <DialogHeader className="flex items-center justify-between gap-2">
-            <div className="relative w-10 h-10">
+            <div className="relative w-9 h-9 sm:w-10 sm:h-10 shrink-0">
               {image ? (
                 <Image
                   src={image}
                   alt={`${name ?? "User"} avatar`}
                   width={40}
                   height={40}
-                  className="rounded-full ring-2 ring-white/40 size-10 hover:ring-white/70 object-cover"
+                  className="rounded-full ring-2 ring-white/40 size-full hover:ring-white/70 object-cover"
                 />
               ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/40 hover:ring-white/70">
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-xs sm:text-sm font-bold text-white ring-2 ring-white/40 hover:ring-white/70">
                   {name?.charAt(0).toUpperCase() || "?"}
                 </div>
               )}
-
               {isOnline && (
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full" />
+                <span className="absolute bottom-0 right-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full" />
               )}
             </div>
 
-            <DialogTitle className="text-sm sm:text-lg font-semibold font-mono">
-              {base}
-            </DialogTitle>
-          </DialogHeader>
+            <span className="text-xs sm:text-base font-medium text-[#2c2c2c] flex items-center gap-1 flex-wrap max-w-[120px] sm:max-w-none">
+              {name ?? "Anonymous"}
+              {isMe && (
+                <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold">
+                  You
+                </span>
+              )}
+            </span>
+          </div>
 
-          <DialogFooter className="mt-4 sm:mt-6 flex flex-wrap justify-end gap-2">
-            <Link href={`/profile/${id}/reports`}>
-              <Button size="sm" className="min-w-[100px]">
-                Reports
-              </Button>
-            </Link>
+          {/* Right section: Timer */}
+          <span className={`text-xs sm:text-xl font-mono text-[#2c2c2c] ${warningId ? "opacity-40" : ""}`}>
+            {base}
+          </span>
+        </div>
+      </DialogTrigger>
+
+      {/* Dialog Content */}
+      <DialogContent className="max-w-full sm:max-w-[425px] p-4 sm:p-6 overflow-y-auto">
+        <DialogHeader className="flex items-center justify-between gap-2">
+          <div className="relative w-10 h-10">
+            {image ? (
+              <Image
+                src={image}
+                alt={`${name ?? "User"} avatar`}
+                width={40}
+                height={40}
+                className="rounded-full ring-2 ring-white/40 size-full hover:ring-white/70 object-cover"
+              />
+            ) : (
+              <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/40 hover:ring-white/70">
+                {name?.charAt(0).toUpperCase() || "?"}
+              </div>
+            )}
+            {isOnline && (
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full" />
+            )}
+          </div>
+
+          <DialogTitle className="text-sm sm:text-lg font-semibold font-mono">{base}</DialogTitle>
+        </DialogHeader>
+
+        {/* Footer buttons (wrap on small screens) */}
+        <DialogFooter className="mt-4 sm:mt-6 flex flex-wrap justify-end gap-2">
+          <Link href={`/profile/${id}/reports`} className="w-full sm:w-auto">
+            <Button size="sm" className="w-full sm:min-w-[100px]">
+              Reports
+            </Button>
+          </Link>
+          <Button
+            size="sm"
+            type="submit"
+            disabled={isPending}
+            onClick={handleWakeUp}
+            className="w-full sm:w-auto"
+          >
+            Wake Up
+          </Button>
+          {!warningId ? (
             <Button
               size="sm"
               type="submit"
-              disabled={isPending}
-              onClick={handleWakeUp}
+              variant="destructive"
+              disabled={isWarningPending}
+              onClick={handleWarning}
+              className="w-full sm:w-auto"
             >
-              Wake Up
+              Issue Warning
             </Button>
-            {!warningId ? (
-              <Button
-                size="sm"
-                type="submit"
-                variant="destructive"
-                disabled={isWarningPending}
-                onClick={handleWarning}
-              >
-                Issue Warning
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                type="submit"
-                variant="outline"
-                disabled={isCancelWarningPending}
-                onClick={HandleCancelWarning}
-              >
-                Cancel Warning
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </form>
-    </Dialog>
-  );
+          ) : (
+            <Button
+              size="sm"
+              type="submit"
+              variant="outline"
+              disabled={isCancelWarningPending}
+              onClick={HandleCancelWarning}
+              className="w-full sm:w-auto"
+            >
+              Cancel Warning
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </form>
+  </Dialog>
+);
+
 }

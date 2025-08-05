@@ -13,13 +13,22 @@ export const GET = async (request: Request) => {
         userId,
       },
       include: {
-        group: true,
+        group: {
+          include: {
+            creator: {
+              select: {
+                name: true,
+              },
+            },
+          }
+        },
         user: {
           select: {
             name: true,
           }
         }
       },
+      
       orderBy: {
         group: {
           createdAt: "desc",
@@ -27,11 +36,21 @@ export const GET = async (request: Request) => {
       },
     });
 
+
     // Attach user name to each group object
-    const groupsWithUserName = subscriptions.map((subscription) => ({
-      ...subscription.group,
-      userName: subscription.user?.name || null,
-    }));
+   const groupsWithUserName = subscriptions.map((subscription) => {
+  const {
+    creator,
+    ...groupWithoutCreator
+  } = subscription.group;
+
+  return {
+    ...groupWithoutCreator,
+    userName: subscription.user?.name || null,
+    creatorName: creator?.name || null,
+  };
+});
+
 
     if (!groupsWithUserName) return NextResponse.json([], { status: 200 });
 

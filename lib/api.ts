@@ -36,6 +36,7 @@ export interface GroupsWithUserName {
   description: string | null;
   password: string | null;
   isPrivate: boolean;
+  creatorName: string | null;
 }
 
 export const getGroups = async (userId: string) => {

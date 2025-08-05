@@ -79,7 +79,7 @@ export const GET = async (request: Request) => {
       );
     }
 
-    return NextResponse.json(dailyTotal, { status: 200 });
+    return NextResponse.json(dailyTotal.totalSeconds, { status: 200 });
   } catch (err) {
     console.error("GET dailyTotal error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
