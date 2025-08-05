@@ -51,7 +51,6 @@ export const SimpleTimerContainer = ({
   const [date, setDate] = useState<Date>(today);
   const [open, setOpen] = useState(false);
   const isToday = date.getTime() === today.getTime();
-  console.log("IS TODAY", isToday);
 
   const { data: totalSeconds = 0 } = useQuery({
     queryKey: ["totalSeconds", userId, date],

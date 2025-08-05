@@ -26,7 +26,7 @@ export const GET = async (request: Request) => {
       },
     });
 
-    console.log("USER (SERVER)", user?.subscriptions[0].userRole);
+    // console.log("USER (SERVER)", user?.subscriptions[0].userRole);
     
     if (!user) return NextResponse.json("Group not found", { status: 200 });
 

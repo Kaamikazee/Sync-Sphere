@@ -24,6 +24,7 @@ interface Props {
   groupId: string;
   uuserName?: string | null;
   groupName?: string;
+  sessionUserRole?: UserPermission;
 }
 
 export const NewLeaderboard = ({
@@ -31,6 +32,7 @@ export const NewLeaderboard = ({
   groupId,
   uuserName,
   groupName,
+  sessionUserRole = "READ_ONLY", // Default to READ_ONLY if not provided
 }: Props) => {
   const [members, setMembers] = useState<MemberWithTimer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,7 +230,7 @@ export const NewLeaderboard = ({
                   warningId={member.warningId}
                   isOnline={isOnline}
                   isMe={isMe}
-                  role={member.Role}
+                  role={sessionUserRole}
                 />
               </li>
             );

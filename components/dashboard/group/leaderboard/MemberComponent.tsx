@@ -45,6 +45,7 @@ export function MemberComponent({
   role = "Member", // Default to "Member" if not provided
 }: Props) {
   const queryClient = useQueryClient();
+  
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       // Simulate a wake-up action

@@ -29,6 +29,9 @@ const Group = async ({ params: { group_id } }: Params) => {
     getGroup(group_id, session.user.id),
     getUserGroupRole(group_id, session.user.id),
   ]);
+  if (!userRole) {
+    return <p>User role not found.</p>;
+  }
 
   if (!group) {
     return <p>Group not found.</p>;
@@ -101,6 +104,7 @@ const Group = async ({ params: { group_id } }: Params) => {
               groupId={group_id}
               groupName={group.name}
               uuserName={session.user.name}
+              sessionUserRole={userRole}
             />
           </section>
         </div>

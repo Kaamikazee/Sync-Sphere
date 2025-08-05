@@ -14,6 +14,9 @@ export const GET = async (request: Request) => {
       where: {
         userId: userId,
       },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     
