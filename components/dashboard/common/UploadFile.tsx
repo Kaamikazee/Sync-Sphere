@@ -163,12 +163,12 @@ export function Uploadfile({
                         autoFocus
                         onBlur={() => setIsEditingDesc(false)}
                         placeholder="Add description about group"
-                        className="w-full resize-none bg-muted text-white placeholder-white/30 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+                        className="w-full resize-none bg-muted border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
                       />
                     ) : (
                       <div
                         onClick={() => setIsEditingDesc(true)}
-                        className="w-full bg-muted text-white border border-white/10 rounded-lg p-3 cursor-text hover:bg-muted/70 transition text-sm"
+                        className="w-full bg-muted text-black border border-white/10 rounded-lg p-3 cursor-text hover:bg-muted/70 transition text-sm"
                       >
                         {field.value?.trim() ? (
                           <p className="whitespace-pre-line">{field.value}</p>
