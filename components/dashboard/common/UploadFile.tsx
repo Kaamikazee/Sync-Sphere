@@ -132,7 +132,7 @@ export function Uploadfile({
               name="groupName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">
+                  <FormLabel className="text-white/50">
                     Group Name
                   </FormLabel>
                   <FormControl>
@@ -153,7 +153,7 @@ export function Uploadfile({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">
+                  <FormLabel className="text-white/50">
                     Description
                   </FormLabel>
                   <FormControl>
@@ -175,7 +175,7 @@ export function Uploadfile({
             name="file"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-gray-700 mb-1.5 self-start">
+                <FormLabel className="text-white/50 mb-1.5 self-start">
                   Group Icon
                 </FormLabel>
                 <FormControl>
@@ -183,7 +183,7 @@ export function Uploadfile({
                     className={cn(
                       `${
                         dragActive ? "bg-primary/20" : "bg-muted"
-                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 p-4 sm:p-6 cursor-pointer hover:bg-muted/90 duration-200 transition-colors ring-offset-background rounded-md relative border border-gray-text-gray-700 text-gray-700 flex flex-col justify-center items-center w-[15rem]`,
+                      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 p-4 sm:p-6 cursor-pointer hover:bg-muted/90 duration-200 transition-colors ring-offset-background rounded-md relative border border-gray-text-white/50 text-white/50 flex flex-col justify-center items-center w-[15rem]`,
                       "w-full"
                     )}
                     onDragEnter={handleDragEnter}
@@ -274,7 +274,7 @@ export function Uploadfile({
             name="isPrivate"
             render={({ field }) => (
               <FormItem className="flex items-center space-x-4">
-                <FormLabel className="text-gray-700 mb-1.5 self-start">
+                <FormLabel className="text-white/50 mb-1.5 self-start">
                   Private Group
                 </FormLabel>
                 <FormControl>
@@ -294,7 +294,7 @@ export function Uploadfile({
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">
+                  <FormLabel className="text-white/50">
                     Password
                   </FormLabel>
                   <FormControl>
@@ -316,7 +316,7 @@ export function Uploadfile({
               disabled={!form.formState.isValid || isUploading}
               type="submit"
               onClick={form.handleSubmit(onSubmit)}
-              className="w-full mt-10 max-w-md dark:text-white font-semibold"
+              className="w-full mt-10 max-w-md dark:text-white font-semibold mb-3"
             >
               {isUploading || isPending ? (
                 <LoadingState loadingText={"Creating. Please Wait"} />

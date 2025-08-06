@@ -28,7 +28,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 
 interface Props {
   todo: Todo;
@@ -44,6 +43,14 @@ export function UpdateTodo({ todo }: Props) {
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     undefined
   );
+
+  function normalizeToStartOfDay(date: Date): Date {
+  return new Date(Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  ));
+}
 
   const router = useRouter();
   const queryClient = useQueryClient();

@@ -81,9 +81,9 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
           <DrawerTrigger asChild>{TriggerButton}</DrawerTrigger>
           <DrawerContent
             className="bg-white/10 backdrop-blur-lg border border-white/20 
-                       rounded-t-2xl shadow-2xl px-5 sm:px-8 pt-5 pb-28 sm:pt-8 
-                       flex flex-col min-h-[60vh] max-h-[90vh] overflow-y-auto no-scrollbar"
-            style={{ scrollPaddingBottom: "7rem" }}
+                       rounded-t-2xl shadow-2xl px-5 sm:px-8 pt-5 pb-5 sm:pt-8 
+                       flex flex-col min-h-[60vh] max-h-[90vh]"
+            // style={{ scrollPaddingBottom: "7rem" }}
           >
             <DrawerHeader className="shrink-0">
               <DrawerTitle className="text-white text-xl">
@@ -93,7 +93,7 @@ export const AddGroup = ({ update, groupId, group }: Props) => {
                 Fill in the form below
               </DrawerDescription>
             </DrawerHeader>
-            <div className="flex-1 overflow-y-auto">{Content}</div>
+            <div className="flex-1 overflow-y-auto no-scrollbar">{Content}</div>
           </DrawerContent>
         </Drawer>
       ) : (
