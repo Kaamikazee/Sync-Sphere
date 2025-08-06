@@ -41,6 +41,7 @@ model User {
   notifications        Notification[]
   receivedWarnings     Warning[]              @relation("ReceivedWarnings")
   issuedWarnings       Warning[]              @relation("IssuedWarnings")
+  seenMessage           SeenMessage[]
 
   createdAt DateTime @default(now())
 
@@ -106,6 +107,7 @@ model Group {
   chat          Chat[]
   announcements Announcement[]
   warnings      Warning[]
+  message       Message[]
 
   @@index([creatorId])
 }
@@ -332,7 +334,12 @@ model Message {
   chatId   String
   sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
   senderId String
+  groupId    String
   content  String
+
+   group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  seenBy SeenMessage[]
 
   replyTo   Message? @relation("ReplySelfRelation", fields: [replyToId], references: [id])
   replyToId String?
@@ -343,6 +350,22 @@ model Message {
   // additionalResources additionalResource[]
   edited    Boolean   @default(false)
   updatedAt DateTime? @updatedAt
+}
+
+
+model SeenMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  messageId String
+  seenAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  message Message @relation(fields: [messageId], references: [id])
+
+  @@index([messageId])
+  @@index([userId])
+
+  @@unique([userId, messageId])
 }
 
 // NOTIFICATION SYSTEM

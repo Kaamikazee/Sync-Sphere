@@ -238,6 +238,29 @@ export const ChatContainer = ({
     };
   }, [groupId, userId]);
 
+  useEffect(() => {
+  if (!socket) return;
+
+  socket.on("message:updateSeen", ({ messageId, userId }) => {
+    setHistory((prevMessages) =>
+      prevMessages.map((msg) =>
+        msg.id === messageId &&
+        (!msg.seenBy || !msg.seenBy.some((s) => s.userId === userId))
+          ? {
+              ...msg,
+              seenBy: [...(msg.seenBy || []), { userId }],
+            }
+          : msg
+      )
+    );
+  });
+
+  return () => {
+    socket?.off("message:updateSeen");
+  };
+}, []);
+
+
   const send = () => {
     if (!draft.trim()) return;
     socket?.emit("groupMessage", {

@@ -25,4 +25,7 @@ export interface MessageWithSenderInfo extends Message {
     senderName: string;
     content: string;
   } | null;
+   seenBy: {
+    userId: string;
+  }[];
 }

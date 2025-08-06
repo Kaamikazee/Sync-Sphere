@@ -1,9 +1,13 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+// components/chat/ChatMessage.tsx
+
 "use client";
 
 import { motion, useAnimation } from "framer-motion";
 import Image from "next/image";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { MessageWithSenderInfo } from "@/types/extended";
+import { io, Socket } from "socket.io-client";
 
 interface ChatMessageProps {
   msg: MessageWithSenderInfo;
@@ -12,13 +16,56 @@ interface ChatMessageProps {
   onReply: (msg: MessageWithSenderInfo) => void;
 }
 
-export function ChatMessage({ msg, isOwn, isOnline, onReply }: ChatMessageProps) {
+let socket: Socket | null = null;
+
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+
+function useSocket() {
+  useEffect(() => {
+    if (!socket) {
+      socket = io(baseUrl);
+    }
+  }, []);
+}
+
+export function ChatMessage({
+  msg,
+  isOwn,
+  isOnline,
+  onReply,
+}: ChatMessageProps) {
   const controls = useAnimation();
-  const containerRef = useRef(null);
+  //   const containerRef = useRef(null);
+  useSocket();
+  const messageRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!messageRef.current || isOwn) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            socket?.emit("message:seen", {
+              messageId: msg.id,
+              groupId: msg.groupId,
+            });
+          }
+        });
+      },
+      { threshold: 1.0 }
+    );
+
+    observer.observe(messageRef.current);
+
+    return () => {
+      if (messageRef.current) observer.unobserve(messageRef.current);
+    };
+  }, [msg.id, msg.groupId, isOwn]);
 
   return (
     <motion.div
-      ref={containerRef}
+      ref={messageRef}
       drag="x"
       dragDirectionLock
       onDragEnd={(event, info) => {
@@ -29,7 +76,9 @@ export function ChatMessage({ msg, isOwn, isOnline, onReply }: ChatMessageProps)
       }}
       animate={controls}
       dragConstraints={{ left: -120, right: 0 }}
-      className={`flex ${isOwn ? "justify-end" : "justify-start"} py-1 px-2 relative`}
+      className={`flex ${
+        isOwn ? "justify-end" : "justify-start"
+      } py-1 px-2 relative`}
     >
       {!isOwn && (
         <div className="relative w-7 h-7 sm:w-8 sm:h-8 mr-2 shrink-0">
@@ -65,6 +114,13 @@ export function ChatMessage({ msg, isOwn, isOnline, onReply }: ChatMessageProps)
             {msg.replyTo.content.slice(0, 40)}…
           </div>
         )}
+
+        {isOwn && msg.seenBy.length > 0 && (
+          <p className="text-xs text-gray-400 mt-1 text-right">
+            Seen by {msg.seenBy.map((entry: any) => entry.user.name).join(", ")}
+          </p>
+        )}
+
         <div className="whitespace-pre-wrap">{msg.content}</div>
         <div className="text-[10px] text-gray-500 text-right mt-1">
           {new Date(msg.createdAt).toLocaleTimeString([], {
