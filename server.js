@@ -408,6 +408,7 @@ app.prepare().then(() => {
     socket.on(
       "groupMessage",
       async ({ groupId, fromUserId, text, replyToId }) => {
+          console.log("🔥 Received groupMessage:", { text, groupId, replyToId });
         const chat = await prisma.chat.findFirst({
           where: { groupId },
         });
