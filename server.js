@@ -6,14 +6,44 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 
-import handleMessageSeen from "./lib/socket/messageSeen.js"; // or .ts if TS configured properly
-
-
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3001;
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
+
+const handleMessageSeen = async (socket) => {
+  socket.on("message:seen", async ({ messageId, groupId }) => {
+    const userId = socket.user?.id;
+    if (!userId) return;
+
+    try {
+      await prisma.seenMessage.upsert({
+        where: {
+          userId_messageId: {
+            userId,
+            messageId,
+          },
+        },
+        update: {
+          seenAt: new Date(),
+        },
+        create: {
+          userId,
+          messageId,
+        },
+      });
+
+      // Optionally broadcast to others in the group
+      socket.to(groupId).emit("message:updateSeen", {
+        messageId,
+        userId,
+      });
+    } catch (err) {
+      console.error("Seen update failed:", err);
+    }
+  });
+};
 
 app.prepare().then(() => {
   const server = express();
