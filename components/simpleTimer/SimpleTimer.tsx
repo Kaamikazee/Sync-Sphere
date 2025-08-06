@@ -57,17 +57,21 @@ export const SimpleTimerContainer = ({
     queryFn: () =>
       axios
         .get(
-          `/api/simple_timer/day?userId=${userId}&date=${date.toISOString()}`
+          `/api/simple_timer/day?userId=${userId}&date=${date.toLocaleDateString(
+            "en-CA"
+          )}`
         )
         .then((res) => res.data),
   });
 
-  const { data: focusAreaTotals = 0} = useQuery({
+  const { data: focusAreaTotals = 0 } = useQuery({
     queryKey: ["focusAreaTotals", userId, date],
     queryFn: () =>
       axios
         .get(
-          `/api/focus_area/day/totals?userId=${userId}&date=${date.toISOString()}`
+          `/api/focus_area/day/totals?userId=${userId}&date=${date.toLocaleDateString(
+            "en-CA"
+          )}`
         )
         .then((res) => res.data),
   });
@@ -77,11 +81,12 @@ export const SimpleTimerContainer = ({
     queryFn: () =>
       axios
         .get(
-          `/api/todos/day?userId=${userId}&date=${date.toISOString()}`
+          `/api/todos/day?userId=${userId}&date=${date.toLocaleDateString(
+            "en-CA"
+          )}`
         )
         .then((res) => res.data),
   });
-
 
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
   const [time, setTime] = useState(timeSpent);
@@ -129,7 +134,6 @@ export const SimpleTimerContainer = ({
 
     return () => clearInterval(interval);
   }, [running, startTime, time]);
-
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -213,15 +217,15 @@ export const SimpleTimerContainer = ({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-4 bg-gradient-to-br from-sky-800/40 via-purple-800/30 to-indigo-800/40 backdrop-blur-sm">
         <section className="flex flex-col items-center gap-6 w-full">
           <div className="w-full max-w-xl">
-                {!running && (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={date.toISOString()}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
+            {!running && (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={date.getTime()}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                >
                   <div className="flex items-center gap-4 mb-6">
                     <Button variant="ghost" onClick={() => changeDateBy(-1)}>
                       <ChevronLeft className="w-6 h-6 text-white/70" />
@@ -229,7 +233,7 @@ export const SimpleTimerContainer = ({
                     <Popover open={open} onOpenChange={setOpen}>
                       <PopoverTrigger asChild>
                         <Button className="w-52 text-lg font-bold bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm shadow-md rounded-xl">
-                          {date.toLocaleDateString()}
+                          {date.toLocaleDateString("en-CA")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
@@ -237,7 +241,16 @@ export const SimpleTimerContainer = ({
                           mode="single"
                           selected={date}
                           captionLayout="dropdown"
-                          onSelect={(d) => d && (setDate(d), setOpen(false))}
+                          onSelect={(d) => {
+                            if (!d) return;
+                            const localMidnight = new Date(
+                              d.getFullYear(),
+                              d.getMonth(),
+                              d.getDate()
+                            );
+                            setDate(localMidnight);
+                            setOpen(false);
+                          }}
                           toDate={today}
                         />
                       </PopoverContent>
@@ -246,9 +259,9 @@ export const SimpleTimerContainer = ({
                       <ChevronRight className="w-6 h-6 text-white/70" />
                     </Button>
                   </div>
-              </motion.div>
-            </AnimatePresence>
-                )}
+                </motion.div>
+              </AnimatePresence>
+            )}
             <div className="bg-gradient-to-r from-cyan-500/40 via-sky-500/30 to-indigo-600/40 p-6 rounded-2xl shadow-xl border border-white/20 backdrop-blur-md hover:shadow-2xl transition-all duration-300">
               <div
                 className="pointer-events-none absolute inset-0 rounded-2xl"
@@ -258,7 +271,7 @@ export const SimpleTimerContainer = ({
               />
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={date.toISOString()}
+                  key={date.getTime()}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -315,9 +328,7 @@ export const SimpleTimerContainer = ({
                         <Pencil className="mr-2" />
                       </motion.div>
                     </Link>
-                    {running && (
-                      <SessionTimerWidget />
-                    )}
+                    {running && <SessionTimerWidget />}
                     <span className="font-mono">
                       <BreakTimerWidget />
                     </span>
@@ -332,7 +343,7 @@ export const SimpleTimerContainer = ({
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={date.toISOString()}
+              key={date.getTime()}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}

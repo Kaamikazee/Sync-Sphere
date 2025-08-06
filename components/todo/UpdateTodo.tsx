@@ -24,11 +24,11 @@ import { CalendarIcon } from "lucide-react";
 import { Todo, TodoWorkDone } from "@prisma/client";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 
 interface Props {
   todo: Todo;
@@ -38,21 +38,15 @@ export function UpdateTodo({ todo }: Props) {
   const { title, id, content, completed } = todo;
   const [todoName, setTodoName] = React.useState(title);
   const [todoContent, setTodoContent] = React.useState(content);
+  const [open, setOpen] = React.useState(false)
   const [todoDone, setTodoDone] = React.useState<TodoWorkDone>(completed);
   const [isEditingContent, setIsEditingContent] = React.useState(false); //
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     undefined
   );
 
-  function normalizeToStartOfDay(date: Date): Date {
-  return new Date(Date.UTC(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate()
-  ));
-}
-
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Unified mutation accepting fields
   const updateMutation = useMutation({
@@ -67,6 +61,7 @@ export function UpdateTodo({ todo }: Props) {
     },
     onSuccess: () => {
       toast.success("Todo updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
       router.refresh();
     },
     mutationKey: ["updateTodo", id],
@@ -84,6 +79,7 @@ export function UpdateTodo({ todo }: Props) {
     },
     onSuccess: () => {
       toast.success("Todo deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
       router.refresh();
     },
     mutationKey: ["deleteTodo", id],
@@ -204,7 +200,7 @@ export function UpdateTodo({ todo }: Props) {
               <Label className="text-gray-100 font-semibold">
                 Migrate Todo to Date
               </Label>
-              <Popover>
+              <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
@@ -222,7 +218,10 @@ export function UpdateTodo({ todo }: Props) {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={setSelectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date);
+                      setOpen(false); // ✅ close popover
+                    }}
                     initialFocus
                   />
                 </PopoverContent>

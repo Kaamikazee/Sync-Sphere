@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -41,6 +41,7 @@ export function CreateTodo({ focusAreaId }: Props) {
   const [todoContent, setTodoContent] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 640px)");
+  const queryClient = useQueryClient();
 
   const { mutate, isPending: isLoading } = useMutation({
     mutationFn: async () => {
@@ -58,6 +59,7 @@ export function CreateTodo({ focusAreaId }: Props) {
     onSuccess: () => {
       toast.success("Todo created successfully");
       setIsOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["todos"] }); // ✅
       router.refresh();
     },
     mutationKey: ["createTodo"],
