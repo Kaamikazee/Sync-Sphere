@@ -1,3 +1,5 @@
+// messageSeen.js
+
 import db from "@/lib/db";
 
 export const handleMessageSeen = async (socket) => {

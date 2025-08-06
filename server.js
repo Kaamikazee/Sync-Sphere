@@ -6,7 +6,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 
-import { handleMessageSeen } from "./messageSeen";
+import {handleMessageSeen} from "./messageSeen.js"
 // import { messaging } from "firebase-admin";
 
 const prisma = new PrismaClient();
