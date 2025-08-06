@@ -149,7 +149,7 @@ export function UpdateTodo({ todo }: Props) {
           className={`flex items-center gap-1 cursor-pointer transition-colors duration-200 
             ${
               todoDone === "DONE"
-                ? "text-emerald-400 line-through"
+                ? "text-purple-300/60 italic line-through"
                 : "text-purple-200 hover:text-purple-400"
             }`}
         >

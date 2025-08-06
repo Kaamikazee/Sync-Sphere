@@ -199,7 +199,7 @@ export const NewLeaderboard = ({
     transition-transform duration-300 
     sm:hover:shadow-2xl sm:hover:scale-105 rounded-xl"
     >
-      <div className="w-full max-w-3xl space-y-3 sm:space-y-4 mx-auto px-2 sm:px-0">
+      <div className="w-full max-w-3xl space-y-3 sm:space-y-4 mx-auto">
         <h2 className="text-lg sm:text-3xl font-extrabold text-[#5b3e96] mb-2 text-center">
           Group Leaderboard
         </h2>

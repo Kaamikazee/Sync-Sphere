@@ -45,7 +45,7 @@ export function MemberComponent({
   role = "Member", // Default to "Member" if not provided
 }: Props) {
   const queryClient = useQueryClient();
-  
+
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
       // Simulate a wake-up action
@@ -199,7 +199,12 @@ export function MemberComponent({
                     className="rounded-full ring-2 ring-white/40 size-full hover:ring-white/70 object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-xs sm:text-sm font-bold text-white ring-2 ring-white/40 hover:ring-white/70">
+                  <div
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 
+             flex items-center justify-center text-base sm:text-lg font-medium text-gray-500 sm:shadow-inner 
+             shadow-md sm:hover:shadow-md transition-all duration-200"
+                    title={name || "User"}
+                  >
                     {name?.charAt(0).toUpperCase() || "?"}
                   </div>
                 )}
