@@ -6,8 +6,8 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 
-import {handleMessageSeen} from "./messageSeen.js"
-// import { messaging } from "firebase-admin";
+import handleMessageSeen from "./lib/socket/messageSeen.js"; // or .ts if TS configured properly
+
 
 const prisma = new PrismaClient();
 const port = process.env.PORT || 3001;
@@ -37,6 +37,7 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
     console.log("🟢 [server] socket connected:", socket.id);
+    // Here I need it
     handleMessageSeen(socket);
 
     socket.on("startActivity", async ({ activityId, startTime }) => {
