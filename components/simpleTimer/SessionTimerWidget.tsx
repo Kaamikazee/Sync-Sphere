@@ -20,6 +20,14 @@ export const SessionTimerWidget = () => {
   const { running } = useRunningStore();
   const [currentSessionTime, setCurrentSessionTime] = useState<number>(0);
 
+  // ✅ Restore on refresh
+  useEffect(() => {
+    const startTime = localStorage.getItem("focusStartTime");
+    if (startTime) {
+      useRunningStore.getState().setRunning(true);
+    }
+  }, []);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -27,7 +35,6 @@ export const SessionTimerWidget = () => {
       const startTime = localStorage.getItem("focusStartTime");
       let startTimestamp: number;
 
-      // If no start time, create one
       if (!startTime) {
         startTimestamp = Date.now();
         localStorage.setItem("focusStartTime", startTimestamp.toString());
@@ -35,7 +42,6 @@ export const SessionTimerWidget = () => {
         startTimestamp = parseInt(startTime);
       }
 
-      // Start ticking
       interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTimestamp) / 1000);
         setCurrentSessionTime(elapsed);

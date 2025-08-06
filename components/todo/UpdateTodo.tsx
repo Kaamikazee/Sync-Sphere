@@ -34,10 +34,10 @@ interface Props {
 }
 
 export function UpdateTodo({ todo }: Props) {
-  const { title, id, content, completed } = todo;
+  const { title, id, content, completed, date } = todo;
   const [todoName, setTodoName] = React.useState(title);
   const [todoContent, setTodoContent] = React.useState(content);
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
   const [todoDone, setTodoDone] = React.useState<TodoWorkDone>(completed);
   const [isEditingContent, setIsEditingContent] = React.useState(false); //
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
@@ -45,12 +45,10 @@ export function UpdateTodo({ todo }: Props) {
   );
 
   function normalizeToStartOfDay(date: Date): Date {
-  return new Date(Date.UTC(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate()
-  ));
-}
+    return new Date(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+    );
+  }
 
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -168,7 +166,7 @@ export function UpdateTodo({ todo }: Props) {
           onSubmit={handleSubmit}
           className="flex flex-col flex-1 w-full max-w-sm mx-auto px-6 py-5 overflow-hidden"
         >
-          {/* Header + migration section */}
+          {/* Header + status selector */}
           <DrawerHeader>
             <DrawerTitle className="flex items-center justify-center text-2xl font-extrabold text-white gap-2 mb-3">
               <Star className="fill-yellow-300 w-5 h-5 animate-spin-slow" />
@@ -200,6 +198,24 @@ export function UpdateTodo({ todo }: Props) {
               </div>
             </div>
           </DrawerHeader>
+
+          <Button
+            type="button"
+            onClick={() => {
+              if (!date) {
+                return toast.error("This todo does not have a date assigned.");
+              }
+              const currentDate = new Date(date);
+              const nextDate = new Date(currentDate);
+              nextDate.setDate(currentDate.getDate() + 1);
+              const midnightUTC = normalizeToStartOfDay(nextDate);
+              updateMutation.mutate({ date: midnightUTC });
+              toast.success("Todo migrated to the next day!");
+            }}
+            className="bg-gradient-to-r from-pink-500 to-red-500 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform"
+          >
+            ⏭️ Migrate to Next Date
+          </Button>
 
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto space-y-6 pr-1 mt-2 no-scrollbar">

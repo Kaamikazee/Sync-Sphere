@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     await db.user.update({
-        where: {
+      where: {
         id: user.id,
       },
       data: {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const today = normalizeToStartOfDay(new Date())
+    const today = normalizeToStartOfDay(new Date());
 
     const dailyTotal = await db.dailyTotal.findFirst({
       where: {
@@ -61,12 +61,12 @@ export async function POST(req: Request) {
 
     if (!dailyTotal) {
       await db.dailyTotal.create({
-      data: {
-        userId: user.id,
-        date: today,
-        totalSeconds: 0
-      }
-    })
+        data: {
+          userId: user.id,
+          date: today,
+          totalSeconds: 0,
+        },
+      });
     }
 
     await db.pomodoroSettings.create({
@@ -74,7 +74,19 @@ export async function POST(req: Request) {
         userId: user.id,
       },
     });
-    
+
+    const focusAreas = ["Study", "Workout", "Meditation"];
+
+    await Promise.all(
+      focusAreas.map((name) =>
+        db.focusArea.create({
+          data: {
+            name,
+            userId: session.user.id,
+          },
+        })
+      )
+    );
 
     return NextResponse.json("OK", {
       status: 200,

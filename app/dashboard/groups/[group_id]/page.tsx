@@ -49,7 +49,6 @@ const Group = async ({ params: { group_id } }: Params) => {
             <h1 className="text-3xl sm:text-5xl font-mono font-extrabold text-blue-900 hover:text-indigo-600">
               Group Dashboard
             </h1>
-            
           </header>
 
           {/* Action Buttons */}
@@ -58,12 +57,14 @@ const Group = async ({ params: { group_id } }: Params) => {
               <InviteUsers group={group} />
             )}
 
-            <ActiveLink
-              href={`${group_id}/members`}
-              className="px-6 py-2 bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 hover:bg-gradient-to-r hover:from-green-300 hover:via-lime-300 hover:to-emerald-400 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
-            >
-              Manage Members
-            </ActiveLink>
+            {(userRole === "ADMIN" || userRole === "OWNER") && (
+              <ActiveLink
+                href={`${group_id}/members`}
+                className="px-6 py-2 bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 hover:bg-gradient-to-r hover:from-green-300 hover:via-lime-300 hover:to-emerald-400 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
+              >
+                Manage Members
+              </ActiveLink>
+            )}
 
             <Link href={`${group_id}/chat`}>
               <div className="px-6 py-2 bg-gradient-to-r from-cyan-500/40 via-sky-500/30 to-indigo-600/40 hover:bg-gradient-to-r hover:from-cyan-400/40 hover:via-sky-400/30 hover:to-indigo-500/40 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">
@@ -81,14 +82,18 @@ const Group = async ({ params: { group_id } }: Params) => {
             {userRole === "OWNER" ? (
               <DeleteGroup groupId={group_id} groupName={group.name} />
             ) : (
-              <LeaveGroup userId={session.user.id} groupId={group_id} groupName={group.name} />
+              <LeaveGroup
+                userId={session.user.id}
+                groupId={group_id}
+                groupName={group.name}
+              />
             )}
           </div>
 
           {/* Edit Group Floating Button (Admin/Owner only) */}
           {(userRole === "ADMIN" || userRole === "OWNER") && (
             <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50">
-              <AddGroup update groupId={group_id} group={group}/>
+              <AddGroup update groupId={group_id} group={group} />
             </div>
           )}
 

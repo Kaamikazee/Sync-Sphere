@@ -48,7 +48,10 @@ export function Uploadfile({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(previewUrlUpdate || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    previewUrlUpdate || null
+  );
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
 
   const onFileHandler = (providedFile: File) => {
     const result = schema
@@ -132,9 +135,7 @@ export function Uploadfile({
               name="groupName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/50">
-                    Group Name
-                  </FormLabel>
+                  <FormLabel className="text-white/50">Group Name</FormLabel>
                   <FormControl>
                     <Input
                       className="bg-muted w-full"
@@ -153,15 +154,31 @@ export function Uploadfile({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/50">
-                    Description
-                  </FormLabel>
+                  <FormLabel className="text-white/50">Description</FormLabel>
                   <FormControl>
-                    <Input
-                      className="bg-muted w-full"
-                      placeholder="Add description about group"
-                      {...field}
-                    />
+                    {isEditingDesc ? (
+                      <textarea
+                        {...field}
+                        rows={4}
+                        autoFocus
+                        onBlur={() => setIsEditingDesc(false)}
+                        placeholder="Add description about group"
+                        className="w-full resize-none bg-muted text-white placeholder-white/30 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+                      />
+                    ) : (
+                      <div
+                        onClick={() => setIsEditingDesc(true)}
+                        className="w-full bg-muted text-white border border-white/10 rounded-lg p-3 cursor-text hover:bg-muted/70 transition text-sm"
+                      >
+                        {field.value?.trim() ? (
+                          <p className="whitespace-pre-line">{field.value}</p>
+                        ) : (
+                          <p className="text-white/40 italic">
+                            Click to add description...
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -169,7 +186,6 @@ export function Uploadfile({
             />
           </div>
 
-          
           <FormField
             control={form.control}
             name="file"
@@ -294,9 +310,7 @@ export function Uploadfile({
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/50">
-                    Password
-                  </FormLabel>
+                  <FormLabel className="text-white/50">Password</FormLabel>
                   <FormControl>
                     <Input
                       className="bg-muted w-full"

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { apiGroupSchema } from "@/schemas/groupSchema";
+import { apiUpdateGroupSchema } from "@/schemas/updateGroupSchema";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const input = { ...data, groupId };
 
   // ✅ Validate the flattened object
-  const result = apiGroupSchema.safeParse(input);
+  const result = apiUpdateGroupSchema.safeParse(input);
 
   if (!result.success) {
     return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });

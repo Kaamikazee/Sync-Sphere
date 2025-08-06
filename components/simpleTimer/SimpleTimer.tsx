@@ -194,6 +194,7 @@ export const SimpleTimerContainer = ({
     socket?.emit("start-timer", { userId, startTime: now });
 
     // setCurrentSessionTime(0);
+    useRunningStore.getState().setRunning(true, true); // ✅ resets timer
   };
 
   const handleStop = () => {

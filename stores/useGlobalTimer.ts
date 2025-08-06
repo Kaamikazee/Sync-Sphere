@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 interface TimerState {
   running: boolean;
-  setRunning: (value: boolean) => void;
+  setRunning: (value: boolean, resetOnStart?: boolean) => void;
   stopRequested: boolean;
   triggerStop: () => void;
   resetStop: () => void;
@@ -11,10 +11,9 @@ interface TimerState {
 
 export const useRunningStore = create<TimerState>((set) => ({
   running: false,
-  setRunning: (value) => {
-    if (value === true) {
-      // Reset start time when starting
-      localStorage.removeItem("focusStartTime");
+  setRunning: (value, resetOnStart = false) => {
+    if (value === true && resetOnStart) {
+      localStorage.removeItem("focusStartTime"); // 🔥 Only reset if explicitly requested
     }
     set({ running: value });
   },

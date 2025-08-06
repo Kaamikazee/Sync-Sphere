@@ -16,6 +16,7 @@ import { useUploadThing } from "@/lib/uploadthing";
 import { Uploadfile } from "../common/UploadFile";
 import { Group } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { updateGroupSchema, UpdateGroupSchema } from "@/schemas/updateGroupSchema";
 
 interface Props {
     onSetOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -27,8 +28,8 @@ export const UpdateGroupForm = ({onSetOpen, groupId, group}: Props) => {
   const [uploadError, setUploadError] = useState(false);
   const router = useRouter();
 
-  const form = useForm<GroupSchema>({
-    resolver: zodResolver(groupSchema),
+  const form = useForm<UpdateGroupSchema>({
+    resolver: zodResolver(updateGroupSchema),
     defaultValues: {
       groupName: group?.name || "",
       description: group?.description || "",

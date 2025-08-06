@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-  import {
-    Dialog,
-    DialogTrigger,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogClose,
-  } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 import {
   Drawer,
   DrawerTrigger,
@@ -40,15 +40,18 @@ export function CreateTodo({ focusAreaId }: Props) {
   const [todoName, setTodoName] = useState("");
   const [todoContent, setTodoContent] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditingContent, setIsEditingContent] = useState(false);
+
   const isMobile = useMediaQuery("(max-width: 640px)");
   const queryClient = useQueryClient();
 
   const { mutate, isPending: isLoading } = useMutation({
     mutationFn: async () => {
-      await axios.post(
-        `/api/todos/new?focusAreaId=${focusAreaId}`,
-        { title: todoName, content: todoContent, completed: TodoWorkDone.NOT_DONE }
-      );
+      await axios.post(`/api/todos/new?focusAreaId=${focusAreaId}`, {
+        title: todoName,
+        content: todoContent,
+        completed: TodoWorkDone.NOT_DONE,
+      });
     },
     onError: (err: AxiosError) => {
       const error = err?.response?.data
@@ -70,8 +73,8 @@ export function CreateTodo({ focusAreaId }: Props) {
     if (!todoName.trim() || !todoContent.trim()) {
       toast.error("Please fill out both fields.");
       return;
-    } else if (todoName.trim().length > 20) {
-      toast.error("Title can be max of 20 letters only");
+    } else if (todoName.trim().length > 30) {
+      toast.error("Title can be max of 30 letters only");
       return;
     }
     mutate();
@@ -107,18 +110,35 @@ export function CreateTodo({ focusAreaId }: Props) {
           <Label htmlFor="todo-content" className="text-white text-sm">
             Todo Content
           </Label>
-          <Input
-            id="todo-content"
-            name="content"
-            value={todoContent}
-            onChange={(e) => setTodoContent(e.target.value)}
-            placeholder="Enter content"
-            className="bg-white/10 text-white placeholder:text-white/40 backdrop-blur-md border border-white/20 focus:ring-lime-400 text-sm"
-          />
+
+          {isEditingContent ? (
+            <textarea
+              id="todo-content"
+              name="content"
+              value={todoContent}
+              onChange={(e) => setTodoContent(e.target.value)}
+              onBlur={() => setIsEditingContent(false)}
+              autoFocus
+              rows={4}
+              placeholder="Enter content"
+              className="w-full resize-none bg-white/10 text-white placeholder:text-white/40 backdrop-blur-md border border-white/20 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+            />
+          ) : (
+            <div
+              onClick={() => setIsEditingContent(true)}
+              className="w-full bg-white/10 text-white border border-white/20 rounded-lg p-3 cursor-text hover:bg-white/20 backdrop-blur-md transition text-sm"
+            >
+              {todoContent?.trim() ? (
+                <p className="whitespace-pre-line">{todoContent}</p>
+              ) : (
+                <p className="text-white/40 italic">Click to add content...</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 mt-4">
-          {(isMobile ? (
+          {isMobile ? (
             <DrawerClose asChild>
               <Button
                 type="button"
@@ -138,7 +158,7 @@ export function CreateTodo({ focusAreaId }: Props) {
                 Cancel
               </Button>
             </DialogClose>
-          ))}
+          )}
 
           <Button
             type="submit"
@@ -158,9 +178,12 @@ export function CreateTodo({ focusAreaId }: Props) {
         <DrawerTrigger asChild>{Trigger}</DrawerTrigger>
         <DrawerContent className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar">
           <DrawerHeader>
-            <DrawerTitle className="text-white text-lg sm:text-xl">📝 New Todo</DrawerTitle>
+            <DrawerTitle className="text-white text-lg sm:text-xl">
+              📝 New Todo
+            </DrawerTitle>
             <DrawerDescription className="text-white/80 text-sm sm:text-base">
-              Fill in the details for your todo. Click <strong>Save</strong> to confirm.
+              Fill in the details for your todo. Click <strong>Save</strong> to
+              confirm.
             </DrawerDescription>
           </DrawerHeader>
           <DrawerFooter className="pt-0">{Content}</DrawerFooter>
@@ -174,9 +197,12 @@ export function CreateTodo({ focusAreaId }: Props) {
       <DialogTrigger asChild>{Trigger}</DialogTrigger>
       <DialogContent className="w-[90vw] max-w-xs sm:max-w-sm md:max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-white text-lg sm:text-xl">📝 New Todo</DialogTitle>
+          <DialogTitle className="text-white text-lg sm:text-xl">
+            📝 New Todo
+          </DialogTitle>
           <DialogDescription className="text-white/80 text-sm sm:text-base">
-            Fill in the details for your todo. Click <strong>Save</strong> to confirm.
+            Fill in the details for your todo. Click <strong>Save</strong> to
+            confirm.
           </DialogDescription>
         </DialogHeader>
         <div className="pt-0">{Content}</div>
