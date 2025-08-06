@@ -248,7 +248,6 @@ export function FocusAreaComp({
             </AnimatePresence>
           </motion.div>
 
-              
           {/* Clickable Header */}
           <div
             onClick={() => setOpen((prev) => !prev)}
@@ -287,12 +286,13 @@ export function FocusAreaComp({
           {open && (
             <motion.div
               key="content"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ opacity: 0, scaleY: 0 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              exit={{ opacity: 0, scaleY: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
+              style={{ originY: 0 }}
               className={cn(
-                "overflow-hidden rounded-lg px-3 py-2 font-semibold text-gray-900",
+                "overflow-hidden transform-gpu rounded-lg px-3 py-2 font-semibold text-gray-900",
                 "bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400",
                 "shadow-none sm:shadow-md sm:rounded-xl sm:px-5 sm:py-4",
                 "backdrop-blur-0 sm:backdrop-blur-md"

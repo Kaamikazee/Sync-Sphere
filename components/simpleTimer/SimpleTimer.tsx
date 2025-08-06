@@ -13,7 +13,6 @@ import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { SthElse } from "./SthElse";
 import { BreakTimerWidget } from "./BreakTimerWidget";
 import PomodoroContainer from "../dashboard/pomodoro/PomodoroContainer";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -47,6 +46,9 @@ export const SimpleTimerContainer = ({
   groups,
   pomodoroSettings,
 }: Props) => {
+  function normalizeToStartOfDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
   const today = normalizeToStartOfDay(new Date());
   const [date, setDate] = useState<Date>(today);
   const [open, setOpen] = useState(false);
@@ -243,12 +245,7 @@ export const SimpleTimerContainer = ({
                           captionLayout="dropdown"
                           onSelect={(d) => {
                             if (!d) return;
-                            const localMidnight = new Date(
-                              d.getFullYear(),
-                              d.getMonth(),
-                              d.getDate()
-                            );
-                            setDate(localMidnight);
+                            setDate(normalizeToStartOfDay(d)); // <== normalize properly here
                             setOpen(false);
                           }}
                           toDate={today}
@@ -262,7 +259,7 @@ export const SimpleTimerContainer = ({
                 </motion.div>
               </AnimatePresence>
             )}
-            <div className="bg-gradient-to-r from-cyan-500/40 via-sky-500/30 to-indigo-600/40 p-6 rounded-2xl shadow-xl border border-white/20 backdrop-blur-md hover:shadow-2xl transition-all duration-300">
+            <div className="relative sm:bg-gradient-to-r sm:from-cyan-500/40 sm:via-sky-500/30 sm:to-indigo-600/40 sm:p-6 p-2 sm:rounded-2xl sm:shadow-xl sm:border sm:border-white/20 sm:backdrop-blur-md transition-all duration-300">
               <div
                 className="pointer-events-none absolute inset-0 rounded-2xl"
                 style={{
@@ -368,9 +365,10 @@ export const SimpleTimerContainer = ({
         </section>
         <aside className="w-full">
           <div className="p-4 h-full">
-            <div className="bg-white/10 border border-white/20 backdrop-blur-md rounded-2xl shadow-lg p-6 hover:shadow-2xl transition-all duration-300 h-full">
-              <SthElse groups={groups} userId={userId} />
-            </div>
+            <div className="relative sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md sm:rounded-2xl sm:shadow-lg sm:p-6 p-3 sm:hover:shadow-2xl transition-all duration-300">
+  <SthElse groups={groups} userId={userId} />
+</div>
+
           </div>
         </aside>
       </div>
