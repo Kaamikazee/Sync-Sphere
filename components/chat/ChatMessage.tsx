@@ -40,32 +40,35 @@ export function ChatMessage({
   const messageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-  if (!messageRef.current || isOwn) return;
+    if (!messageRef.current || isOwn) return;
 
-  const element = messageRef.current;
+    const element = messageRef.current;
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        socket?.emit("message:seen", {
-          messageId: msg.id,
-          groupId: msg.groupId,
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            socket?.emit("message:seen", {
+              messageId: msg.id,
+              groupId: msg.groupId,
+            });
+          }
         });
-      }
-    });
-  }, { threshold: 1.0 });
+      },
+      { threshold: 1.0 }
+    );
 
-  observer.observe(element);
+    observer.observe(element);
 
-  return () => {
-    observer.unobserve(element);
-  };
-}, [msg.id, msg.groupId, isOwn]);
-
+    return () => {
+      observer.unobserve(element);
+    };
+  }, [msg.id, msg.groupId, isOwn]);
 
   return (
     <motion.div
       ref={messageRef}
+       data-id={msg.id}
       drag="x"
       dragDirectionLock
       onDragEnd={(event, info) => {
@@ -115,7 +118,13 @@ export function ChatMessage({
           </div>
         )}
 
-        {isOwn && msg.seenBy.length > 0 && (
+        {/* {isOwn && msg.seenBy.length > 0 && (
+          <p className="text-xs text-gray-400 mt-1 text-right">
+            Seen by {msg.seenBy.map((entry: any) => entry.user.name).join(", ")}
+          </p>
+        )} */}
+
+        {isOwn && Array.isArray(msg.seenBy) && msg.seenBy.length > 0 && (
           <p className="text-xs text-gray-400 mt-1 text-right">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             Seen by {msg.seenBy.map((entry: any) => entry.user.name).join(", ")}

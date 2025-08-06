@@ -146,6 +146,11 @@ app.prepare().then(() => {
             take: PAGE_SIZE,
             include: {
               sender: true,
+              seenBy: {
+                include: {
+                  user: true,
+                },
+              },
               replyTo: {
                 include: {
                   sender: {
