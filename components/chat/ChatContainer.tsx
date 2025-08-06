@@ -260,9 +260,14 @@ export const ChatContainer = ({
   };
 }, []);
 
+console.log("HSITORY",history);
+
+
 
   const send = () => {
     if (!draft.trim()) return;
+    console.log("SENDINGGG", draft, userId, groupId);
+    
     socket?.emit("groupMessage", {
       groupId,
       fromUserId: userId,

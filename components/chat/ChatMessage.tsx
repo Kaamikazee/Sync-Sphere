@@ -35,7 +35,7 @@ export function ChatMessage({
   onReply,
 }: ChatMessageProps) {
   const controls = useAnimation();
-  //   const containerRef = useRef(null);
+    const containerRef = useRef(null);
   useSocket();
   const messageRef = useRef<HTMLDivElement | null>(null);
 
@@ -67,7 +67,7 @@ export function ChatMessage({
 
   return (
     <motion.div
-      ref={messageRef}
+      ref={containerRef}
        data-id={msg.id}
       drag="x"
       dragDirectionLock

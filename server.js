@@ -432,7 +432,7 @@ app.prepare().then(() => {
         });
 
         // Notify everyone in the group
-        io.to(`chat_${chat.id}`).emit("newMessage", {
+        io.to(groupId).emit("newMessage", {
           id: saved.id,
           chatId: saved.chatId,
           senderId: saved.senderId,
