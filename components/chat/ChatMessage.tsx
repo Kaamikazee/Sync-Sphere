@@ -40,28 +40,28 @@ export function ChatMessage({
   const messageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!messageRef.current || isOwn) return;
+  if (!messageRef.current || isOwn) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            socket?.emit("message:seen", {
-              messageId: msg.id,
-              groupId: msg.groupId,
-            });
-          }
+  const element = messageRef.current;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        socket?.emit("message:seen", {
+          messageId: msg.id,
+          groupId: msg.groupId,
         });
-      },
-      { threshold: 1.0 }
-    );
+      }
+    });
+  }, { threshold: 1.0 });
 
-    observer.observe(messageRef.current);
+  observer.observe(element);
 
-    return () => {
-      if (messageRef.current) observer.unobserve(messageRef.current);
-    };
-  }, [msg.id, msg.groupId, isOwn]);
+  return () => {
+    observer.unobserve(element);
+  };
+}, [msg.id, msg.groupId, isOwn]);
+
 
   return (
     <motion.div
@@ -117,6 +117,7 @@ export function ChatMessage({
 
         {isOwn && msg.seenBy.length > 0 && (
           <p className="text-xs text-gray-400 mt-1 text-right">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             Seen by {msg.seenBy.map((entry: any) => entry.user.name).join(", ")}
           </p>
         )}
