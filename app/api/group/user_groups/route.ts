@@ -53,7 +53,7 @@ export const GET = async (request: Request) => {
     ...groupWithoutCreator,
     userName: subscription.user?.name || null,
     creatorName: creator?.name || null,
-    chatId: subscription.group.chat[0].id
+    chatId: subscription.group.chat[0].id ?? null,
   };
 });
 
