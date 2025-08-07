@@ -61,6 +61,12 @@ app.prepare().then(() => {
       socket.join(room);
     });
 
+    socket.on("getUnreadCount", async ({ chatId, userId }) => {
+  if (!chatId || !userId) return;
+
+  await emitUnreadCount(chatId, userId);
+});
+
     socket.on("chat:subscribe", ({ chatId, userId }) => {
       console.log(`[chat:subscribe] Joining room chat_${chatId}_${userId}`);
       socket.join(`chat_${chatId}_${userId}`);

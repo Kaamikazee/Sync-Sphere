@@ -32,6 +32,7 @@ export default function GroupComp({
     if (!socket || !chatId) return;
 
     socket.emit("joinUnreadRoom", { chatId, userId });
+    socket.emit("getUnreadCount", { chatId, userId });
   }, [chatId, userId]);
 
   // 3. Handle incoming unread count updates
