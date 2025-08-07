@@ -44,7 +44,7 @@ export interface MessageWithSenderInfo extends Message {
 }
 
 export interface ViewsWithUser {
-  id: string;
+      id: string;
   username: string;
   name: string;
   image: string | null;

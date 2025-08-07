@@ -25,7 +25,11 @@ export async function GET(
           },
         },
       },
+      include: {
+        chat: true
+      }
     });
+    
 
     if (!group)
       return NextResponse.json("Group not found", { status: 200 });

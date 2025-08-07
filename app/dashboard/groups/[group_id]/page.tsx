@@ -1,3 +1,4 @@
+import { ChatButton } from "@/components/chat/ChatButton";
 import { AddGroup } from "@/components/dashboard/group/AddGroup";
 import { DeleteGroup } from "@/components/dashboard/group/DeleteGroup";
 import { NewLeaderboard } from "@/components/dashboard/group/leaderboard/NewLeaderboard";
@@ -37,6 +38,7 @@ const Group = async ({ params: { group_id } }: Params) => {
     return <p>Group not found.</p>;
   }
 
+
   return (
     <>
       <div className="mb-12">
@@ -66,11 +68,7 @@ const Group = async ({ params: { group_id } }: Params) => {
               </ActiveLink>
             )}
 
-            <Link href={`${group_id}/chat`}>
-              <div className="px-6 py-2 bg-gradient-to-r from-cyan-500/40 via-sky-500/30 to-indigo-600/40 hover:bg-gradient-to-r hover:from-cyan-400/40 hover:via-sky-400/30 hover:to-indigo-500/40 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">
-                Chat Room
-              </div>
-            </Link>
+            <ChatButton groupId={group_id} chatId={group.chat[0].id} userId={session.user.id} />
 
             <Link href={`${group_id}/announcement`}>
               <div className="px-6 py-2 bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 hover:bg-gradient-to-r hover:from-rose-400 hover:via-red-400 hover:to-orange-300 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">

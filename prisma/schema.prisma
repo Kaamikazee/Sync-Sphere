@@ -41,7 +41,7 @@ model User {
   notifications        Notification[]
   receivedWarnings     Warning[]              @relation("ReceivedWarnings")
   issuedWarnings       Warning[]              @relation("IssuedWarnings")
-  messageViews MessageView[]
+  messageViews         MessageView[]
 
   createdAt DateTime @default(now())
 
@@ -97,7 +97,7 @@ model Group {
   image         String?
   description   String?
   isPrivate     Boolean        @default(false)
-  password       String?
+  password      String?
   color         GroupIconColor @default(BLUE)
   inviteCode    String         @unique
   adminCode     String         @unique
@@ -338,28 +338,31 @@ model Message {
   replyTo   Message? @relation("ReplySelfRelation", fields: [replyToId], references: [id])
   replyToId String?
 
-  replies Message[] @relation("ReplySelfRelation")
-  views MessageView[]
+  replies Message[]     @relation("ReplySelfRelation")
+  views   MessageView[]
 
   createdAt DateTime  @default(now())
   // additionalResources additionalResource[]
   edited    Boolean   @default(false)
   updatedAt DateTime? @updatedAt
-}
 
+  @@index([chatId])
+  @@index([chatId, createdAt])
+}
 
 model MessageView {
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String
 
-  seenAt    DateTime @default(now())
+  seenAt DateTime @default(now())
 
   @@id([userId, messageId])
+  @@index([userId])
+  @@index([messageId])
 }
-
 
 // NOTIFICATION SYSTEM
 

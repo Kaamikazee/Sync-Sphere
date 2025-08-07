@@ -23,6 +23,7 @@ import {
 // import { io, Socket } from "socket.io-client";
 import { ChatMessage } from "./ChatMessage";
 import { getSocket } from "@/lib/socket";
+import { useMobile } from "@/hooks/use-mobile";
 
 interface Props {
   group_id: string;
@@ -69,6 +70,7 @@ export const ChatContainer = ({
     { userId: string; userName: string }[]
   >([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isMobile = useMobile();
 
   const TYPING_TIMEOUT = 1500;
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -154,31 +156,56 @@ export const ChatContainer = ({
   }, [userId, setHistory]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const key = e.key;
-    if (key.length !== 1) return;
+  const key = e.key;
+
+  // Typing indicators (optional debounce logic could go here)
+  socket?.emit("typing", { groupId, userId, userName });
+  if (typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+  }
+  typingTimeoutRef.current = setTimeout(() => {
+    socket?.emit("stopTyping", { groupId, userId });
+    typingTimeoutRef.current = null;
+  }, TYPING_TIMEOUT);
+
+  // SEND on Enter for desktop (no shift key), not for mobile
+  if (key === "Enter" && !e.shiftKey && !isMobile) {
+    e.preventDefault(); // ⛔ prevents newline
+    send();             // ✅ send the message
+  }
+};
+
+
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const value = e.target.value;
+  setDraft(value);
+
+  // Auto-expand logic
+  e.target.style.height = "auto";
+  e.target.style.height = `${e.target.scrollHeight}px`;
+
+  // Debounced typing emit
+  if (debounceTimeoutRef.current) {
+    clearTimeout(debounceTimeoutRef.current);
+  }
+
+  debounceTimeoutRef.current = setTimeout(() => {
     socket?.emit("typing", { groupId, userId, userName });
+
+    // Start stopTyping timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
+
     typingTimeoutRef.current = setTimeout(() => {
       socket?.emit("stopTyping", { groupId, userId });
       typingTimeoutRef.current = null;
     }, TYPING_TIMEOUT);
-  };
+  }, 300); // debounce delay
+};
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setDraft(e.target.value);
-    socket?.emit("typing", { groupId, userId, userName });
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-      socket?.emit("stopTyping", { groupId, userId });
-      typingTimeoutRef.current = null;
-    }, TYPING_TIMEOUT);
-  };
 
   const loadMoreMessages = useCallback(() => {
     if (!hasMore || loadingMore) return;
@@ -189,38 +216,38 @@ export const ChatContainer = ({
       beforeMessageId: firstMessage?.id,
     });
     socket?.once("olderMessages", (olderMessages: MessageWithSenderInfo[]) => {
-  if (olderMessages.length === 0) {
-    setHasMore(false);
-  }
+      if (olderMessages.length === 0) {
+        setHasMore(false);
+      }
 
-  setHistory((prev) => {
-    const seen = new Set<string>();
+      setHistory((prev) => {
+        const seen = new Set<string>();
 
-    const enriched = olderMessages.map((msg) => ({
-      ...msg,
-      views: msg.views?.map((v) => ({
-        id: v.id,
-        name: v.name,
-        username: v.username,
-        image: v.image,
-        seenAt: v.seenAt,
-      })) ?? [],
-    }));
+        const enriched = olderMessages.map((msg) => ({
+          ...msg,
+          views:
+            msg.views?.map((v) => ({
+              id: v.id,
+              name: v.name,
+              username: v.username,
+              image: v.image,
+              seenAt: v.seenAt,
+            })) ?? [],
+        }));
 
-    const combined = [...enriched, ...prev];
-    return combined.filter((msg) => {
-      if (seen.has(msg.id)) return false;
-      seen.add(msg.id);
-      return true;
+        const combined = [...enriched, ...prev];
+        return combined.filter((msg) => {
+          if (seen.has(msg.id)) return false;
+          seen.add(msg.id);
+          return true;
+        });
+      });
+
+      setLoadingMore(false);
+      setTimeout(() => {
+        topRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 0);
     });
-  });
-
-  setLoadingMore(false);
-  setTimeout(() => {
-    topRef.current?.scrollIntoView({ behavior: "auto" });
-  }, 0);
-});
-
   }, [hasMore, loadingMore, history, groupId]);
 
   useLayoutEffect(() => {
@@ -234,7 +261,6 @@ export const ChatContainer = ({
     socket?.on("online-users", (ids: string[]) => {
       setOnlineUserIds(ids);
     });
-
 
     return () => {
       socket?.off("online-users");
@@ -304,17 +330,18 @@ export const ChatContainer = ({
             };
           }
         }
-         const enriched: MessageWithSenderInfo = {
-      ...msg,
-      replyTo: reply,
-      views: msg.views?.map((v: ViewsWithUser) => ({
-        id: v.id,
-        name: v.name,
-        username: v.username,
-        image: v.image,
-        seenAt: v.seenAt,
-      })) ?? [],
-    };
+        const enriched: MessageWithSenderInfo = {
+          ...msg,
+          replyTo: reply,
+          views:
+            msg.views?.map((v: ViewsWithUser) => ({
+              id: v.id,
+              name: v.name,
+              username: v.username,
+              image: v.image,
+              seenAt: v.seenAt,
+            })) ?? [],
+        };
         return [...prev, enriched];
       });
     });
@@ -356,6 +383,20 @@ export const ChatContainer = ({
       replyToId: replyTo?.id || null,
     });
     setDraft("");
+
+    // ⛔ Cancel typing indicators
+  if (typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = null;
+  }
+
+  if (debounceTimeoutRef.current) {
+    clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = null;
+  }
+
+  // ✅ Immediately emit stopTyping
+  socket?.emit("stopTyping", { groupId, userId });
 
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
@@ -477,7 +518,7 @@ export const ChatContainer = ({
               rows={1}
               placeholder="Type a message…"
               style={{ maxHeight: "120px" }}
-              className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 	text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-full py-1.5 px-3 text-sm transition-all duration-200"
+              className="min-w-[10rem] sm:min-w-[16rem] flex-1 resize-none overflow-auto bg-white/20 	text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-md py-1.5 px-3 text-sm transition-all duration-200"
             />
 
             <button

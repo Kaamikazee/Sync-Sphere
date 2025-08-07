@@ -2,6 +2,7 @@ import { GroupWithSubscribers } from "@/types/extended";
 import {
   Activity,
   Announcement,
+  Chat,
   FocusArea,
   Group,
   GroupIconColor,
@@ -51,6 +52,11 @@ export const getGroups = async (userId: string) => {
 
   return res.json() as Promise<GroupsWithUserName[]>;
 };
+
+export interface GroupWithChatId extends Group {
+  chat: Chat[]
+}
+
 export const getGroup = async (group_id: string, userId: string) => {
   const res = await fetch(
     `${baseUrl}/api/group/get/group_details/${group_id}?userId=${userId}`,
@@ -64,7 +70,7 @@ export const getGroup = async (group_id: string, userId: string) => {
     return null;
   }
 
-  return res.json() as Promise<Group>;
+  return res.json() as Promise<GroupWithChatId>;
 };
 
 export const getUserGroupRole = async (group_id: string, userId: string) => {
