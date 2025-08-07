@@ -23,7 +23,6 @@ import {
 import Image from "next/image";
 import { useSwipeable } from "react-swipeable";
 
-
 interface Props {
   groups: Group[];
   userId: string;
@@ -45,19 +44,19 @@ export function SthElse({ groups, userId }: Props) {
     setCurrentPage(page);
   };
 
- const handlers = useSwipeable({
-  onSwipedLeft: () => goTo(currentPage + 1),
-  onSwipedRight: () => goTo(currentPage - 1),
-  trackTouch: true,
-  trackMouse: false,
-  touchEventOptions: { passive: false }, // 👈 replaces preventDefaultTouchmoveEvent
-});
-
+  const handlers = useSwipeable({
+    onSwipedLeft: () => goTo(currentPage + 1),
+    onSwipedRight: () => goTo(currentPage - 1),
+    trackTouch: true,
+    trackMouse: false,
+    touchEventOptions: { passive: false }, // 👈 replaces preventDefaultTouchmoveEvent
+  });
 
   return (
-    <div 
-    {...handlers}
-    className="touch-none sm:touch-auto relative max-w-3xl mx-auto mt-6 sm:mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl px-3 py-4 sm:p-6">
+    <div
+      {...handlers}
+      className="touch-none sm:touch-auto relative max-w-3xl mx-auto mt-6 sm:mt-10 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl px-3 py-4 sm:p-6"
+    >
       {currentGroup ? (
         <div className="mb-6 sm:mb-8">
           {/* 👇 Animated Group Name */}
@@ -180,11 +179,10 @@ export function SthElse({ groups, userId }: Props) {
             </DialogTrigger>
 
             <DialogContent
-  className="bg-gradient-to-br from-white/10 via-white/5 to-white/10 
+              className="bg-gradient-to-br from-white/10 via-white/5 to-white/10 
              backdrop-blur-xl border border-white/20 text-white shadow-2xl 
              rounded-2xl p-4 sm:p-6 w-[90vw] max-w-sm"
->
-
+            >
               <DialogHeader>
                 <DialogTitle className="text-white text-lg">
                   Jump to Group

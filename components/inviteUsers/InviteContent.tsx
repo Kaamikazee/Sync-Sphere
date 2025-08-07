@@ -8,7 +8,6 @@ import {
   HoverCardTrigger,
 } from "../ui/hover-card";
 import { useMemo, useState } from "react";
-import { baseUrl } from "@/lib/api";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError, AxiosResponse } from "axios";
 import { Button } from "../ui/button";
@@ -25,6 +24,10 @@ import { LoadingState } from "../ui/loadingState";
 interface Props {
   group: Group;
 }
+
+const baseUrl =
+  process.env.NEXTAUTH_URL || "http://localhost:3000";
+
 
 export const InviteContent = ({
   group: { id, adminCode, canEditCode, inviteCode, readOnlyCode },

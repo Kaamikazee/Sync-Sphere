@@ -86,7 +86,7 @@ export function FirstStep({ profileImage }: Props) {
       toast.error(error);
     },
     onSuccess: async () => {
-      toast.success("Welcome to test-app");
+      toast.success("Welcome to Sync Sphere");
       await update();
       router.push("/dashboard");
       router.refresh();

@@ -32,10 +32,87 @@ app.prepare().then(() => {
   const groupOnlineUsers = new Map(); // groupId -> Set of userIds
   const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
 
+  async function emitUnreadCount(chatId, userId) {
+    const unreadCount = await prisma.message.count({
+      where: {
+        chatId,
+        senderId: { not: userId },
+        views: {
+          none: {
+            userId: userId,
+          },
+        },
+      },
+    });
+
+    console.log("UNREAD COUNT FROM SERV", unreadCount);
+
+    io.to(`chat_${chatId}_${userId}`).emit("chat:updateUnreadCount", {
+      chatId,
+      userId,
+      unreadCount,
+    });
+  }
+
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
-    console.log("🟢 [server] socket connected:", socket.id)
+    console.log("🟢 [server] socket connected:", socket.id);
 
+    socket.on("joinUnreadRoom", ({ chatId, userId }) => {
+      const room = `chat_${chatId}_${userId}`;
+      socket.join(room);
+    });
+
+    socket.on("chat:subscribe", ({ chatId, userId }) => {
+      console.log(`[chat:subscribe] Joining room chat_${chatId}_${userId}`);
+      socket.join(`chat_${chatId}_${userId}`);
+    });
+
+    socket.on("chat:unsubscribe", ({ chatId, userId }) => {
+      socket.leave(`chat_${chatId}_${userId}`);
+    });
+
+    socket.on("markMessagesAsSeen", async ({ messageIds }) => {
+      const userId = socket.data.userId;
+      if (!userId || !Array.isArray(messageIds) || messageIds.length === 0)
+        return;
+
+      try {
+        // Bulk insert (avoids duplicates)
+        await prisma.messageView.createMany({
+          data: messageIds.map((id) => ({
+            userId,
+            messageId: id,
+          })),
+          skipDuplicates: true,
+        });
+
+        // Broadcast to others in the group (you can scope this better if needed)
+        socket.broadcast.emit("messagesSeen", {
+          userId,
+          messageIds,
+        });
+
+        // After marking messages as seen
+        const chatIds = await prisma.message.findMany({
+          where: {
+            id: { in: messageIds },
+          },
+          select: {
+            chatId: true,
+          },
+          distinct: ["chatId"],
+        });
+
+        for (const { chatId } of chatIds) {
+          emitUnreadCount(chatId, userId);
+        }
+
+        console.log(`✅ Seen: ${messageIds.length} messages by ${userId}`);
+      } catch (error) {
+        console.error("❌ Failed to mark messages as seen:", error);
+      }
+    });
 
     socket.on("startActivity", async ({ activityId, startTime }) => {
       console.log("Activity started:", activityId);
@@ -81,92 +158,97 @@ app.prepare().then(() => {
       }
     });
 
-
     // -------- CHAT PAGINATION -------------
 
-    socket.on("getMessages", async ({ groupId, beforeMessageId }) => {
-  const PAGE_SIZE = 20;
+    socket.on("getMessages", async ({ beforeMessageId }) => {
+      const PAGE_SIZE = 20;
 
-  try {
-    const chat = await prisma.chat.findFirst({
-      where: { groupId },
+      // ✅ Read from socket state
+      const groupId = socket.data.groupId;
+      const userId = socket.data.userId;
+
+      if (!groupId || !userId) {
+        return socket.emit("error", "Missing group or user information");
+      }
+
+      try {
+        const chat = await prisma.chat.findFirst({
+          where: { groupId },
+        });
+
+        if (!chat) {
+          return socket.emit("error", "Chat not found");
+        }
+
+        let messages;
+
+        if (beforeMessageId) {
+          const referenceMessage = await prisma.message.findUnique({
+            where: { id: beforeMessageId },
+          });
+
+          if (!referenceMessage) return;
+
+          messages = await prisma.message.findMany({
+            where: {
+              chatId: chat.id,
+              createdAt: { lt: referenceMessage.createdAt },
+            },
+            orderBy: { createdAt: "desc" },
+            take: PAGE_SIZE,
+            include: {
+              sender: true,
+              replyTo: {
+                include: {
+                  sender: {
+                    select: { name: true },
+                  },
+                },
+              },
+              views: true,
+            },
+          });
+        } else {
+          messages = await prisma.message.findMany({
+            where: { chatId: chat.id },
+            orderBy: { createdAt: "desc" },
+            take: PAGE_SIZE,
+            include: {
+              sender: true,
+              replyTo: {
+                include: {
+                  sender: {
+                    select: { name: true },
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        const formattedMessages = messages.reverse().map((msg) => ({
+          id: msg.id,
+          chatId: msg.chatId,
+          senderId: msg.senderId,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          senderName: msg.sender.name,
+          senderImage: msg.sender.image,
+          replyTo: msg.replyTo
+            ? {
+                id: msg.replyTo.id,
+                senderName: msg.replyTo.sender.name,
+                content: msg.replyTo.content,
+              }
+            : null,
+        }));
+
+        socket.emit("olderMessages", formattedMessages);
+      } catch (error) {
+        console.error("Error in getMessages:", error);
+        socket.emit("error", "Failed to load older messages");
+      }
     });
-
-    if (!chat) {
-      return socket.emit("error", "Chat not found");
-    }
-
-    let messages;
-
-    if (beforeMessageId) {
-      const referenceMessage = await prisma.message.findUnique({
-        where: { id: beforeMessageId },
-      });
-
-      if (!referenceMessage) return;
-
-      messages = await prisma.message.findMany({
-        where: {
-          chatId: chat.id,
-          createdAt: { lt: referenceMessage.createdAt },
-        },
-        orderBy: { createdAt: "desc" },
-        take: PAGE_SIZE,
-        include: {
-          sender: true,
-          replyTo: {
-            include: {
-              sender: {
-                select: { name: true },
-              },
-            },
-          },
-        },
-      });
-    } else {
-      // Initial load (optional, you can remove if handled separately)
-      messages = await prisma.message.findMany({
-        where: { chatId: chat.id },
-        orderBy: { createdAt: "desc" },
-        take: PAGE_SIZE,
-        include: {
-          sender: true,
-          replyTo: {
-            include: {
-              sender: {
-                select: { name: true },
-              },
-            },
-          },
-        },
-      });
-    }
-
-    // Reverse the order so oldest messages appear first in chat
-    const formattedMessages = messages.reverse().map((msg) => ({
-      id: msg.id,
-      chatId: msg.chatId,
-      senderId: msg.senderId,
-      content: msg.content,
-      createdAt: msg.createdAt,
-      senderName: msg.sender.name,
-      senderImage: msg.sender.image,
-      replyTo: msg.replyTo
-        ? {
-            id: msg.replyTo.id,
-            senderName: msg.replyTo.sender.name,
-            content: msg.replyTo.content,
-          }
-        : null,
-    }));
-
-    socket.emit("olderMessages", formattedMessages);
-  } catch (error) {
-    console.error("Error in getMessages:", error);
-    socket.emit("error", "Failed to load older messages");
-  }
-});
-
 
     // --- TOTAL TIME HANDLER ---
 
@@ -236,7 +318,8 @@ app.prepare().then(() => {
       socket.join(groupId);
       const current = userTimers.get(userId);
       socket.to(groupId).emit("user-joined", { userId, ...current });
-
+      socket.data.userId = userId;
+      socket.data.groupId = groupId;
 
       let chat = await prisma.chat.findFirst({
         where: { groupId },
@@ -287,6 +370,7 @@ app.prepare().then(() => {
               sender: { select: { name: true } },
             },
           },
+          views: true,
         },
       });
       socket.emit(
@@ -299,6 +383,7 @@ app.prepare().then(() => {
           createdAt: msg.createdAt,
           senderName: msg.sender?.name ?? "Unknown",
           senderImage: msg.sender?.image ?? null,
+          views: msg.views, // ✅ Add this line
           replyToId: msg.replyToId ?? null,
 
           replyTo: msg.replyTo
@@ -312,10 +397,14 @@ app.prepare().then(() => {
       );
 
       // Track online users
-      if (!groupOnlineUsers.has(groupId)) groupOnlineUsers.set(groupId, new Set());
+      if (!groupOnlineUsers.has(groupId))
+        groupOnlineUsers.set(groupId, new Set());
       groupOnlineUsers.get(groupId).add(userId);
       socketToUserGroup.set(socket.id, { userId, groupId });
-      io.to(groupId).emit("online-users", Array.from(groupOnlineUsers.get(groupId)));
+      io.to(groupId).emit(
+        "online-users",
+        Array.from(groupOnlineUsers.get(groupId))
+      );
     });
 
     socket.on("start-timer", ({ userId, startTime }) => {
@@ -352,87 +441,76 @@ app.prepare().then(() => {
         .emit("userStopTyping", { userId });
     });
 
-    socket.on("groupMessage", async ({ groupId, fromUserId, text, replyToId }) => {
-  const chat = await prisma.chat.findFirst({
-    where: { groupId },
-  });
+    socket.on(
+      "groupMessage",
+      async ({ groupId, fromUserId, text, replyToId }) => {
+        const chat = await prisma.chat.findFirst({
+          where: { groupId },
+        });
 
-  if (!chat) return socket.emit("error", "Chat not found");
+        if (!chat) return socket.emit("error", "Chat not found");
 
-  const saved = await prisma.message.create({
-    data: {
-      chat: { connect: { id: chat.id } },
-      sender: { connect: { id: fromUserId } },
-      content: text,
-      replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
-    },
-    include: {
-      sender: true,
-      replyTo: {
-        include: {
-          sender: { select: { name: true } },
-        },
-      },
-    },
-  });
+        const saved = await prisma.message.create({
+          data: {
+            chat: { connect: { id: chat.id } },
+            sender: { connect: { id: fromUserId } },
+            content: text,
+            replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
+            views: {
+              // ✅ Immediately mark it as seen by the sender
+              create: {
+                user: { connect: { id: fromUserId } },
+              },
+            },
+          },
+          include: {
+            sender: true,
+            replyTo: {
+              include: {
+                sender: { select: { name: true } },
+              },
+            },
+            views: true, // ✅ Add this line
+          },
+        });
 
-  // Notify everyone in the group
-  io.to(`chat_${chat.id}`).emit("newMessage", {
-    id: saved.id,
-    chatId: saved.chatId,
-    senderId: saved.senderId,
-    content: saved.content,
-    createdAt: saved.createdAt,
-    senderName: saved.sender.name,
-    senderImage: saved.sender.image,
-    replyTo: saved.replyTo
-      ? {
-          id: saved.replyTo.id,
-          senderName: saved.replyTo.sender.name,
-          content: saved.replyTo.content,
+        // After message saved...
+        // Notify all users except sender
+        const group = await prisma.group.findUnique({
+          where: {
+            id: groupId,
+          },
+          include: {
+            subscribers: true,
+          },
+        });
+
+        for (const user of group.subscribers) {
+          if (user.userId !== fromUserId) {
+            emitUnreadCount(chat.id, user.userId);
+          }
         }
-      : null,
-  });
 
-  // 🔔 SEND PUSH NOTIFICATIONS TO OTHER USERS
-//   try {
-//     const groupMembers = await prisma.subscription.findMany({
-//       where: {
-//         groupId,
-//         NOT: { userId: fromUserId }, // exclude sender
-//       },
-//       include: {
-//         user: {
-//           select: {
-//             name: true,
-//             fcmToken: true, // make sure you store this
-//           },
-//         },
-//       },
-//     });
-
-//     for (const member of groupMembers) {
-//       if (!member.user.fcmToken) continue; // skip if no token
-
-//       await messaging.send({
-//         token: member.user.fcmToken,
-//         notification: {
-//           title: saved.sender.name,
-//           body: text,
-//         },
-//         data: {
-//           type: "MESSAGE",
-//           groupId,
-//           messageId: saved.id,
-//         },
-//       });
-//     }
-//   } catch (error) {
-//     console.error("Error sending FCM notifications:", error);
-//   }
-});
-
-    
+        // Notify everyone in the group
+        io.to(`chat_${chat.id}`).emit("newMessage", {
+          id: saved.id,
+          chatId: saved.chatId,
+          senderId: saved.senderId,
+          content: saved.content,
+          createdAt: saved.createdAt,
+          senderName: saved.sender.name,
+          senderImage: saved.sender.image,
+          views: saved.views, // ✅ Add this line
+          replyTo: saved.replyTo
+            ? {
+                id: saved.replyTo.id,
+                senderName: saved.replyTo.sender.name,
+                content: saved.replyTo.content,
+              }
+            : null,
+        });
+      }
+    );
 
     socket.on("leaveGroup", async ({ groupId, userId }) => {
       const chat = await prisma.chat.findFirst({ where: { groupId } });
@@ -443,7 +521,10 @@ app.prepare().then(() => {
       // Remove from online users
       if (groupOnlineUsers.has(groupId)) {
         groupOnlineUsers.get(groupId).delete(userId);
-        io.to(groupId).emit("online-users", Array.from(groupOnlineUsers.get(groupId)));
+        io.to(groupId).emit(
+          "online-users",
+          Array.from(groupOnlineUsers.get(groupId))
+        );
       }
       socketToUserGroup.delete(socket.id);
     });
@@ -455,7 +536,10 @@ app.prepare().then(() => {
         const { userId, groupId } = info;
         if (groupOnlineUsers.has(groupId)) {
           groupOnlineUsers.get(groupId).delete(userId);
-          io.to(groupId).emit("online-users", Array.from(groupOnlineUsers.get(groupId)));
+          io.to(groupId).emit(
+            "online-users",
+            Array.from(groupOnlineUsers.get(groupId))
+          );
         }
         socketToUserGroup.delete(socket.id);
       }

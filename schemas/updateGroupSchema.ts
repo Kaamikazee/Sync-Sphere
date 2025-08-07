@@ -13,14 +13,21 @@ const file = z
 
 const groupName = z
   .string()
-  .min(4, "Group name is too short.")
-  .max(20, "Group name is too long.").optional();
+  .min(4, "Group name is too short. At least 4 characters are required.")
+  .max(20, "Group name is too long. Max 20 characters are allowed.")
+  .optional();
 
 export const updateGroupSchema = z
   .object({
     groupName,
     file,
-    description: z.string().min(10).max(500).optional(),
+    description: z
+      .string()
+      .min(
+        10,
+        "Group description is too short. At least 10 characters are required."
+      )
+      .optional(),
     isPrivate: z.boolean().optional(),
     password: z.string().optional(),
   })
@@ -35,7 +42,7 @@ export const updateGroupSchema = z
 export const apiUpdateGroupSchema = z.object({
   groupName,
   file: z.string().optional().nullable(),
-  description: z.string().min(10).max(500).optional(),
+  description: z.string().min(10).optional(),
   isPrivate: z.boolean().optional(),
   password: z.string().optional(),
   groupId: z.string().optional(),

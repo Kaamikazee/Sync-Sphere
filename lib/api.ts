@@ -13,12 +13,8 @@ import {
 } from "@prisma/client";
 
 export const baseUrl =
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+  process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-export const domain =
-  process.env.NODE_ENV !== "production"
-    ? "http://localhost:3000"
-    : "http://localhost:3000";
 
 export interface GroupsWithUserName {
   userName: string | null;
@@ -37,6 +33,7 @@ export interface GroupsWithUserName {
   password: string | null;
   isPrivate: boolean;
   creatorName: string | null;
+  chatId: string;
 }
 
 export const getGroups = async (userId: string) => {

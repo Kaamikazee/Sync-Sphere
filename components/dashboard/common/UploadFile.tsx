@@ -51,7 +51,6 @@ export function Uploadfile({
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     previewUrlUpdate || null
   );
-  const [isEditingDesc, setIsEditingDesc] = useState(false);
 
   const onFileHandler = (providedFile: File) => {
     const result = schema
@@ -150,40 +149,29 @@ export function Uploadfile({
           </div>
           <div>
             <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white/50">Description</FormLabel>
-                  <FormControl>
-                    {isEditingDesc ? (
-                      <textarea
-                        {...field}
-                        rows={4}
-                        autoFocus
-                        onBlur={() => setIsEditingDesc(false)}
-                        placeholder="Add description about group"
-                        className="w-full resize-none bg-muted border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
-                      />
-                    ) : (
-                      <div
-                        onClick={() => setIsEditingDesc(true)}
-                        className="w-full bg-muted text-black border border-white/10 rounded-lg p-3 cursor-text hover:bg-muted/70 transition text-sm"
-                      >
-                        {field.value?.trim() ? (
-                          <p className="whitespace-pre-line">{field.value}</p>
-                        ) : (
-                          <p className="text-white/40 italic">
-                            Click to add description...
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+  control={form.control}
+  name="description"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel className="text-white/50">Description</FormLabel>
+      <FormControl>
+        <textarea
+          {...field}
+          rows={4}
+          placeholder="Add description about group"
+          className={cn(
+            "w-full resize-none bg-muted border rounded-lg p-3 text-sm focus:outline-none focus:ring-2",
+            form.formState.errors.description
+              ? "border-red-500 ring-red-500"
+              : "border-white/10 focus:ring-lime-400"
+          )}
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+
           </div>
 
           <FormField

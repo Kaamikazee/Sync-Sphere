@@ -61,10 +61,14 @@ export function CreateTodo({ focusAreaId }: Props) {
     },
     onSuccess: () => {
       toast.success("Todo created successfully");
+      setTodoName("");
+      setTodoContent("");
+      setIsEditingContent(false);
       setIsOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["todos"] }); // ✅
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
       router.refresh();
     },
+
     mutationKey: ["createTodo"],
   });
 

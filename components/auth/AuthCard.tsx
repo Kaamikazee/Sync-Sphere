@@ -33,7 +33,7 @@ export const AuthCard = ({ signInCard }: Props) => {
           {signInCard ? "🔐Signin" : `🔐Signup`}
         </CardTitle>
         <CardDescription>
-          {signInCard ? "Welcome back to the test-app" : `Welcome to the test-app`}
+          {signInCard ? "Welcome back to the Sync Sphere" : `Welcome to the Sync Sphere`}
         </CardDescription>
       </CardHeader>
       <CardContent>

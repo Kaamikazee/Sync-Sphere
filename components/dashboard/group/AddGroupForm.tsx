@@ -32,6 +32,7 @@ export const AddGroupForm = ({onSetOpen}: Props) => {
       isPrivate: false,
       password: "",
     },
+    mode: "onChange", // or "onChange"
   });
 
   const { mutate: newGroup, isPending } = useMutation({
@@ -47,7 +48,9 @@ export const AddGroupForm = ({onSetOpen}: Props) => {
       toast.error(error);
     },
     onSuccess: () => {
+      form.reset()
         onSetOpen(false)
+
       toast.success("Your group has been created successfully!");
       router.push("/dashboard/groups");
       router.refresh();

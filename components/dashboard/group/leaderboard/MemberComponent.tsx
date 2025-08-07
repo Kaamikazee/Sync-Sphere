@@ -209,7 +209,8 @@ export function MemberComponent({
                   </div>
                 )}
                 {isOnline && (
-                  <span className="absolute bottom-0 right-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full" />
+                  <span className="absolute bottom-0 right-0 translate-x-[4px] translate-y-[4px] sm:translate-x-[6px] sm:translate-y-[6px] w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full z-20" />
+
                 )}
               </div>
 

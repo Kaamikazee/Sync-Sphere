@@ -20,8 +20,9 @@ import {
   useLayoutEffect,
   useCallback,
 } from "react";
-import { io, Socket } from "socket.io-client";
+// import { io, Socket } from "socket.io-client";
 import { ChatMessage } from "./ChatMessage";
+import { getSocket } from "@/lib/socket";
 
 interface Props {
   group_id: string;
@@ -30,19 +31,22 @@ interface Props {
   userImage: string;
   groupName: string;
   groupImage: string;
+  chatId: string | undefined;
 }
 
-let socket: Socket | null = null;
+// let socket: Socket | null = null;
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+// const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
-function useSocket() {
-  useEffect(() => {
-    if (!socket) {
-      socket = io(baseUrl);
-    }
-  }, []);
-}
+// function useSocket() {
+//   useEffect(() => {
+//     if (!socket) {
+//       socket = io(baseUrl);
+//     }
+//   }, []);
+// }
+
+const socket = getSocket();
 
 export const ChatContainer = ({
   group_id: groupId,
@@ -50,8 +54,9 @@ export const ChatContainer = ({
   userName,
   groupName,
   groupImage,
+  chatId,
 }: Props) => {
-  useSocket();
+  // useSocket();
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -72,6 +77,77 @@ export const ChatContainer = ({
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+  const emittedMessageIds = useRef<Set<string>>(new Set());
+
+    console.log('HISTORY', history);
+
+
+  useEffect(() => {
+  if (!socket.connected) {
+    socket.connect();
+  }  
+
+  socket.on("connect", () => {
+    console.log("✅ Socket connected:", socket.id);
+
+    socket.emit("chat:subscribe", {
+      chatId,
+      userId,
+    });
+  });
+
+  return () => {
+    socket.emit("chat:unsubscribe", { chatId, userId });
+    socket.off("connect");
+  };
+}, [chatId, userId]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const unseenMessages = history.filter(
+      (m) =>
+        !m.views?.some((view) => view.userId === userId) &&
+        m.senderId !== userId &&
+        !emittedMessageIds.current.has(m.id)
+    );
+
+    if (unseenMessages.length > 0) {
+      const messageIds = unseenMessages.map((m) => m.id);
+
+      // Mark as emitted to prevent spamming
+      messageIds.forEach((id) => emittedMessageIds.current.add(id));
+
+      socket.emit("markMessagesAsSeen", { messageIds });
+    }
+  }, [history, userId]);
+
+  useEffect(() => {
+    socket?.on("messagesSeen", ({ userId: seenByUser, messageIds }) => {
+      // update local message state to reflect seenByUser on those messageIds
+      setHistory((prev) =>
+        prev.map((msg) => {
+          if (messageIds.includes(msg.id)) {
+            return {
+              ...msg,
+              views: [
+                ...(msg.views || []),
+                { userId: seenByUser, seenAt: new Date() },
+              ],
+            };
+          }
+          return msg;
+        })
+      );
+    });
+
+    return () => {
+      socket?.off("messagesSeen");
+    };
+  }, []);
+
+
+  console.log("CHAT ID:", chatId);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const key = e.key;
@@ -205,6 +281,7 @@ export const ChatContainer = ({
         const enriched: MessageWithSenderInfo = {
           ...msg,
           replyTo: reply,
+          views: msg.views ?? [],
         };
         return [...prev, enriched];
       });

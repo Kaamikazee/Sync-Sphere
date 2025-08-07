@@ -25,7 +25,7 @@ export default async function GroupList() {
               key={group.id}
               className="backdrop-blur-lg bg-white/10 border border-white/20 rounded-2xl shadow-lg p-4 sm:p-6 transition hover:scale-[1.02] hover:shadow-2xl"
             >
-              <GroupComp group={group} href="groups" />
+              <GroupComp group={group} SessionUserId={session.user.id} href="groups" />
             </div>
           ))}
         </div>

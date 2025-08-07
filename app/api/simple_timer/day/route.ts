@@ -68,15 +68,7 @@ export const GET = async (request: Request) => {
     }
 
     if (!dailyTotal) {
-      return NextResponse.json(
-        {
-          totalSeconds: 0,
-          isRunning: false,
-          startTimestamp: null,
-          user: null,
-        },
-        { status: 200 }
-      );
+      return NextResponse.json(0, { status: 200 });
     }
 
     return NextResponse.json(dailyTotal.totalSeconds, { status: 200 });

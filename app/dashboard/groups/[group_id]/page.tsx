@@ -47,7 +47,7 @@ const Group = async ({ params: { group_id } }: Params) => {
           {/* Page Header */}
           <header className="text-center space-y-2">
             <h1 className="text-3xl sm:text-5xl font-mono font-extrabold text-blue-900 hover:text-indigo-600">
-              Group Dashboard
+              {group.name} Dashboard
             </h1>
           </header>
 

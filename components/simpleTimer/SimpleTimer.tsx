@@ -31,7 +31,7 @@ interface Props {
   pomodoroSettings: PomodoroSettings;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
 const socket = io(baseUrl);
 
@@ -367,9 +367,8 @@ export const SimpleTimerContainer = ({
         <aside className="w-full">
           <div className="p-4 h-full">
             <div className="relative sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md sm:rounded-2xl sm:shadow-lg sm:p-6 p-3 sm:hover:shadow-2xl transition-all duration-300">
-  <SthElse groups={groups} userId={userId} />
-</div>
-
+              <SthElse groups={groups} userId={userId} />
+            </div>
           </div>
         </aside>
       </div>

@@ -41,6 +41,7 @@ model User {
   notifications        Notification[]
   receivedWarnings     Warning[]              @relation("ReceivedWarnings")
   issuedWarnings       Warning[]              @relation("IssuedWarnings")
+  messageViews MessageView[]
 
   createdAt DateTime @default(now())
 
@@ -338,12 +339,27 @@ model Message {
   replyToId String?
 
   replies Message[] @relation("ReplySelfRelation")
+  views MessageView[]
 
   createdAt DateTime  @default(now())
   // additionalResources additionalResource[]
   edited    Boolean   @default(false)
   updatedAt DateTime? @updatedAt
 }
+
+
+model MessageView {
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+
+  seenAt    DateTime @default(now())
+
+  @@id([userId, messageId])
+}
+
 
 // NOTIFICATION SYSTEM
 

@@ -139,7 +139,7 @@ export function ShowGroups({ group }: Props) {
           <Button
             variant="outline"
             onClick={() => setShowPasswordDialog(false)}
-            className="border-white/40 text-white hover:bg-white/10"
+            className="border-white/40 text-gray-900 hover:bg-white/10"
           >
             Cancel
           </Button>
@@ -183,7 +183,7 @@ export function ShowGroups({ group }: Props) {
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline" className="border-white/40 text-white hover:bg-white/10">
+            <Button variant="outline" className="border-white/40 text-gray-900 hover:bg-white/10">
               Cancel
             </Button>
           </DialogClose>

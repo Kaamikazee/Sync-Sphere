@@ -46,6 +46,7 @@ export function CreateFocusArea() {
     },
     onSuccess: () => {
       toast.success("FocusArea created successfully");
+      setFocusAreaName("")
       setIsOpen(false);
       router.refresh();
     },

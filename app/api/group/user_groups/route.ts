@@ -15,6 +15,11 @@ export const GET = async (request: Request) => {
       include: {
         group: {
           include: {
+            chat: {
+              select: {
+                id: true,
+              }
+            },
             creator: {
               select: {
                 name: true,
@@ -48,6 +53,7 @@ export const GET = async (request: Request) => {
     ...groupWithoutCreator,
     userName: subscription.user?.name || null,
     creatorName: creator?.name || null,
+    chatId: subscription.group.chat[0].id
   };
 });
 

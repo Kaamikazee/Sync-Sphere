@@ -201,7 +201,7 @@ export const NewLeaderboard = ({
     >
       <div className="w-full max-w-3xl space-y-3 sm:space-y-4 mx-auto">
         <h2 className="text-lg sm:text-3xl font-extrabold text-[#5b3e96] mb-2 text-center">
-          Group Leaderboard
+          {groupName} Leaderboard
         </h2>
         <ul
           className="divide-y divide-white/20 rounded-xl sm:rounded-2xl overflow-hidden 

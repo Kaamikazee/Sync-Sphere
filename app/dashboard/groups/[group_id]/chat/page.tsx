@@ -17,10 +17,11 @@ const Chat = async ({ params: { group_id } }: Params) => {
   // const members = group?.subscribers
   const groupName = group?.name
   const groupImage = group?.image
+  const chatId = group?.chat[0].id
 
   return (
     <main className="w-full h-screen">
-    <ChatContainer group_id={group_id} groupName={groupName!} groupImage={groupImage!} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!}/>
+    <ChatContainer group_id={group_id} groupName={groupName!} groupImage={groupImage!} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!} chatId={chatId}/>
     </main>
   )
 };
