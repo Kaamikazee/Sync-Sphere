@@ -4,15 +4,17 @@ import { MessageCircle, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { GroupsWithUserName } from "@/lib/api";
-import { useUnreadStore } from "@/stores/useUnreadStore";
+import { getSocket } from "@/lib/socket";
 
 interface Props {
   group: GroupsWithUserName;
   href: string;
   SessionUserId: string;
 }
+
+const socket = getSocket();
 
 
 
@@ -21,15 +23,39 @@ export default function GroupComp({
   SessionUserId: userId,
   href,
 }: Props) {
-  const joinUnreadRoom = useUnreadStore((s) => s.joinUnreadRoom);
-  const unreadCount = useUnreadStore((s) => s.getUnreadCount(chatId));
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  // console.log("UNREAD COUNT:", unreadCount);
   
   // 2. Join unread room on mount
   useEffect(() => {
-    joinUnreadRoom(chatId, userId);
-  }, [chatId, userId, joinUnreadRoom]);
+    if (!socket || !chatId) return;
+
+    socket.emit("joinUnreadRoom", { chatId, userId });
+  }, [chatId, userId]);
 
   // 3. Handle incoming unread count updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = ({
+      chatId: incomingChatId,
+      unreadCount,
+    }: {
+      chatId: string;
+      userId: string;
+      unreadCount: number;
+    }) => {
+      if (incomingChatId === chatId) {
+        setUnreadCount(unreadCount);
+      }
+    };
+
+    socket.on("chat:updateUnreadCount", handler);
+    return () => {
+      socket.off("chat:updateUnreadCount", handler);
+    };
+  }, [chatId]);
 
   return (
     <Link href={`${href}/${id}`}>

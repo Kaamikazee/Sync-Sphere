@@ -45,8 +45,6 @@ app.prepare().then(() => {
       },
     });
 
-    console.log("UNREAD COUNT FROM SERV", unreadCount);
-
     io.to(`chat_${chatId}_${userId}`).emit("chat:updateUnreadCount", {
       chatId,
       userId,
@@ -87,10 +85,16 @@ app.prepare().then(() => {
           skipDuplicates: true,
         });
 
+        const seenByUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, username: true, name: true, image: true },
+        });
+
         // Broadcast to others in the group (you can scope this better if needed)
         socket.broadcast.emit("messagesSeen", {
-          userId,
+          // userId,
           messageIds,
+          seenByUser
         });
 
         // After marking messages as seen
@@ -133,7 +137,6 @@ app.prepare().then(() => {
     // --- TIMER UPDATE HANDLER --
 
     socket.on("updateTimer", async ({ activityId, elapsedTime }) => {
-      console.log("Timer updated:", activityId, elapsedTime);
       try {
         await prisma.activity.update({
           where: { id: activityId },
@@ -146,7 +149,6 @@ app.prepare().then(() => {
     });
 
     socket.on("stopActivity", async ({ activityId, elapsedTime }) => {
-      console.log("Activity stopped:", activityId);
       try {
         await prisma.activity.update({
           where: { id: activityId },
@@ -234,6 +236,15 @@ app.prepare().then(() => {
           createdAt: msg.createdAt,
           senderName: msg.sender.name,
           senderImage: msg.sender.image,
+          views: (msg.views ?? [])
+            .filter((v) => v.user.id !== userId) // Exclude your own view
+            .map((v) => ({
+              id: v.user.id,
+              username: v.user.username,
+              name: v.user.name,
+              image: v.user.image,
+              seenAt: v.seenAt,
+            })),
           replyTo: msg.replyTo
             ? {
                 id: msg.replyTo.id,
@@ -370,9 +381,22 @@ app.prepare().then(() => {
               sender: { select: { name: true } },
             },
           },
-          views: true,
+          views: {
+            select: {
+              seenAt: true,
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
         },
       });
+
       socket.emit(
         "recentMessages",
         recent.reverse().map((msg) => ({
@@ -383,9 +407,16 @@ app.prepare().then(() => {
           createdAt: msg.createdAt,
           senderName: msg.sender?.name ?? "Unknown",
           senderImage: msg.sender?.image ?? null,
-          views: msg.views, // ✅ Add this line
+          views: msg.views
+            .filter((v) => v.user.id !== userId) // Exclude your own view
+            .map((v) => ({
+              id: v.user.id,
+              username: v.user.username,
+              name: v.user.name,
+              image: v.user.image,
+              seenAt: v.seenAt,
+            })),
           replyToId: msg.replyToId ?? null,
-
           replyTo: msg.replyTo
             ? {
                 id: msg.replyTo.id,
@@ -457,7 +488,7 @@ app.prepare().then(() => {
             content: text,
             replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
             views: {
-              // ✅ Immediately mark it as seen by the sender
+              // ✅ Mark it seen by sender
               create: {
                 user: { connect: { id: fromUserId } },
               },
@@ -470,7 +501,11 @@ app.prepare().then(() => {
                 sender: { select: { name: true } },
               },
             },
-            views: true, // ✅ Add this line
+            // views: {
+            //   include: {
+            //     user: true, // ✅ Name/image
+            //   },
+            // },
           },
         });
 
@@ -490,6 +525,8 @@ app.prepare().then(() => {
             emitUnreadCount(chat.id, user.userId);
           }
         }
+
+        console.log("EMITTING message", saved);
 
         // Notify everyone in the group
         io.to(`chat_${chat.id}`).emit("newMessage", {

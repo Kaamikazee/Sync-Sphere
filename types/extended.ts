@@ -35,7 +35,19 @@ export interface MessageWithSenderInfo extends Message {
     content: string;
   } | null;
   views: {
-    userId: string;
-    seenAt: Date; // or Date — depending on how it's returned from your API
-  }[];
+  id: string;
+  username: string;
+  name: string;
+  image: string | null;
+  seenAt: string | Date; // match your API return
+}[];
+}
+
+export interface ViewsWithUser {
+  id: string;
+  username: string;
+  name: string;
+  image: string | null;
+  seenAt: string | Date; // match your API return
+
 }

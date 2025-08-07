@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 // import { Input } from "@/components/ui/input";
-import { MessageWithSenderInfo } from "@/types/extended";
+import { MessageWithSenderInfo, ViewsWithUser } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
 import Image from "next/image";
 import {
@@ -79,35 +79,30 @@ export const ChatContainer = ({
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const emittedMessageIds = useRef<Set<string>>(new Set());
 
-    console.log('HISTORY', history);
-
-
   useEffect(() => {
-  if (!socket.connected) {
-    socket.connect();
-  }  
+    if (!socket.connected) {
+      socket.connect();
+    }
 
-  socket.on("connect", () => {
-    console.log("✅ Socket connected:", socket.id);
-
-    socket.emit("chat:subscribe", {
-      chatId,
-      userId,
+    socket.on("connect", () => {
+      socket.emit("chat:subscribe", {
+        chatId,
+        userId,
+      });
     });
-  });
 
-  return () => {
-    socket.emit("chat:unsubscribe", { chatId, userId });
-    socket.off("connect");
-  };
-}, [chatId, userId]);
+    return () => {
+      socket.emit("chat:unsubscribe", { chatId, userId });
+      socket.off("connect");
+    };
+  }, [chatId, userId]);
 
   useEffect(() => {
     if (!socket) return;
 
     const unseenMessages = history.filter(
       (m) =>
-        !m.views?.some((view) => view.userId === userId) &&
+        !m.views?.some((view) => view.id === userId) &&
         m.senderId !== userId &&
         !emittedMessageIds.current.has(m.id)
     );
@@ -123,18 +118,30 @@ export const ChatContainer = ({
   }, [history, userId]);
 
   useEffect(() => {
-    socket?.on("messagesSeen", ({ userId: seenByUser, messageIds }) => {
+    socket?.on("messagesSeen", ({ seenByUser, messageIds }) => {
       // update local message state to reflect seenByUser on those messageIds
       setHistory((prev) =>
         prev.map((msg) => {
           if (messageIds.includes(msg.id)) {
-            return {
-              ...msg,
-              views: [
-                ...(msg.views || []),
-                { userId: seenByUser, seenAt: new Date() },
-              ],
-            };
+            // Skip if seenByUser is the current user
+            if (seenByUser.id === userId) return msg;
+
+            const alreadySeen = msg.views.some((v) => v.id === seenByUser.id);
+            if (!alreadySeen) {
+              return {
+                ...msg,
+                views: [
+                  ...(msg.views || []),
+                  {
+                    id: seenByUser.id,
+                    username: seenByUser.username,
+                    name: seenByUser.name,
+                    image: seenByUser.image,
+                    seenAt: new Date(),
+                  },
+                ],
+              };
+            }
           }
           return msg;
         })
@@ -144,10 +151,7 @@ export const ChatContainer = ({
     return () => {
       socket?.off("messagesSeen");
     };
-  }, []);
-
-
-  console.log("CHAT ID:", chatId);
+  }, [userId, setHistory]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const key = e.key;
@@ -185,21 +189,38 @@ export const ChatContainer = ({
       beforeMessageId: firstMessage?.id,
     });
     socket?.once("olderMessages", (olderMessages: MessageWithSenderInfo[]) => {
-      if (olderMessages.length === 0) setHasMore(false);
-      setHistory((prev) => {
-        const all = [...olderMessages, ...prev];
-        const seen = new Set();
-        return all.filter((msg) => {
-          if (seen.has(msg.id)) return false;
-          seen.add(msg.id);
-          return true;
-        });
-      });
-      setLoadingMore(false);
-      setTimeout(() => {
-        topRef.current?.scrollIntoView({ behavior: "auto" });
-      }, 0);
+  if (olderMessages.length === 0) {
+    setHasMore(false);
+  }
+
+  setHistory((prev) => {
+    const seen = new Set<string>();
+
+    const enriched = olderMessages.map((msg) => ({
+      ...msg,
+      views: msg.views?.map((v) => ({
+        id: v.id,
+        name: v.name,
+        username: v.username,
+        image: v.image,
+        seenAt: v.seenAt,
+      })) ?? [],
+    }));
+
+    const combined = [...enriched, ...prev];
+    return combined.filter((msg) => {
+      if (seen.has(msg.id)) return false;
+      seen.add(msg.id);
+      return true;
     });
+  });
+
+  setLoadingMore(false);
+  setTimeout(() => {
+    topRef.current?.scrollIntoView({ behavior: "auto" });
+  }, 0);
+});
+
   }, [hasMore, loadingMore, history, groupId]);
 
   useLayoutEffect(() => {
@@ -214,14 +235,6 @@ export const ChatContainer = ({
       setOnlineUserIds(ids);
     });
 
-    // This will be need if you want granular control over online/offline events for each users instead of sending the entire list, useful when there is heavy traffic or many users in the group
-    // socket?.on("user-online", ({ userId }) => {
-    //   setOnlineUserIds((prev) => [...new Set([...prev, userId])]);
-    // });
-
-    // socket?.on("user-offline", ({ userId }) => {
-    //   setOnlineUserIds((prev) => prev.filter((id) => id !== userId));
-    // });
 
     return () => {
       socket?.off("online-users");
@@ -261,11 +274,24 @@ export const ChatContainer = ({
   useEffect(() => {
     socket?.emit("joinGroup", { groupId, userId });
 
-    socket?.on("recentMessages", (msgs: MessageWithSenderInfo[]) => {
-      setHistory(msgs);
+    socket?.on("recentMessages", (msgs) => {
+      const enriched: MessageWithSenderInfo[] = msgs.map(
+        (msg: MessageWithSenderInfo) => ({
+          ...msg,
+          views: msg.views.map((v) => ({
+            id: v.id,
+            name: v.name,
+            username: v.username,
+            image: v.image,
+            seenAt: v.seenAt,
+          })),
+        })
+      );
+      setHistory(enriched);
     });
 
     socket?.on("newMessage", (msg) => {
+      // console.log("EMITTING message", saved.views);
       setHistory((prev) => {
         let reply = msg.replyTo ?? null;
         if (!reply && msg.replyToId) {
@@ -278,11 +304,17 @@ export const ChatContainer = ({
             };
           }
         }
-        const enriched: MessageWithSenderInfo = {
-          ...msg,
-          replyTo: reply,
-          views: msg.views ?? [],
-        };
+         const enriched: MessageWithSenderInfo = {
+      ...msg,
+      replyTo: reply,
+      views: msg.views?.map((v: ViewsWithUser) => ({
+        id: v.id,
+        name: v.name,
+        username: v.username,
+        image: v.image,
+        seenAt: v.seenAt,
+      })) ?? [],
+    };
         return [...prev, enriched];
       });
     });
@@ -386,6 +418,7 @@ export const ChatContainer = ({
             return (
               <ChatMessage
                 key={msg.id}
+                userId={userId}
                 msg={msg}
                 isOwn={isOwn}
                 isOnline={onlineUserIds.includes(msg.senderId)}
