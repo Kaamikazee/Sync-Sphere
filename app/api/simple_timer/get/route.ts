@@ -1,18 +1,33 @@
+import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
+// import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 // import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const groupId = url.searchParams.get("groupId");
+  const session = await getAuthSession();
+  const user = session?.user;
+
+  if (!user) {
+    return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
+  }
 
   if (!groupId) {
     return NextResponse.json("ERRORS.NO_USER_API", { status: 400 });
   }
 
-  const today = normalizeToStartOfDayIST(new Date());
-  //   today.setHours(0, 0, 0, 0); // normalize to midnight
+  // Ensure timezone & resetHour exist (fallbacks if missing)
+  const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+  const resetHour = user.resetHour ?? 0;
+
+  // Get user's day range in UTC
+  const { startUtc } = getUserDayRange({ timezone, resetHour }, new Date());
+  const today = startUtc;
+
+  // `today` should match you
 
   try {
     const membersWithSeconds = await db.subscription.findMany({

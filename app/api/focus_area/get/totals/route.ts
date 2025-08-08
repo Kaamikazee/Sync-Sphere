@@ -1,23 +1,32 @@
+import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
+  const session = await getAuthSession();
+  const user = session?.user;
 
-  if (!userId) return NextResponse.json("No such user found", { status: 404 });
+  if (!user) return NextResponse.json("No such user found", { status: 404 });
+  if (!userId) return NextResponse.json("Missing userId", { status: 400 });
 
-  const today = normalizeToStartOfDayIST(new Date());
+  const timezone = user.timezone ?? "Asia/Kolkata";
+  const resetHour = user.resetHour ?? 0;
+
+  const { startUtc, endUtc } = getUserDayRange(
+    { timezone, resetHour },
+    new Date()
+  );
 
   try {
-
     const focusAreaTotals = await db.timerSegment.groupBy({
       by: ["focusAreaId"],
       where: {
-        userId: userId,
-        date: today,
+        userId,
+        start: { gte: startUtc },
+        end: { lt: endUtc },
       },
       _sum: {
         duration: true,
@@ -29,12 +38,8 @@ export const GET = async (request: Request) => {
       totalDuration: item._sum.duration ?? 0,
     }));
 
-    
-
-    if (!focusAreaTotals || !result) return NextResponse.json(0, { status: 200 });
-
     return NextResponse.json(result, { status: 200 });
   } catch {
-    return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
+    return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }
 };

@@ -17,6 +17,8 @@ model User {
   id                   String                 @id @default(cuid())
   name                 String?
   username             String                 @unique
+  timezone    String   @default("Asia/Kolkata") // IANA timezone
+  resetHour   Int      @default(0)              // 0 = midnight, 4 = 4 AM reset
   surname              String?
   email                String?                @unique
   emailVerified        DateTime?
@@ -256,17 +258,17 @@ model TimerSegment {
   id          String      @id @default(uuid())
   userId      String
   focusAreaId String?
-  start       DateTime
-  end         DateTime?
+  start       DateTime // UTC
+  end         DateTime? // UTC
   duration    Int? // in seconds
-  date        DateTime // normalized to midnight
+  // date        DateTime // normalized to midnight
   type        SegmentType @default(FOCUS) // <-- NEW: FOCUS or BREAK
   label       String? // <-- Optional label for break reason (e.g. "Lunch", "Phone")
 
   user      User       @relation(fields: [userId], references: [id])
   focusArea FocusArea? @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
 
-  @@index([userId, date])
+  @@index([userId, start])
 }
 
 enum SegmentType {
@@ -312,7 +314,7 @@ model DailyTotal {
   id             String    @id @default(uuid())
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date           DateTime
+  date           DateTime // midnight UTC for storage
   totalSeconds   Int
   isRunning      Boolean   @default(false)
   startTimestamp DateTime?

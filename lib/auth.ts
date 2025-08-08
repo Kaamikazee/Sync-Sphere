@@ -109,7 +109,9 @@ export const authOptions: NextAuthOptions = {
         session.user.username = token.username;
         session.user.completedOnboarding = !!token.completedOnboarding;
         session.user.bio = typeof token.bio === "string" ? token.bio : null;
-        session.user.createdAt = token.createdAt
+        session.user.createdAt = token.createdAt;
+        session.user.timezone = token.timezone;
+        session.user.resetHour = token.resetHour;
       }
 
       const user = await db.user.findUnique({
@@ -148,6 +150,8 @@ export const authOptions: NextAuthOptions = {
     token.completedOnboarding = dbUser.completedOnboarding;
     token.bio = dbUser.bio;
     token.createdAt = dbUser.createdAt;
+    token.timezone = dbUser.timezone;
+    token.resetHour = dbUser.resetHour;
   }
 
       return token; // ✅ Always return the token object

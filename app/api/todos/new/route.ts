@@ -1,7 +1,8 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { todoSchema } from "@/schemas/todoSchema";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
+// import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 // import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
@@ -9,11 +10,26 @@ export async function POST(request: Request) {
   const session = await getAuthSession();
   const url = new URL(request.url);
   const focusAreaId = url.searchParams.get("focusAreaId");
+    const user = session?.user;  
 
-  const today = normalizeToStartOfDayIST(new Date());
-    //   today.setHours(0, 0, 0, 0); // normalize to midnight
+    if (!user) {
+      return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
+    }
+  
+    // Ensure timezone & resetHour exist (fallbacks if missing)
+    const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+    const resetHour = user.resetHour ?? 0;
+  
+    // Get user's day range in UTC
+    const { startUtc } = getUserDayRange(
+      { timezone, resetHour },
+      new Date()
+    );
+  
+    // `today` should match your dailyTotal.date (start of user’s day in UTC)
+    const today = startUtc;
 
-  if (!session?.user || !focusAreaId) {
+  if (!user || !focusAreaId) {
     return new Response("Unauthorized", {
       status: 400,
       statusText: "Unauthorized User",

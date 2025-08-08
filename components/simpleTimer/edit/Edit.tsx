@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -9,7 +8,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { Card, CardContent } from "@/components/ui/card";
 import { SegmentBlock } from "./SegmentBlock";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -17,31 +15,37 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { SegmentTypes } from "@/lib/api";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 
 interface Props {
   userId: string;
 }
 
 export function Edit({ userId }: Props) {
-  const today = normalizeToStartOfDayIST(new Date());
+  const today = normalizeToStartOfDay(new Date());
   const [open, setOpen] = React.useState(false);
-  const [date, setDate] = React.useState<Date | undefined>(today);
+  const [date, setDate] = React.useState<Date>(today);
 
   const glowRef = React.useRef<HTMLDivElement>(null);
 
   const {
-    data: segments,
+    data: segments = [], // ✅ default to empty array so map never crashes
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["getSegments", userId, date],
+    queryKey: ["getSegments", userId, date.toISOString()],
     queryFn: () =>
       axios
-        .get(`/api/segments/get?userId=${userId}&date=${date}`)
+        .get(`/api/segments/get`, {
+          params: {
+            userId,
+            date: date.toISOString(),
+          },
+        })
         .then((res) => res.data),
   });
 
+  // glow hover effect
   React.useEffect(() => {
     const el = glowRef.current;
     if (!el) return;
@@ -75,10 +79,17 @@ export function Edit({ userId }: Props) {
 
   function changeDateBy(days: number) {
     setDate((prev) => {
-      const newDate = new Date((prev ?? today).getTime());
+      const newDate = new Date(prev.getTime());
       newDate.setDate(newDate.getDate() + days);
-      return normalizeToStartOfDayIST(newDate);
+      return normalizeToStartOfDay(newDate);
     });
+  }
+
+  function handleDateSelect(selectedDate?: Date) {
+    if (!selectedDate) return;
+    const normalized = normalizeToStartOfDay(selectedDate);
+    // ✅ Force new Date object to ensure query key changes even if same day
+    setDate(new Date(normalized));
   }
 
   if (isLoading) {
@@ -92,13 +103,13 @@ export function Edit({ userId }: Props) {
   if (error) {
     return (
       <div className="flex justify-center items-center min-h-[20vh] text-red-300 text-sm italic">
-        Something went wrong: {error.message}
+        Something went wrong: {(error as Error).message}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full px-4 py-8 bg-gradient-to-br from-indigo-950 via-purple-900 to-sky-900 text-white flex flex-col items-center gap-6 font-[\'Orbitron\'],sans">
+    <div className="min-h-screen w-full px-4 py-8 bg-gradient-to-br from-indigo-950 via-purple-900 to-sky-900 text-white flex flex-col items-center gap-6 font-['Orbitron'],sans">
       {/* Date Picker */}
       <div className="flex gap-4 items-center">
         <Button
@@ -115,7 +126,7 @@ export function Edit({ userId }: Props) {
               id="date"
               className="w-52 text-lg font-bold bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm shadow-md rounded-xl transition-all duration-300"
             >
-              {date ? date.toLocaleDateString() : "Select date"}
+              {date.toLocaleDateString()}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto overflow-hidden p-0" align="start">
@@ -123,8 +134,8 @@ export function Edit({ userId }: Props) {
               mode="single"
               selected={date}
               captionLayout="dropdown"
-              onSelect={(date) => {
-                setDate(date);
+              onSelect={(d) => {
+                handleDateSelect(d);
                 setOpen(false);
               }}
             />
@@ -140,12 +151,15 @@ export function Edit({ userId }: Props) {
       </div>
 
       {/* Timer Card */}
-      <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg rounded-xl">
+      <Card
+        ref={glowRef}
+        className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg rounded-xl"
+      >
         <CardContent className="p-4 space-y-4">
           <AnimatePresence mode="wait">
             {segments.map((seg: SegmentTypes) => (
               <motion.div
-                key={seg.id + date?.toISOString()}
+                key={seg.id + date.toISOString()}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}

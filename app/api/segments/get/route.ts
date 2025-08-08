@@ -1,6 +1,6 @@
+import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
@@ -8,25 +8,34 @@ export const GET = async (request: Request) => {
 
   const userId = url.searchParams.get("userId");
   const dateParam = url.searchParams.get("date");
+  const session = await getAuthSession();
+  const user = session?.user;
 
-  if (!userId) {
-    return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+  if (!user) {
+    return NextResponse.json("ERRORS.NO_USER_API", { status: 400 });
   }
-  
 
-  const targetDate = dateParam
-    ? normalizeToStartOfDayIST(new Date(dateParam))
-    : normalizeToStartOfDayIST(new Date());
+  // Ensure timezone & resetHour exist
+  const timezone = user.timezone ?? "Asia/Kolkata";
+  const resetHour = user.resetHour ?? 0;
+
+  // Pick the base date (user-specified or today)
+  const baseDate = dateParam ? new Date(dateParam) : new Date();
+
+  // Get that day's start & end in UTC according to user's timezone/resetHour
+  const { startUtc, endUtc } = getUserDayRange(
+    { timezone, resetHour },
+    baseDate
+  );
 
   try {
     const segments = await db.timerSegment.findMany({
       where: {
-        userId,
-        date: targetDate,
+        userId: userId!,
+        start: { gte: startUtc },
+        end: { lt: endUtc },
       },
-      orderBy: {
-        start: "asc",
-      },
+      orderBy: { start: "asc" },
       include: {
         focusArea: true,
       },
@@ -37,7 +46,6 @@ export const GET = async (request: Request) => {
       start: segment.start,
       end: segment.end,
       duration: segment.duration,
-      date: segment.date,
       type: segment.type,
       label: segment.label,
       focusArea: {
@@ -45,7 +53,6 @@ export const GET = async (request: Request) => {
         name: segment.focusArea?.name,
       },
     }));
-    
 
     return NextResponse.json(simplified, { status: 200 });
   } catch (error) {

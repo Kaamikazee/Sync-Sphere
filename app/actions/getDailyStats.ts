@@ -1,7 +1,9 @@
 // app/actions/getDailyStats.ts (server action)
 "use server";
 
+import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 import db from "@/lib/db";
+import { getUserDayRange } from "@/utils/IsToday";
 
 function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -12,6 +14,7 @@ function formatDuration(seconds: number) {
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
+
 
 // date: "YYYY-MM-DD"
 // timezoneOffsetMinutes: number of minutes east of UTC (IST -> 330). Optional, defaults to 0.
@@ -29,22 +32,22 @@ export async function getDailyStats(
     throw new Error("Invalid date format, expected YYYY-MM-DD");
   }
 
+  const session = await checkIfUserCompleteOnboarding("/dashboard")
+  const user = session.user
+
   const offset = Number(timezoneOffsetMinutes) || 0; // minutes east of UTC
+  const timezone = user.timezone ?? "Asia/Kolkata";
+    const resetHour = user.resetHour ?? 0;
+  
+    // Pick the base date (user-specified or today)
+    const baseDate = date ? new Date(date) : new Date();
+  
+    // Get that day's start & end in UTC according to user's timezone/resetHour
+    const { startUtc: startUTC, endUtc: endUTC } = getUserDayRange(
+      { timezone, resetHour },
+      baseDate
+    );
 
-  // Compute UTC start/end for the user's local day:
-  // startUTC = Date.UTC(y,m-1,d,0,0,0) - offset*60000
-  // endUTC   = Date.UTC(y,m-1,d,23,59,59,999) - offset*60000
-  const startUTCms = Date.UTC(y, m - 1, d, 0, 0, 0) - offset * 60_000;
-  const endUTCms =
-    Date.UTC(y, m - 1, d, 23, 59, 59, 999) - offset * 60_000;
-
-  const startUTC = new Date(startUTCms);
-  const endUTC = new Date(endUTCms);
-
-  // DEBUG tip: uncomment to log boundaries while testing
-  // console.log({ date, offset, startUTC: startUTC.toISOString(), endUTC: endUTC.toISOString() });
-
-  // Query by the actual timestamp field (start) — this is more reliable than a separate 'date' field
   const segments = await db.timerSegment.findMany({
     where: {
       userId,
@@ -96,7 +99,8 @@ export async function getDailyStats(
   // Focus area aggregation (minutes)
   const focusAreaMap: Record<string, { name: string; value: number; color: string }> = {};
   for (const s of segments) {
-    const key = s.label || "Unknown";
+    // Here need to change ig take only those which has label === focusarea
+    const key = s.label || "Other";
     if (!focusAreaMap[key]) {
       focusAreaMap[key] = {
         name: key,

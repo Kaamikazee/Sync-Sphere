@@ -1,25 +1,35 @@
 // app/api/timer/start/route.ts
-
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 export const POST = async (request: Request) => {
   const session = await getAuthSession();
-  const userId = session?.user.id;
+  const user = session?.user;
+  const userId = user?.id;
 
-  if (!userId) {
+  if (!user) {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
 
-  const today = normalizeToStartOfDayIST(new Date());
-  const now = new Date(); // ✅ always defined
+  // Ensure timezone & resetHour exist (fallbacks if missing)
+  const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+  const resetHour = user.resetHour ?? 0;
+
+  // Get user's day range in UTC
+  const { startUtc } = getUserDayRange(
+    { timezone, resetHour },
+    new Date()
+  );
+
+  // `today` should match your dailyTotal.date (start of user’s day in UTC)
+  const today = startUtc;
+
+  const now = new Date();
 
   const body: unknown = await request.json();
-
   const result = z
     .object({
       focusAreaId: z.string(),
@@ -37,13 +47,9 @@ export const POST = async (request: Request) => {
   let lastBreakStart: Date | null = null;
   let lastBreakEnd: Date | null = null;
 
-  // 🧠 1. Close any ongoing break segment if exists
+  // Close any ongoing break segment
   const lastSegment = await db.timerSegment.findFirst({
-    where: {
-      userId,
-      end: null,
-      type: "BREAK",
-    },
+    where: { userId, end: null, type: "BREAK" },
     orderBy: { start: "desc" },
   });
 
@@ -62,31 +68,22 @@ export const POST = async (request: Request) => {
     lastBreakEnd = now;
   }
 
-  // ---------CREATING TIME SEGMENT ON START---------
+  // Create new focus segment
   const segment = await db.timerSegment.create({
     data: {
-      userId,
+      userId: userId!,
       focusAreaId,
       start: now,
-      date: today,
       type: "FOCUS",
     },
   });
 
   try {
     await db.dailyTotal.upsert({
-      where: {
-        userId_date: {
-          userId,
-          date: today,
-        },
-      },
-      update: {
-        isRunning: true,
-        startTimestamp: now,
-      },
+      where: { userId_date: { userId: userId!, date: today } },
+      update: { isRunning: true, startTimestamp: now },
       create: {
-        userId,
+        userId: userId!,
         date: today,
         totalSeconds: 0,
         isRunning: true,
@@ -107,4 +104,3 @@ export const POST = async (request: Request) => {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }
 };
-

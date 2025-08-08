@@ -1,32 +1,42 @@
+import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
+// import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 // import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
   const userId = url.searchParams.get("userId");
+  const session = await getAuthSession();
+  const user = session?.user;
 
-  if (!userId) {
-    return NextResponse.json("ERRORS.NO_USER_API", { status: 400 });
+  if (!user) {
+    return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
 
-  // normalize to midnight
-  const today = normalizeToStartOfDayIST(new Date());
+  // Ensure timezone & resetHour exist (fallbacks if missing)
+  const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+  const resetHour = user.resetHour ?? 0;
 
+  // Get user's day range in UTC
+  const { startUtc } = getUserDayRange({ timezone, resetHour }, new Date());
+
+  // `today` should match your dailyTotal.date (start of user’s day in UTC)
+  const today = startUtc;
 
   try {
     let dailyTotal = await db.dailyTotal.findUnique({
       where: {
         userId_date: {
-          userId,
+          userId: userId!,
           date: today,
         },
       },
       select: {
         totalSeconds: true,
-          isRunning: true,
-          startTimestamp: true,
+        isRunning: true,
+        startTimestamp: true,
         user: {
           select: {
             id: true,
@@ -37,11 +47,11 @@ export const GET = async (request: Request) => {
       },
     });
 
-    // If no record exists, create one 
+    // If no record exists, create one
     if (!dailyTotal) {
       dailyTotal = await db.dailyTotal.create({
         data: {
-          userId,
+          userId: userId!,
           date: today,
           totalSeconds: 0,
         },
@@ -61,7 +71,6 @@ export const GET = async (request: Request) => {
     }
 
     return NextResponse.json(dailyTotal, { status: 200 });
-
   } catch (err) {
     console.error("GET dailyTotal error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });

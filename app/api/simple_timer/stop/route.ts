@@ -1,19 +1,28 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+import { getUserDayRange } from "@/utils/IsToday";
+// import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 // import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 export const POST = async (request: Request) => {
   const session = await getAuthSession();
-  const userId = session?.user.id;
+  const user = session?.user;
+  const userId = user?.id;
 
-  if (!userId) {
+  if (!user) {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
 
-  const today = normalizeToStartOfDayIST(new Date());
+  // Ensure timezone & resetHour exist (fallbacks if missing)
+  const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+  const resetHour = user.resetHour ?? 0;
+
+  // Get user's day range in UTC
+  const { startUtc } = getUserDayRange({ timezone, resetHour }, new Date());
+  // `today` should match your dailyTotal.date (start of user’s day in UTC)
+  const today = startUtc;
   const body: unknown = await request.json();
 
   const result = z
@@ -33,7 +42,10 @@ export const POST = async (request: Request) => {
   });
 
   if (!segment || segment.end) {
-    return NextResponse.json({ error: "Invalid or already-stopped segment" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid or already-stopped segment" },
+      { status: 400 }
+    );
   }
 
   // ✅ Only FOCUS segments can trigger breaks
@@ -43,18 +55,19 @@ export const POST = async (request: Request) => {
 
   // ✅ Calculate duration and update segment
   const now = new Date();
-  const duration = Math.floor((now.getTime() - new Date(segment.start).getTime()) / 1000);
+  const duration = Math.floor(
+    (now.getTime() - new Date(segment.start).getTime()) / 1000
+  );
 
   try {
     const existing = await db.dailyTotal.findUnique({
       where: {
         userId_date: {
-          userId,
+          userId: userId!,
           date: today,
         },
       },
     });
-
 
     if (!existing) {
       return NextResponse.json("ERRORS.NOT_RUNNING", { status: 404 });
@@ -73,10 +86,9 @@ export const POST = async (request: Request) => {
       // ✅ Auto-start BREAK segment
       db.timerSegment.create({
         data: {
-          userId,
+          userId: userId!,
           type: "BREAK",
           start: now,
-          date: today,
         },
       }),
 
@@ -84,7 +96,7 @@ export const POST = async (request: Request) => {
       db.dailyTotal.update({
         where: {
           userId_date: {
-            userId,
+            userId: userId!,
             date: today,
           },
         },

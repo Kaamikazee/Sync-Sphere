@@ -8,6 +8,8 @@ declare module "next-auth/jwt" {
     completedOnboarding?: boolean;
     bio?: string | null;
     createdAt?: Date | null;
+    timezone?: string | null;
+    resetHour?: number | null;
   }
 }
 
@@ -20,10 +22,11 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       bio?: string | null;
+      timezone?: string | null;
+      resetHour?: number | null;
       createdAt?: Date | null;
       completedOnboarding?: boolean | null;
       username?: string | null;
     };
   }
 }
-
