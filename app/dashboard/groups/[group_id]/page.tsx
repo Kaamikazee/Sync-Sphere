@@ -37,6 +37,7 @@ const Group = async ({ params: { group_id } }: Params) => {
   if (!group) {
     return <p>Group not found.</p>;
   }
+  
 
 
   return (

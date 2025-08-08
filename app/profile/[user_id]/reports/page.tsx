@@ -1,5 +1,6 @@
-import CalendarComp from "@/components/profile/Calendar";
+// import CalendarComp from "@/components/profile/Calendar";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
+import Reports from "./Reports";
 
 interface Params {
   params: {
@@ -7,7 +8,7 @@ interface Params {
   };
 }
 
-const Reports = async ({ params: { user_id } }: Params) => {
+const ReportsContainer = async ({ params: { user_id } }: Params) => {
   const session = await checkIfUserCompleteOnboarding(
     `profile/${user_id}/reports`
   );
@@ -15,17 +16,11 @@ const Reports = async ({ params: { user_id } }: Params) => {
     return <p>You need to sign in to access this page.</p>;
   }
 
-
-
   return (
     <div>
-      Reports{" "}
-      {user_id}
-      <CalendarComp  
-      userId={user_id}
-      />
+      <Reports user_id={session.user.id} />
     </div>
   );
 };
 
-export default Reports;
+export default ReportsContainer;

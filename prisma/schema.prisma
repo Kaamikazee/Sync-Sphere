@@ -399,8 +399,8 @@ model Warning {
   message    String
   createdAt  DateTime @default(now())
 
-  user     User  @relation("ReceivedWarnings", fields: [userId], references: [id])
-  issuedBy User  @relation("IssuedWarnings", fields: [issuedById], references: [id])
+  user     User  @relation("ReceivedWarnings", fields: [userId], references: [id], onDelete: Cascade)
+  issuedBy User  @relation("IssuedWarnings", fields: [issuedById], references: [id], onDelete: Cascade)
   group    Group @relation(fields: [groupId], references: [id])
 
   @@index([userId, groupId])

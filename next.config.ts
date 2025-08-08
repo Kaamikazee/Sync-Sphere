@@ -37,6 +37,14 @@ const nextConfig: NextConfig = {
         hostname: "otqycyke8u.ufs.sh",
         pathname: "/**",
       },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.jsdelivr.net',
+      },
     ],
   },
 };

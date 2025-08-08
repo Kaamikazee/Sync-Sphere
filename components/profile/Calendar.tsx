@@ -10,17 +10,23 @@ import {
   subMonths,
 } from "date-fns";
 import { useCalendarData } from "@/lib/useCalendar";
+import { useSwipeable } from "react-swipeable";
 
 interface Props {
   userId: string;
+  onDaySelect: (date: Date) => void;
 }
 
 function getColorBySeconds(seconds: number) {
-  if (seconds >= 7200) return "bg-orange-600";
-  if (seconds >= 3600) return "bg-orange-500";
-  if (seconds >= 1800) return "bg-orange-300";
-  if (seconds > 0) return "bg-orange-100";
-  return "bg-gray-800 text-gray-400";
+  if (seconds >= 7200)
+    return "bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-md";
+  if (seconds >= 3600)
+    return "bg-gradient-to-br from-orange-400 to-pink-400 text-white shadow-md";
+  if (seconds >= 1800)
+    return "bg-gradient-to-br from-amber-300 to-orange-300 text-black";
+  if (seconds > 0)
+    return "bg-gradient-to-br from-yellow-100 to-orange-100 text-black";
+  return "bg-white/5 text-gray-400 border border-white/10";
 }
 
 function formatTime(seconds: number) {
@@ -30,17 +36,27 @@ function formatTime(seconds: number) {
 }
 
 function formatHMS(total: number) {
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
-  }
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+}
 
-export default function CalendarComp({ userId }: Props) {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 6));
-  const [selectedDay, setSelectedDay] = useState<{ date: Date; seconds: number } | null>(null);
+export function CalendarComp({ userId, onDaySelect }: Props) {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<{
+    date: Date;
+    seconds: number;
+  } | null>(null);
 
   const { data: logs, isLoading, error } = useCalendarData(userId);
+
+  const handlers = useSwipeable({
+    onSwipedLeft: () => setCurrentMonth(addMonths(currentMonth, 1)),
+    onSwipedRight: () => setCurrentMonth(subMonths(currentMonth, 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  });
 
   if (isLoading) return <div className="text-center">Loading...</div>;
   if (error)
@@ -51,25 +67,37 @@ export default function CalendarComp({ userId }: Props) {
   const days = eachDayOfInterval({ start, end });
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+    <div
+      {...handlers}
+      className="w-full max-w-3xl mx-auto p-4 sm:p-6 rounded-2xl backdrop-blur-lg bg-white/10 border border-white/20 shadow-lg transition hover:shadow-2xl"
+    >
+      {/* Month header */}
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+          className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 transition text-gray-800"
+        >
           ←
         </button>
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-pink-300 to-purple-300 bg-clip-text text-transparent">
           {format(currentMonth, "MMMM yyyy")}
         </h2>
-        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+        <button
+          onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+          className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 transition text-gray-800"
+        >
           →
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-500 mb-2">
+      {/* Weekdays */}
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-300 mb-2">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
           <div key={d}>{d}</div>
         ))}
       </div>
 
+      {/* Days */}
       <div className="grid grid-cols-7 gap-1">
         {Array(start.getDay())
           .fill(null)
@@ -85,8 +113,11 @@ export default function CalendarComp({ userId }: Props) {
           return (
             <div
               key={day.toISOString()}
-              className={`h-16 rounded-lg p-1 text-xs flex flex-col items-center justify-center cursor-pointer ${color}`}
-              onClick={() => setSelectedDay({ date: day, seconds })}
+              className={`h-16 rounded-lg p-1 text-xs flex flex-col items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-105 hover:shadow-lg ${color}`}
+              onClick={() => {
+                setSelectedDay({ date: day, seconds });
+                onDaySelect(day);
+              }}
             >
               <div className="font-semibold">{format(day, "d")}</div>
               <div className="text-[10px]">
@@ -97,13 +128,15 @@ export default function CalendarComp({ userId }: Props) {
         })}
       </div>
 
+      {/* Selected day details */}
       {selectedDay && (
-        <div className="mt-4 p-3 bg-zinc-500 rounded-lg text-sm">
+        <div className="mt-5 p-4 rounded-xl backdrop-blur-md bg-white/10 border border-white/20 shadow-lg text-sm text-gray-800">
           <div>
-            <strong>Date:</strong> {format(selectedDay.date, "EEE, d MMM yyyy")}
+            <strong className="text-pink-300">Date:</strong>{" "}
+            {format(selectedDay.date, "EEE, d MMM yyyy")}
           </div>
           <div>
-            <strong>Recorded:</strong>{" "}
+            <strong className="text-pink-300">Recorded:</strong>{" "}
             {selectedDay.seconds ? formatHMS(selectedDay.seconds) : "Day Off"}
           </div>
         </div>
