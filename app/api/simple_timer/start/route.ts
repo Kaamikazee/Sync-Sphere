@@ -2,7 +2,8 @@
 
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -14,7 +15,7 @@ export const POST = async (request: Request) => {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
 
-  const today = normalizeToStartOfDay(new Date());
+  const today = normalizeToStartOfDayIST(new Date());
   const now = new Date(); // ✅ always defined
 
   const body: unknown = await request.json();

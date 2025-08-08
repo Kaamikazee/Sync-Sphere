@@ -1,7 +1,8 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { onboardingSchema } from "@/schemas/onboardingSchema";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const today = normalizeToStartOfDay(new Date());
+    const today = normalizeToStartOfDayIST(new Date());
 
     const dailyTotal = await db.dailyTotal.findFirst({
       where: {

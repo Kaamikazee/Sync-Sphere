@@ -1,5 +1,6 @@
 import db from "@/lib/db";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
@@ -10,8 +11,8 @@ export const GET = async (request: Request) => {
 
   if (!userId) return NextResponse.json("ERRORS.NO_USER_API", { status: 404 });
 
-  const today = normalizeToStartOfDay(new Date());
-    const finalDate = date ? normalizeToStartOfDay(new Date(date)) : today;
+  const today = normalizeToStartOfDayIST(new Date());
+    const finalDate = date ? normalizeToStartOfDayIST(new Date(date)) : today;
 
   try {
     const todos = await db.todo.findMany({

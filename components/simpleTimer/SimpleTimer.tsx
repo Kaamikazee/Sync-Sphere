@@ -18,6 +18,7 @@ import axios from "axios";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { SessionTimerWidget } from "./SessionTimerWidget";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
   // totalSeconds: number;
@@ -46,22 +47,38 @@ export const SimpleTimerContainer = ({
   groups,
   pomodoroSettings,
 }: Props) => {
-  function normalizeToStartOfDay(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  }
-  const today = normalizeToStartOfDay(new Date());
+  // function normalizeToStartOfDayIST(date: Date): Date {
+  //   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  // }
+  const today = normalizeToStartOfDayIST(new Date());
+
   const [date, setDate] = useState<Date>(today);
+  const normalizedISTDate = normalizeToStartOfDayIST(date);
   const [open, setOpen] = useState(false);
   const isToday = date.getTime() === today.getTime();
 
+  function formatISTDate(date: Date) {
+  const IST_OFFSET_MINUTES = 330;
+  const istDate = new Date(date.getTime() + IST_OFFSET_MINUTES * 60000);
+  return istDate.toLocaleDateString("en-IN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  
+}
+
+function normalizeToISTDate(date: Date): Date {
+const IST_OFFSET_MINUTES = 330; // UTC+5:30
+return new Date(date.getTime() + IST_OFFSET_MINUTES * 60000);
+}
   const { data: totalSeconds = 0 } = useQuery({
     queryKey: ["totalSeconds", userId, date],
     queryFn: () =>
       axios
         .get(
-          `/api/simple_timer/day?userId=${userId}&date=${date.toLocaleDateString(
-            "en-CA"
-          )}`
+          `/api/simple_timer/day?userId=${userId}&date=${normalizedISTDate.toISOString()}`
         )
         .then((res) => res.data),
   });
@@ -71,9 +88,7 @@ export const SimpleTimerContainer = ({
     queryFn: () =>
       axios
         .get(
-          `/api/focus_area/day/totals?userId=${userId}&date=${date.toLocaleDateString(
-            "en-CA"
-          )}`
+          `/api/focus_area/day/totals?userId=${userId}&date=${normalizedISTDate.toISOString()}`
         )
         .then((res) => res.data),
   });
@@ -83,9 +98,7 @@ export const SimpleTimerContainer = ({
     queryFn: () =>
       axios
         .get(
-          `/api/todos/day?userId=${userId}&date=${date.toLocaleDateString(
-            "en-CA"
-          )}`
+          `/api/todos/day?userId=${userId}&date=${normalizedISTDate.toISOString()}`
         )
         .then((res) => res.data),
   });
@@ -210,7 +223,7 @@ export const SimpleTimerContainer = ({
     setDate((prev) => {
       const newDate = new Date(prev.getTime());
       newDate.setDate(newDate.getDate() + days);
-      const normalized = normalizeToStartOfDay(newDate);
+      const normalized = normalizeToStartOfDayIST(newDate);
       return normalized > today ? today : normalized;
     });
   };
@@ -236,17 +249,17 @@ export const SimpleTimerContainer = ({
                     <Popover open={open} onOpenChange={setOpen}>
                       <PopoverTrigger asChild>
                         <Button className="w-52 text-lg font-bold bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm shadow-md rounded-xl">
-                          {date.toLocaleDateString("en-CA")}
+                          {formatISTDate(date)}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
-                          selected={date}
+                          selected={normalizeToISTDate(date)}
                           captionLayout="dropdown"
                           onSelect={(d) => {
                             if (!d) return;
-                            setDate(normalizeToStartOfDay(d)); // <== normalize properly here
+                            setDate(normalizeToStartOfDayIST(d)); // <== normalize properly here
                             setOpen(false);
                           }}
                           toDate={today}

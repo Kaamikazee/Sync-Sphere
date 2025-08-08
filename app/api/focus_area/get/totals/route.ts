@@ -1,5 +1,6 @@
 import db from "@/lib/db";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
@@ -8,7 +9,7 @@ export const GET = async (request: Request) => {
 
   if (!userId) return NextResponse.json("No such user found", { status: 404 });
 
-  const today = normalizeToStartOfDay(new Date());
+  const today = normalizeToStartOfDayIST(new Date());
 
   try {
 

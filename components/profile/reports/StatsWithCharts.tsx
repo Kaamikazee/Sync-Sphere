@@ -109,7 +109,15 @@ function ChartBlock({ title, data }: { title: string; data: ChartData[] }) {
 
 
 function formatDuration(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h ${m}m`;
+  const totalSeconds = Math.round(minutes * 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  const hDisplay = h > 0 ? `${h}h ` : "";
+  const mDisplay = m > 0 ? `${m}m ` : "";
+  const sDisplay = s > 0 ? `${s}s` : "";
+
+  return `${hDisplay}${mDisplay}${sDisplay}`.trim() || "0s";
 }
+

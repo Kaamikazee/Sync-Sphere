@@ -1,7 +1,8 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { todoSchema } from "@/schemas/todoSchema";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   const url = new URL(request.url);
   const focusAreaId = url.searchParams.get("focusAreaId");
 
-  const today = normalizeToStartOfDay(new Date());
+  const today = normalizeToStartOfDayIST(new Date());
     //   today.setHours(0, 0, 0, 0); // normalize to midnight
 
   if (!session?.user || !focusAreaId) {

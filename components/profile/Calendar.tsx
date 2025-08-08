@@ -1,11 +1,12 @@
 "use client";
+
 import { useState } from "react";
 import {
   format,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isSameDay,
+  // isSameDay,
   addMonths,
   subMonths,
 } from "date-fns";
@@ -14,7 +15,7 @@ import { useSwipeable } from "react-swipeable";
 
 interface Props {
   userId: string;
-  onDaySelect: (date: Date) => void;
+  onDaySelect: (dateStr: string) => void;  // date string in yyyy-MM-dd
 }
 
 function getColorBySeconds(seconds: number) {
@@ -106,9 +107,18 @@ export function CalendarComp({ userId, onDaySelect }: Props) {
           ))}
 
         {days.map((day) => {
-          const entry = logs?.find((d) => isSameDay(new Date(d.date), day));
+          const entry = logs?.find((d) => {
+  const logDate = new Date(d.date);
+  logDate.setUTCHours(0, 0, 0, 0);
+
+  const cmpDay = new Date(day);
+  cmpDay.setUTCHours(0, 0, 0, 0);
+
+  return logDate.getTime() === cmpDay.getTime();
+});
           const seconds = entry?.totalSeconds ?? 0;
           const color = getColorBySeconds(seconds);
+          const dateStr = format(day, "yyyy-MM-dd"); // normalized date string
 
           return (
             <div
@@ -116,7 +126,7 @@ export function CalendarComp({ userId, onDaySelect }: Props) {
               className={`h-16 rounded-lg p-1 text-xs flex flex-col items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-105 hover:shadow-lg ${color}`}
               onClick={() => {
                 setSelectedDay({ date: day, seconds });
-                onDaySelect(day);
+                onDaySelect(dateStr);  // pass normalized date string here
               }}
             >
               <div className="font-semibold">{format(day, "d")}</div>

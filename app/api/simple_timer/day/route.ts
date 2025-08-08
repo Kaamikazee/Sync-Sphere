@@ -1,5 +1,6 @@
 import db from "@/lib/db";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
@@ -11,13 +12,13 @@ export const GET = async (request: Request) => {
     return NextResponse.json("ERRORS.NO_USER_API", { status: 400 });
   }
 
-  const today = normalizeToStartOfDay(new Date());
+  const today = normalizeToStartOfDayIST(new Date());
 
   if (date && isNaN(new Date(date).getTime())) {
     return NextResponse.json("ERRORS.INVALID_DATE", { status: 400 });
   }
 
-  const finalDate = date ? normalizeToStartOfDay(new Date(date)) : today;
+  const finalDate = date ? normalizeToStartOfDayIST(new Date(date)) : today;
 
   try {
     let dailyTotal = await db.dailyTotal.findUnique({

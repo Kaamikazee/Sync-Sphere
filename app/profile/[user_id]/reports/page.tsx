@@ -18,7 +18,7 @@ const ReportsContainer = async ({ params: { user_id } }: Params) => {
 
   return (
     <div>
-      <Reports user_id={session.user.id} />
+      <Reports user_id={user_id} />
     </div>
   );
 };

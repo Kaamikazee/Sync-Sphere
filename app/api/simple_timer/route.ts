@@ -1,5 +1,6 @@
 import db from "@/lib/db";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
@@ -10,8 +11,8 @@ export const GET = async (request: Request) => {
     return NextResponse.json("ERRORS.NO_USER_API", { status: 400 });
   }
 
-  const today = normalizeToStartOfDay(new Date());
-//   today.setHours(0, 0, 0, 0); // normalize to midnight
+  // normalize to midnight
+  const today = normalizeToStartOfDayIST(new Date());
 
 
   try {

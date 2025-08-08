@@ -1,7 +1,8 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { updateTodoSchema } from "@/schemas/updateTodoSchema";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     date, // Optional date field
   } = result.data;
 
-  const finalDate = date ? normalizeToStartOfDay(new Date(date)) : undefined;
+  const finalDate = date ? normalizeToStartOfDayIST(new Date(date)) : undefined;
 
   try {
     await db.todo.update({

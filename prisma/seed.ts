@@ -4,8 +4,11 @@ import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
 
 // helper at top of file
-function normalizeToStartOfDay(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+function normalizeToStartOfDayIST(date: Date): Date {
+  const IST_OFFSET_MINUTES = 330; // 5 hours 30 minutes
+  const istTime = new Date(date.getTime() + IST_OFFSET_MINUTES * 60000);
+  const startOfISTDay = new Date(istTime.getFullYear(), istTime.getMonth(), istTime.getDate());
+  return new Date(startOfISTDay.getTime() - IST_OFFSET_MINUTES * 60000); // back to UTC
 }
 
 const prisma = new PrismaClient();
@@ -172,7 +175,7 @@ for (const user of users) {
           title: faker.hacker.phrase(),
           content: faker.lorem.sentence(),
           completed: faker.helpers.arrayElement(Object.values(TodoWorkDone)),
-          date: normalizeToStartOfDay(randomPastDate),
+          date: normalizeToStartOfDayIST(randomPastDate),
         },
       });
     }
@@ -180,41 +183,52 @@ for (const user of users) {
 }
 
 // 5️⃣ Daily Totals & Timer Segments
+// 5️⃣ Daily Totals & Timer Segments
 for (const user of users) {
   for (let d = 0; d < 7; d++) {
-    const dayDate = normalizeToStartOfDay(new Date(Date.now() - d * 86400000));
+    const dayDate = normalizeToStartOfDayIST(new Date(Date.now() - d * 86400000));
 
-    await prisma.dailyTotal.create({
-      data: {
-        userId: user.id,
-        date: dayDate,
-        totalSeconds: faker.number.int({ min: 0, max: 18000 }),
-        isRunning: faker.datatype.boolean(),
-      },
-    });
+    // We'll calculate totalSeconds from generated segments
+    let totalSeconds = 0;
 
-    for (let s = 0; s < faker.number.int({ min: 1, max: 3 }); s++) {
+    const focusAreas = await prisma.focusArea.findMany({ where: { userId: user.id } });
+
+    const segmentCount = faker.number.int({ min: 1, max: 3 });
+    for (let s = 0; s < segmentCount; s++) {
+      const duration = faker.number.int({ min: 300, max: 3600 }); // 5min – 1hr
       const start = faker.date.between({
         from: new Date(dayDate.getTime() + 6 * 3600000), // from 6 AM
-        to: new Date(dayDate.getTime() + 20 * 3600000)   // until 8 PM
+        to: new Date(dayDate.getTime() + 20 * 3600000),   // until 8 PM
       });
+
       await prisma.timerSegment.create({
         data: {
           userId: user.id,
-          focusAreaId: faker.helpers.arrayElement(
-            (await prisma.focusArea.findMany({ where: { userId: user.id } })).map(f => f.id)
-          ),
+          focusAreaId: faker.helpers.arrayElement(focusAreas).id,
           start,
-          end: new Date(start.getTime() + faker.number.int({ min: 300, max: 3600 }) * 1000),
-          duration: faker.number.int({ min: 300, max: 3600 }),
+          end: new Date(start.getTime() + duration * 1000),
+          duration,
           date: dayDate,
           type: faker.helpers.arrayElement(Object.values(SegmentType)),
           label: faker.lorem.word(),
         },
       });
+
+      totalSeconds += duration;
     }
+
+    // Create daily total based on sum of durations
+    await prisma.dailyTotal.create({
+      data: {
+        userId: user.id,
+        date: dayDate,
+        totalSeconds,
+        isRunning: faker.datatype.boolean(),
+      },
+    });
   }
 }
+
 
   // 6️⃣ Announcements, Comments, Reactions
   for (const group of groups) {

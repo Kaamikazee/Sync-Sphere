@@ -1,28 +1,54 @@
+// app/actions/getDailyStats.ts (server action)
 "use server";
 
-import { format } from "date-fns";
 import db from "@/lib/db";
-// import { startOfDay, endOfDay } from "date-fns";
-
-
-
 
 function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return `${h > 0 ? `${h}h ` : ""}${m}m`;
+  const s = seconds % 60;
+
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
-export async function getDailyStats(userId: string, date: string) {
-  const startOfDay = new Date(date + "T00:00:00.000Z");
-  const endOfDay = new Date(date + "T23:59:59.999Z");
-//   const startOfDayUTC = startOfDay(new Date(date));
-// const endOfDayUTC = endOfDay(new Date(date));
+// date: "YYYY-MM-DD"
+// timezoneOffsetMinutes: number of minutes east of UTC (IST -> 330). Optional, defaults to 0.
+export async function getDailyStats(
+  userId: string,
+  date: string,
+  timezoneOffsetMinutes = 0
+) {
+  // parse date
+  const [yStr, mStr, dStr] = date.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
+  if (!y || !m || !d) {
+    throw new Error("Invalid date format, expected YYYY-MM-DD");
+  }
 
+  const offset = Number(timezoneOffsetMinutes) || 0; // minutes east of UTC
+
+  // Compute UTC start/end for the user's local day:
+  // startUTC = Date.UTC(y,m-1,d,0,0,0) - offset*60000
+  // endUTC   = Date.UTC(y,m-1,d,23,59,59,999) - offset*60000
+  const startUTCms = Date.UTC(y, m - 1, d, 0, 0, 0) - offset * 60_000;
+  const endUTCms =
+    Date.UTC(y, m - 1, d, 23, 59, 59, 999) - offset * 60_000;
+
+  const startUTC = new Date(startUTCms);
+  const endUTC = new Date(endUTCms);
+
+  // DEBUG tip: uncomment to log boundaries while testing
+  // console.log({ date, offset, startUTC: startUTC.toISOString(), endUTC: endUTC.toISOString() });
+
+  // Query by the actual timestamp field (start) — this is more reliable than a separate 'date' field
   const segments = await db.timerSegment.findMany({
     where: {
       userId,
-      date: { gte: startOfDay, lt: endOfDay },
+      start: { gte: startUTC, lte: endUTC },
     },
     select: {
       duration: true,
@@ -35,34 +61,30 @@ export async function getDailyStats(userId: string, date: string) {
     orderBy: { start: "asc" },
   });
 
-  console.log(`USER ID: ${userId}, with segments: & total hrs`, segments, segments[0].focusArea?.name, formatDuration(segments[0].duration!));
-  const seg2 = await db.timerSegment.findMany({
-     where: {
-      userId,
-      date: { gte: startOfDay, lt: endOfDay },
-    }
-  })
-  console.log(`SEGG22:`, seg2);
-  
-
   if (!segments.length) {
     return { summary: [], focusAreaData: [], activityTypeData: [] };
   }
 
-  const totalSeconds = segments.reduce((sum, s) => sum + s.duration!, 0);
-
+  const totalSeconds = segments.reduce((sum, s) => sum + (s.duration || 0), 0);
   const productiveDurations = segments
-    .filter(s => s.type !== "BREAK")
-    .map(s => s.duration ?? 0)
-  const maxFocus = productiveDurations.length
-    ? Math.max(...productiveDurations)
-    : 0;
+    .filter((s) => s.type !== "BREAK")
+    .map((s) => s.duration || 0);
+  const maxFocus = productiveDurations.length ? Math.max(...productiveDurations) : 0;
 
-  const started = format(new Date(segments[0].start), "HH:mm");
+  // Helper - deterministically format a UTC timestamp into user's local HH:mm
+  function formatTimeLocal(utcDate: string | Date | null) {
+    if (!utcDate) return "studying...";
+    const utcMs = new Date(utcDate).getTime();
+    const localMs = utcMs + offset * 60_000;
+    const dt = new Date(localMs);
+    const hh = String(dt.getUTCHours()).padStart(2, "0");
+    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  const started = formatTimeLocal(segments[0].start);
   const last = segments[segments.length - 1];
-  const finished = last.end
-    ? format(new Date(last.end), "HH:mm")
-    : "studying...";
+  const finished = last.end ? formatTimeLocal(last.end) : "studying...";
 
   const summary = [
     { label: "Total", value: formatDuration(totalSeconds) },
@@ -71,36 +93,34 @@ export async function getDailyStats(userId: string, date: string) {
     { label: "Finished", value: finished },
   ];
 
-  const focusAreaMap: Record<
-    string,
-    { name: string; value: number; color: string }
-  > = {};
-
+  // Focus area aggregation (minutes)
+  const focusAreaMap: Record<string, { name: string; value: number; color: string }> = {};
   for (const s of segments) {
-    if (!focusAreaMap[s.label || "Unknown"]) {
-      focusAreaMap[s.label || "Unknown"] = {
-        name: s.label || "Unknown",
+    const key = s.label || "Unknown";
+    if (!focusAreaMap[key]) {
+      focusAreaMap[key] = {
+        name: key,
         value: 0,
-        color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+        color: "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0"),
       };
     }
-    focusAreaMap[s.label || "Unknown"].value += s.duration! / 60;
+    focusAreaMap[key].value += (s.duration || 0) / 60;
   }
   const focusAreaData = Object.values(focusAreaMap);
 
+  // Activity type aggregation (minutes)
   const activityMap = {
     Productive: { name: "Productive", value: 0, color: "#4CAF50" },
     Break: { name: "Break", value: 0, color: "#F44336" },
     Other: { name: "Other", value: 0, color: "#9E9E9E" },
   };
-
   for (const s of segments) {
     if (s.type === "BREAK") {
-      activityMap.Break.value += s.duration! / 60;
+      activityMap.Break.value += (s.duration || 0) / 60;
     } else if (s.focusArea?.name) {
-      activityMap.Productive.value += s.duration! / 60;
+      activityMap.Productive.value += (s.duration || 0) / 60;
     } else {
-      activityMap.Other.value += s.duration! / 60;
+      activityMap.Other.value += (s.duration || 0) / 60;
     }
   }
   const activityTypeData = Object.values(activityMap);

@@ -401,7 +401,7 @@ model Warning {
 
   user     User  @relation("ReceivedWarnings", fields: [userId], references: [id], onDelete: Cascade)
   issuedBy User  @relation("IssuedWarnings", fields: [issuedById], references: [id], onDelete: Cascade)
-  group    Group @relation(fields: [groupId], references: [id])
+  group    Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([userId, groupId])
 }

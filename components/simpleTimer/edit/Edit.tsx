@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { Card, CardContent } from "@/components/ui/card";
 import { SegmentBlock } from "./SegmentBlock";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -17,13 +17,14 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { SegmentTypes } from "@/lib/api";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
   userId: string;
 }
 
 export function Edit({ userId }: Props) {
-  const today = normalizeToStartOfDay(new Date());
+  const today = normalizeToStartOfDayIST(new Date());
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date | undefined>(today);
 
@@ -76,7 +77,7 @@ export function Edit({ userId }: Props) {
     setDate((prev) => {
       const newDate = new Date((prev ?? today).getTime());
       newDate.setDate(newDate.getDate() + days);
-      return normalizeToStartOfDay(newDate);
+      return normalizeToStartOfDayIST(newDate);
     });
   }
 

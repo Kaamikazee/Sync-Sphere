@@ -1,5 +1,6 @@
 import db from "@/lib/db";
-import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
+// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export const GET = async (request: Request) => {
@@ -14,8 +15,8 @@ export const GET = async (request: Request) => {
   
 
   const targetDate = dateParam
-    ? normalizeToStartOfDay(new Date(dateParam))
-    : normalizeToStartOfDay(new Date());
+    ? normalizeToStartOfDayIST(new Date(dateParam))
+    : normalizeToStartOfDayIST(new Date());
 
   try {
     const segments = await db.timerSegment.findMany({

@@ -28,6 +28,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
   todo: Todo;
@@ -44,11 +45,11 @@ export function UpdateTodo({ todo }: Props) {
     undefined
   );
 
-  function normalizeToStartOfDay(date: Date): Date {
-    return new Date(
-      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
-    );
-  }
+  // function normalizeToStartOfDay(date: Date): Date {
+  //   return new Date(
+  //     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  //   );
+  // }
 
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -105,7 +106,7 @@ export function UpdateTodo({ todo }: Props) {
       title: todoName,
       content: todoContent,
       completed: todoDone,
-      date: selectedDate ? normalizeToStartOfDay(selectedDate) : undefined,
+      date: selectedDate ? normalizeToStartOfDayIST(selectedDate) : undefined,
     });
   };
 
@@ -208,7 +209,7 @@ export function UpdateTodo({ todo }: Props) {
               const currentDate = new Date(date);
               const nextDate = new Date(currentDate);
               nextDate.setDate(currentDate.getDate() + 1);
-              const midnightUTC = normalizeToStartOfDay(nextDate);
+              const midnightUTC = normalizeToStartOfDayIST(nextDate);
               updateMutation.mutate({ date: midnightUTC });
               toast.success("Todo migrated to the next day!");
             }}
@@ -254,7 +255,7 @@ export function UpdateTodo({ todo }: Props) {
                 onClick={() => {
                   if (!selectedDate)
                     return toast.error("Please select a date first");
-                  const midnightUTC = normalizeToStartOfDay(selectedDate);
+                  const midnightUTC = normalizeToStartOfDayIST(selectedDate);
                   updateMutation.mutate({ date: midnightUTC });
                 }}
                 type="button"
