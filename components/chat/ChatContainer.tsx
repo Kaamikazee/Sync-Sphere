@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 // import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 // import { Input } from "@/components/ui/input";
-import { MessageWithSenderInfo, ViewsWithUser } from "@/types/extended";
+import { MessageWithSenderInfo } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
 import Image from "next/image";
 import {
@@ -19,6 +20,7 @@ import {
   useRef,
   useLayoutEffect,
   useCallback,
+  useMemo,
 } from "react";
 // import { io, Socket } from "socket.io-client";
 import { ChatMessage } from "./ChatMessage";
@@ -34,20 +36,70 @@ interface Props {
   groupImage: string;
   chatId: string | undefined;
 }
-
-// let socket: Socket | null = null;
-
-// const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
-
-// function useSocket() {
-//   useEffect(() => {
-//     if (!socket) {
-//       socket = io(baseUrl);
-//     }
-//   }, []);
-// }
-
 const socket = getSocket();
+
+// helper factory (needs userId in closure)
+const createNormalizeMessage =
+  (userId: string) => (msg: MessageWithSenderInfo) => {
+    // Prefer server-provided seenCount; otherwise, derive from views array length
+    const seenCount =
+      typeof msg.seenCount === "number"
+        ? msg.seenCount
+        : Array.isArray(msg.views)
+        ? msg.views.length
+        : 0;
+
+    // Build a normalized preview array (prefer server-provided seenPreview)
+    let seenPreview: { id: string; name: string; image?: string | null }[] = [];
+
+    if (Array.isArray(msg.seenPreview)) {
+      seenPreview = msg.seenPreview
+        .map((v: any) => ({
+          id: v.id,
+          name: v.name ?? "",
+          image: v.image ?? null,
+        }))
+        .filter((v) => v.id !== userId);
+    } else if (Array.isArray(msg.views)) {
+      // msg.views may be preview rows or full rows (with user relation)
+      seenPreview = msg.views
+        .map((v: any) => {
+          if (v.user) {
+            return {
+              id: v.user.id,
+              name: v.user.name ?? v.user.username ?? "",
+              image: v.user.image ?? null,
+            };
+          }
+          // fallback shapes: { id, name, image } or { userId }
+          return {
+            id: v.id ?? v.userId ?? v.user?.id,
+            name: v.name ?? "",
+            image: v.image ?? null,
+          };
+        })
+        .filter((v) => v.id && v.id !== userId)
+        .slice(0, 3);
+    }
+
+    // seenByMe: prefer explicit server flag else check views or senderId
+    const seenByMe =
+      typeof msg.seenByMe === "boolean"
+        ? msg.seenByMe
+        : Array.isArray(msg.views)
+        ? msg.views.some((v: any) => {
+            const uid = v.id ?? v.user?.id ?? v.userId;
+            return uid === userId;
+          }) || msg.senderId === userId
+        : msg.senderId === userId;
+
+    return {
+      ...msg,
+      seenCount,
+      seenPreview,
+      seenByMe,
+    };
+  };
 
 export const ChatContainer = ({
   group_id: groupId,
@@ -80,175 +132,159 @@ export const ChatContainer = ({
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const emittedMessageIds = useRef<Set<string>>(new Set());
+  const normalizeMessage = useMemo(
+    () => createNormalizeMessage(userId),
+    [userId]
+  );
 
+  // subscribe to per-user chat room for unread counts
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
+    // Ensure socket connected, then subscribe (socket may already be connected)
+    if (!socket.connected) socket.connect();
 
-    socket.on("connect", () => {
-      socket.emit("chat:subscribe", {
-        chatId,
-        userId,
-      });
-    });
+    const onConnect = () => {
+      socket.emit("chat:subscribe", { chatId, userId });
+    };
+
+    socket.on("connect", onConnect);
+    
+    if (socket.connected) onConnect();
 
     return () => {
       socket.emit("chat:unsubscribe", { chatId, userId });
-      socket.off("connect");
+      socket.off("connect", onConnect);
     };
   }, [chatId, userId]);
 
   useEffect(() => {
-    if (!socket) return;
+  if (!socket) return;
 
-    const unseenMessages = history.filter(
-      (m) =>
-        !m.views?.some((view) => view.id === userId) &&
-        m.senderId !== userId &&
-        !emittedMessageIds.current.has(m.id)
-    );
+  const unseenMessages = history.filter(
+    (m) =>
+      !m.seenByMe &&
+      m.senderId !== userId &&
+      !emittedMessageIds.current.has(m.id)
+  );
+  if (unseenMessages.length === 0) return;
 
-    if (unseenMessages.length > 0) {
-      const messageIds = unseenMessages.map((m) => m.id);
+  const messageIds = unseenMessages.map((m) => m.id);
+  messageIds.forEach((id) => emittedMessageIds.current.add(id));
 
-      // Mark as emitted to prevent spamming
-      messageIds.forEach((id) => emittedMessageIds.current.add(id));
+  setHistory((prev) =>
+    prev.map((msg) =>
+      messageIds.includes(msg.id)
+        ? {
+            ...msg,
+            seenByMe: true,
+          }
+        : msg
+    )
+  );
 
-      socket.emit("markMessagesAsSeen", { messageIds });
-    }
-  }, [history, userId]);
+  socket.emit("markMessagesAsSeen", { messageIds });
+}, [history, userId]);
+
 
   useEffect(() => {
-    socket?.on("messagesSeen", ({ seenByUser, messageIds }) => {
-      // update local message state to reflect seenByUser on those messageIds
-      setHistory((prev) =>
-        prev.map((msg) => {
-          if (messageIds.includes(msg.id)) {
-            // Skip if seenByUser is the current user
-            if (seenByUser.id === userId) return msg;
+  if (!socket) return;
 
-            const alreadySeen = msg.views.some((v) => v.id === seenByUser.id);
-            if (!alreadySeen) {
-              return {
-                ...msg,
-                views: [
-                  ...(msg.views || []),
-                  {
-                    id: seenByUser.id,
-                    username: seenByUser.username,
-                    name: seenByUser.name,
-                    image: seenByUser.image,
-                    seenAt: new Date(),
-                  },
-                ],
-              };
-            }
-          }
-          return msg;
-        })
-      );
-    });
+  const handler = ({
+    seenByUser,
+    messageIds,
+  }: {
+    seenByUser: any;
+    messageIds: string[];
+  }) => {
+    if (!seenByUser || !messageIds || messageIds.length === 0) return;
 
-    return () => {
-      socket?.off("messagesSeen");
-    };
-  }, [userId, setHistory]);
+    setHistory((prev) =>
+      prev.map((msg) => {
+        if (!messageIds.includes(msg.id)) return msg;
+        if (seenByUser.id === userId) return msg; // already marked optimistically
+
+        const already = (msg.seenPreview || []).some((v) => v.id === seenByUser.id);
+        const newPreview = already
+          ? msg.seenPreview
+          : [
+              ...(msg.seenPreview || []),
+              {
+                id: seenByUser.id,
+                name: seenByUser.name,
+                image: seenByUser.image ?? null,
+              },
+            ].slice(0, 3);
+
+        return {
+          ...msg,
+          seenCount: msg.seenCount ? msg.seenCount + (already ? 0 : 1) : 1,
+          seenPreview: newPreview,
+        };
+      })
+    );
+  };
+
+  socket.on("messagesSeen", handler);
+  return () => {
+    socket.off("messagesSeen", handler);
+  };
+}, [userId]);
+
+
+
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   const key = e.key;
 
-  // Typing indicators (optional debounce logic could go here)
-  socket?.emit("typing", { groupId, userId, userName });
-  if (typingTimeoutRef.current) {
-    clearTimeout(typingTimeoutRef.current);
-  }
+  // fire typing (no payload required by server, but include names if you like)
+  socket?.emit("typing", { userId, userName });
+
+  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   typingTimeoutRef.current = setTimeout(() => {
-    socket?.emit("stopTyping", { groupId, userId });
+    socket?.emit("stopTyping", { userId });
     typingTimeoutRef.current = null;
   }, TYPING_TIMEOUT);
 
-  // SEND on Enter for desktop (no shift key), not for mobile
   if (key === "Enter" && !e.shiftKey && !isMobile) {
-    e.preventDefault(); // ⛔ prevents newline
-    send();             // ✅ send the message
+    e.preventDefault();
+    send();
   }
 };
-
-
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
   const value = e.target.value;
   setDraft(value);
 
-  // Auto-expand logic
   e.target.style.height = "auto";
   e.target.style.height = `${e.target.scrollHeight}px`;
 
-  // Debounced typing emit
-  if (debounceTimeoutRef.current) {
-    clearTimeout(debounceTimeoutRef.current);
-  }
-
+  if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
   debounceTimeoutRef.current = setTimeout(() => {
-    socket?.emit("typing", { groupId, userId, userName });
+    // emit typing — server will scope by socket.data.chatId
+    socket?.emit("typing", { userId, userName });
 
-    // Start stopTyping timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      socket?.emit("stopTyping", { groupId, userId });
+      socket?.emit("stopTyping", { userId });
       typingTimeoutRef.current = null;
     }, TYPING_TIMEOUT);
-  }, 300); // debounce delay
+  }, 300);
 };
 
 
   const loadMoreMessages = useCallback(() => {
-    if (!hasMore || loadingMore) return;
-    setLoadingMore(true);
-    const firstMessage = history[0];
-    socket?.emit("getMessages", {
-      groupId,
-      beforeMessageId: firstMessage?.id,
-    });
-    socket?.once("olderMessages", (olderMessages: MessageWithSenderInfo[]) => {
-      if (olderMessages.length === 0) {
-        setHasMore(false);
-      }
+  if (!hasMore || loadingMore) return;
+  setLoadingMore(true);
+  const firstMessage = history[0];
 
-      setHistory((prev) => {
-        const seen = new Set<string>();
+  socket?.emit("getMessages", {
+    // only send what server expects (server uses socket.data.chatId)
+    beforeMessageId: firstMessage?.id,
+  });
 
-        const enriched = olderMessages.map((msg) => ({
-          ...msg,
-          views:
-            msg.views?.map((v) => ({
-              id: v.id,
-              name: v.name,
-              username: v.username,
-              image: v.image,
-              seenAt: v.seenAt,
-            })) ?? [],
-        }));
+  // olderMessages listener (registered in joinGroup effect) will handle results
+}, [hasMore, loadingMore, history]);
 
-        const combined = [...enriched, ...prev];
-        return combined.filter((msg) => {
-          if (seen.has(msg.id)) return false;
-          seen.add(msg.id);
-          return true;
-        });
-      });
-
-      setLoadingMore(false);
-      setTimeout(() => {
-        topRef.current?.scrollIntoView({ behavior: "auto" });
-      }, 0);
-    });
-  }, [hasMore, loadingMore, history, groupId]);
 
   useLayoutEffect(() => {
     if (isFirstLoad.current && history.length > 0) {
@@ -266,6 +302,13 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       socket?.off("online-users");
       socket?.off("user-online");
       socket?.off("user-offline");
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, []);
 
@@ -297,27 +340,39 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     return () => container.removeEventListener("scroll", handleScroll);
   }, [hasMore, loadingMore, history, loadMoreMessages]);
 
+  // core chat lifecycle: join group, wire message listeners
   useEffect(() => {
-    socket?.emit("joinGroup", { groupId, userId });
+    if (!socket) return;
 
-    socket?.on("recentMessages", (msgs) => {
-      const enriched: MessageWithSenderInfo[] = msgs.map(
-        (msg: MessageWithSenderInfo) => ({
-          ...msg,
-          views: msg.views.map((v) => ({
-            id: v.id,
-            name: v.name,
-            username: v.username,
-            image: v.image,
-            seenAt: v.seenAt,
-          })),
-        })
-      );
+    socket.emit("joinGroup", { groupId, userId });
+
+    // reuse normalized function from memoized value
+    socket.on("recentMessages", (msgs: MessageWithSenderInfo[]) => {
+      const enriched = msgs.map(normalizeMessage);
       setHistory(enriched);
     });
 
-    socket?.on("newMessage", (msg) => {
-      // console.log("EMITTING message", saved.views);
+    socket.on("olderMessages", (msgs: MessageWithSenderInfo[]) => {
+      if (!msgs || msgs.length === 0) {
+        setHasMore(false);
+      }
+
+      setHistory((prev) => {
+        const enriched = msgs.map(normalizeMessage);
+        const combined = [...enriched, ...prev];
+        const seen = new Set<string>();
+        return combined.filter((m) => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return true;
+        });
+      });
+
+      setLoadingMore(false);
+      setTimeout(() => topRef.current?.scrollIntoView({ behavior: "auto" }), 0);
+    });
+
+    socket.on("newMessage", (msg: any) => {
       setHistory((prev) => {
         let reply = msg.replyTo ?? null;
         if (!reply && msg.replyToId) {
@@ -330,23 +385,12 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
             };
           }
         }
-        const enriched: MessageWithSenderInfo = {
-          ...msg,
-          replyTo: reply,
-          views:
-            msg.views?.map((v: ViewsWithUser) => ({
-              id: v.id,
-              name: v.name,
-              username: v.username,
-              image: v.image,
-              seenAt: v.seenAt,
-            })) ?? [],
-        };
+        const enriched = normalizeMessage({ ...msg, replyTo: reply });
         return [...prev, enriched];
       });
     });
 
-    socket?.on("userTyping", (u) => {
+    socket.on("userTyping", (u: { userId: string; userName: string }) => {
       const { userId: incomingId, userName: incomingName } = u;
       setTypingUsers((curr) =>
         curr.some((x) => x.userId === incomingId)
@@ -355,24 +399,25 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       );
     });
 
-    socket?.on("userStopTyping", ({ userId }) => {
-      setTypingUsers((curr) => curr.filter((x) => x.userId !== userId));
+    socket.on("userStopTyping", ({ userId: uid }: { userId: string }) => {
+      setTypingUsers((curr) => curr.filter((x) => x.userId !== uid));
     });
 
-    // --- Fix: Request online users immediately after joining ---
+    // Online users (request right after join)
     const handleOnlineUsers = (ids: string[]) => setOnlineUserIds(ids);
-    socket?.on("online-users", handleOnlineUsers);
-    socket?.emit("getOnlineUsers", { groupId });
+    socket.on("online-users", handleOnlineUsers);
+    socket.emit("getOnlineUsers", { groupId });
 
     return () => {
-      socket?.emit("leaveGroup", { groupId });
-      socket?.off("recentMessages");
-      socket?.off("newMessage");
-      socket?.off("userTyping");
-      socket?.off("userStopTyping");
-      socket?.off("online-users", handleOnlineUsers);
+      socket.emit("leaveGroup", { groupId, userId });
+      socket.off("recentMessages");
+      socket.off("olderMessages");
+      socket.off("newMessage");
+      socket.off("userTyping");
+      socket.off("userStopTyping");
+      socket.off("online-users", handleOnlineUsers);
     };
-  }, [groupId, userId]);
+  }, [groupId, userId, normalizeMessage]);
 
   const send = () => {
     if (!draft.trim()) return;
@@ -385,18 +430,18 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setDraft("");
 
     // ⛔ Cancel typing indicators
-  if (typingTimeoutRef.current) {
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = null;
-  }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
 
-  if (debounceTimeoutRef.current) {
-    clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = null;
-  }
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
 
-  // ✅ Immediately emit stopTyping
-  socket?.emit("stopTyping", { groupId, userId });
+    // ✅ Immediately emit stopTyping
+    socket?.emit("stopTyping", { groupId, userId });
 
     if (inputRef.current) {
       inputRef.current.style.height = "auto";

@@ -29,6 +29,12 @@ export interface GroupWithSubscribers extends Group {
 export interface MessageWithSenderInfo extends Message {
     senderName: string;
     senderImage: string;
+    seenCount: number;
+    seenPreview: {
+    id: string;
+    name: string | null;
+}[],
+seenByMe: boolean;
     replyTo?: {
     id: string;
     senderName: string;

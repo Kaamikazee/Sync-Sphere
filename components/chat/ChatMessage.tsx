@@ -1,9 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import React, { useEffect, useRef, useState } from "react";
 import { motion, useAnimation } from "framer-motion";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
+import { getSocket } from "@/lib/socket";
 
 interface ChatMessageProps {
   msg: MessageWithSenderInfo;
@@ -13,7 +16,9 @@ interface ChatMessageProps {
   userId: string;
 }
 
-export function ChatMessage({
+const socket = getSocket()
+
+function ChatMessageInner({
   msg,
   isOwn,
   isOnline,
@@ -21,28 +26,75 @@ export function ChatMessage({
   userId,
 }: ChatMessageProps) {
   const controls = useAnimation();
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
 
-  console.log("MESSAGE VIES:", msg.views)
-  const seenBy = msg.views?.filter((v) => v.id !== userId) || [];
-  // console.log("SEEN BY:", seenBy);
-  
+  // viewers fetched from server when modal opens (has seenAt)
+  const [viewers, setViewers] = useState<
+    { id: string; name: string; image?: string | null; seenAt?: string | null }[]
+  >([]);
+
+  // quick preview (from normalized msg). prefer server-provided seenPreview
+  const quickPreview =
+    Array.isArray((msg as any).seenPreview) && (msg as any).seenPreview.length > 0
+      ? (msg as any).seenPreview
+      : Array.isArray((msg as any).views)
+      ? (msg as any).views
+          .map((v: any) =>
+            v.user
+              ? { id: v.user.id, name: v.user.name, image: v.user.image }
+              : { id: v.id ?? v.userId, name: v.name ?? "", image: v.image ?? null }
+          )
+          .filter((v: any) => v.id !== userId)
+          .slice(0, 3)
+      : [];
+
+  const seenCount =
+    typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
+
+  useEffect(() => {
+    const handler = (payload: { messageId: string; views: any[] }) => {
+      if (!payload || payload.messageId !== msg.id) return;
+      setViewers(
+        (payload.views || [])
+          .filter((v: any) => v.id !== userId)
+          .map((v: any) => ({
+            id: v.id,
+            name: v.name ?? "",
+            image: v.image ?? null,
+            seenAt: v.seenAt ?? null,
+          }))
+      );
+    };
+
+    socket?.on("messageViews", handler);
+    return () => {
+      socket?.off("messageViews", handler);
+    };
+  }, [msg.id, userId]);
+
+  const openSeenModal = () => {
+    socket?.emit("getMessageViews", { messageId: msg.id });
+    setShowSeenModal(true);
+  };
+
+  const handleDragEnd = (event: any, info: any) => {
+    if ((!isOwn && info.offset.x < -80) || (isOwn && info.offset.x > 80)) {
+      onReply(msg);
+    }
+    controls.start({ x: 0 });
+  };
 
   return (
     <motion.div
       ref={containerRef}
       drag="x"
       dragDirectionLock
-      onDragEnd={(event, info) => {
-        if (info.offset.x < -80) onReply(msg);
-        controls.start({ x: 0 });
-      }}
+      onDragEnd={handleDragEnd}
       animate={controls}
-      dragConstraints={{ left: -120, right: 0 }}
+      dragConstraints={isOwn ? { left: 0, right: 120 } : { left: -120, right: 0 }}
       className={`flex ${isOwn ? "justify-end" : "justify-start"} py-1 px-2 relative`}
     >
-      {/* Sender avatar (only if not own message) */}
       {!isOwn && (
         <div className="relative w-7 h-7 sm:w-8 sm:h-8 mr-2 shrink-0">
           {msg.senderImage ? (
@@ -52,6 +104,7 @@ export function ChatMessage({
               width={32}
               height={32}
               className="rounded-full object-cover w-full h-full"
+              unoptimized
             />
           ) : (
             <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-xs sm:text-sm font-bold text-white">
@@ -64,30 +117,23 @@ export function ChatMessage({
         </div>
       )}
 
-      {/* Message Bubble */}
       <div
-        className={`rounded-xl px-3 py-2 text-sm shadow-sm max-w-[85%] sm:max-w-[75%] ${
+        className={`rounded-xl px-3 py-2 text-sm shadow-sm max-w-[85%] sm:max-w-[75%] break-words ${
           isOwn ? "bg-white text-black" : "bg-[#dcf8c6] text-black"
         }`}
       >
-        {/* Sender Name (for others only) */}
-        {!isOwn && (
-          <p className="text-xs font-semibold mb-1">{msg.senderName}</p>
-        )}
+        {!isOwn && <p className="text-xs font-semibold mb-1">{msg.senderName}</p>}
 
-        {/* Reply Preview */}
         {msg.replyTo && (
           <div className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md">
             <strong>{msg.replyTo.senderName}</strong>:{" "}
-            {msg.replyTo.content.slice(0, 40)}…
+            {String(msg.replyTo.content).slice(0, 40)}…
           </div>
         )}
 
-        {/* Main Content */}
         <div className="whitespace-pre-wrap">{msg.content}</div>
 
-        {/* Footer (timestamp and seen check) */}
-        <div className="flex items-center justify-end gap-1 text-[10px] text-gray-500 mt-1">
+        <div className="flex items-center justify-end gap-2 text-[10px] text-gray-500 mt-1">
           <span>
             {new Date(msg.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
@@ -95,68 +141,84 @@ export function ChatMessage({
             })}
           </span>
 
-          {isOwn && seenBy.length > 0 && (
+          {isOwn && seenCount > 0 && (
             <button
-              onClick={() => setShowSeenModal(true)}
-              className="hover:text-blue-500 transition-colors"
-              title="Seen by"
+              onClick={openSeenModal}
+              className="hover:text-blue-500 transition-colors flex items-center gap-1"
+              title={`Seen by ${seenCount}`}
+              aria-label={`Open seen by (${seenCount})`}
             >
-              ✔
+              <span>✔</span>
+              <span className="text-[9px] text-gray-400">{seenCount}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Seen By Modal */}
-      {isOwn && showSeenModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-4 max-w-sm w-full shadow-lg relative">
-            <button
-              onClick={() => setShowSeenModal(false)}
-              className="absolute top-2 right-2 text-gray-600 hover:text-black"
+      {isOwn &&
+        showSeenModal &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowSeenModal(false)}
+          >
+            <div
+              className="bg-white rounded-xl p-4 max-w-sm w-full shadow-lg relative"
+              onClick={(e) => e.stopPropagation()}
             >
-              ✕
-            </button>
-            <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By</h2>
+              <button
+                onClick={() => setShowSeenModal(false)}
+                className="absolute top-2 right-2 text-gray-600 hover:text-black"
+                aria-label="Close seen by modal"
+              >
+                ✕
+              </button>
+              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By</h2>
 
-            <div className="space-y-3 max-h-60 overflow-auto">
-              {seenBy.length > 0 ? (
-                seenBy.map((viewer) => (
-                  <div key={viewer.id} className="flex items-center gap-3">
-                    {viewer.image ? (
-                      <Image
-                        src={viewer.image}
-                        alt={viewer.name}
-                        width={32}
-                        height={32}
-                        className="rounded-full object-cover w-8 h-8"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs font-bold flex items-center justify-center">
-                        {viewer.name?.charAt(0).toUpperCase() || "?"}
+              <div className="space-y-3 max-h-60 overflow-auto">
+                {viewers.length > 0 ? (
+                  viewers.map((viewer) => (
+                    <div key={viewer.id} className="flex items-center gap-3">
+                      {viewer.image ? (
+                        <Image
+                          src={viewer.image}
+                          alt={viewer.name}
+                          width={32}
+                          height={32}
+                          className="rounded-full object-cover w-8 h-8"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs font-bold flex items-center justify-center">
+                          {viewer.name?.charAt(0).toUpperCase() || "?"}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{viewer.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {viewer.seenAt
+                            ? `Seen at ${new Date(viewer.seenAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}`
+                            : "Seen"}
+                        </p>
                       </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {viewer.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Seen at{" "}
-                        {new Date(viewer.seenAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No views yet.</p>
-              )}
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No views yet.</p>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </motion.div>
   );
 }
+
+export const ChatMessage = React.memo(ChatMessageInner);

@@ -17,14 +17,14 @@ export const imageSchema = z.object({
           if (!file) return true; // Skip validation if image is not provided
           return file.size <= MAX_FILE_SIZE;
         },
-        "SCHEMA.IMAGE.MAX"
+        "File size must be 1 MB or less"
       )
       .refine(
         (file) => {
           if (!file) return true; // Skip validation if image is not provided
           return SUPPORTED_FILE_TYPE.includes(file.type);
         },
-        "SCHEMA.IMAGE.SUPPORTED"
+        "File type must be JPEG, PNG, JPG, or WEBP"
       ),
 });
 
