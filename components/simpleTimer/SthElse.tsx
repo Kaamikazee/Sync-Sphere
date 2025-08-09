@@ -49,7 +49,7 @@ export function SthElse({ groups, userId }: Props) {
     onSwipedRight: () => goTo(currentPage - 1),
     trackTouch: true,
     trackMouse: false,
-    touchEventOptions: { passive: false }, // 👈 replaces preventDefaultTouchmoveEvent
+    // touchEventOptions: { passive: false }, // 👈 replaces preventDefaultTouchmoveEvent
   });
 
   return (

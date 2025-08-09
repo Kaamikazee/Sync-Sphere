@@ -21,7 +21,7 @@ function formatDuration(seconds: number) {
 export async function getDailyStats(
   userId: string,
   date: string,
-  timezoneOffsetMinutes = 0
+  // timezoneOffsetMinutes = 0
 ) {
   // parse date
   const [yStr, mStr, dStr] = date.split("-");
@@ -35,7 +35,7 @@ export async function getDailyStats(
   const session = await checkIfUserCompleteOnboarding("/dashboard")
   const user = session.user
 
-  const offset = Number(timezoneOffsetMinutes) || 0; // minutes east of UTC
+  // const offset = Number(timezoneOffsetMinutes) || 0; // minutes east of UTC
   const timezone = user.timezone ?? "Asia/Kolkata";
     const resetHour = user.resetHour ?? 0;
   
@@ -68,29 +68,36 @@ export async function getDailyStats(
     return { summary: [], focusAreaData: [], activityTypeData: [] };
   }
 
-  const totalSeconds = segments.reduce((sum, s) => sum + (s.duration || 0), 0);
+  const totalDuration = segments
+  .filter(
+    (seg) =>
+      seg.focusArea?.name &&
+      seg.type !== "BREAK"
+  )
+  .reduce((sum, seg) => sum + (seg.duration || 0), 0);
   const productiveDurations = segments
     .filter((s) => s.type !== "BREAK")
     .map((s) => s.duration || 0);
   const maxFocus = productiveDurations.length ? Math.max(...productiveDurations) : 0;
 
   // Helper - deterministically format a UTC timestamp into user's local HH:mm
-  function formatTimeLocal(utcDate: string | Date | null) {
-    if (!utcDate) return "studying...";
-    const utcMs = new Date(utcDate).getTime();
-    const localMs = utcMs + offset * 60_000;
-    const dt = new Date(localMs);
-    const hh = String(dt.getUTCHours()).padStart(2, "0");
-    const mm = String(dt.getUTCMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-  }
+  function formatTimeLocal(date: Date, timezone: string) {
+  return date.toLocaleTimeString("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-  const started = formatTimeLocal(segments[0].start);
-  const last = segments[segments.length - 1];
-  const finished = last.end ? formatTimeLocal(last.end) : "studying...";
+
+  const started = formatTimeLocal(segments[0].start, timezone);
+  // while calculating last, check if the segment type is not "BREAK" and segment.focusArea?.name is defined then only consider it
+  const last = segments.filter(s => s.type !== "BREAK" && s.focusArea?.name).slice(-1)[0] || {};
+  // If last segment is still running, use current time
+  const finished = last.end ? formatTimeLocal(last.end, timezone) : "Focusing...";
 
   const summary = [
-    { label: "Total", value: formatDuration(totalSeconds) },
+    { label: "Total", value: formatDuration(totalDuration) },
     { label: "Max Focus", value: formatDuration(maxFocus) },
     { label: "Started", value: started },
     { label: "Finished", value: finished },
@@ -99,8 +106,10 @@ export async function getDailyStats(
   // Focus area aggregation (minutes)
   const focusAreaMap: Record<string, { name: string; value: number; color: string }> = {};
   for (const s of segments) {
-    // Here need to change ig take only those which has label === focusarea
-    const key = s.label || "Other";
+    // Here need to change, take only those which has s.type !== "BREAK"
+    if (s.type === "BREAK") continue; // Skip breaks for focus area aggregation
+    if (!s.focusArea?.name) continue; // Skip segments without focus area
+    const key = s.focusArea.name || "Other";
     if (!focusAreaMap[key]) {
       focusAreaMap[key] = {
         name: key,
@@ -113,21 +122,34 @@ export async function getDailyStats(
   const focusAreaData = Object.values(focusAreaMap);
 
   // Activity type aggregation (minutes)
-  const activityMap = {
-    Productive: { name: "Productive", value: 0, color: "#4CAF50" },
-    Break: { name: "Break", value: 0, color: "#F44336" },
-    Other: { name: "Other", value: 0, color: "#9E9E9E" },
-  };
-  for (const s of segments) {
-    if (s.type === "BREAK") {
-      activityMap.Break.value += (s.duration || 0) / 60;
-    } else if (s.focusArea?.name) {
-      activityMap.Productive.value += (s.duration || 0) / 60;
-    } else {
-      activityMap.Other.value += (s.duration || 0) / 60;
-    }
-  }
-  const activityTypeData = Object.values(activityMap);
+ const activityMap: Record<string, { name: string; value: number; color: string }> = {
+  Productive: { name: "Productive", value: 0, color: "#4CAF50" },
+  Other: { name: "Other", value: 0, color: "#9E9E9E" },
+};
 
-  return { summary, focusAreaData, activityTypeData };
+for (const s of segments) {
+  const durationMinutes = (s.duration || 0) / 60;
+
+  if (s.type === "BREAK" && s.label) {
+    const breakName = s.label;
+    if (!activityMap[breakName]) {
+      activityMap[breakName] = {
+        name: breakName,
+        value: 0,
+        color: "#F44336", // or maybe a random color generator
+      };
+    }
+    activityMap[breakName].value += durationMinutes;
+
+  } else if (s.focusArea?.name) {
+    activityMap.Productive.value += durationMinutes;
+
+  } else {
+    activityMap.Other.value += durationMinutes;
+  }
+}
+
+const activityTypeData = Object.values(activityMap);
+
+return { summary, focusAreaData, activityTypeData };
 }

@@ -20,6 +20,7 @@ const ReportsContainer = async ({ params: { user_id } }: Params) => {
     <div>
       <Reports
         user_id={user_id}
+        user_timezone={session.user.timezone || "Asia/Kolkata"}
         // timezone={session.user.timezone || "Asia/Kolkata"}
         // resetHour={session.user.resetHour || 0}
       />
