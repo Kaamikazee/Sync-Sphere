@@ -45,7 +45,7 @@ export const ChatButton = ({ chatId, groupId, userId }: Props) => {
     return () => {
       socket.off("chat:updateUnreadCount", handler);
     };
-  }, [chatId]);
+  }, [chatId, socket]);
 
   return (
     <Link href={`${groupId}/chat`}>

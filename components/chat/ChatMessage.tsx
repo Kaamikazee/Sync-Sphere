@@ -71,7 +71,7 @@ function ChatMessageInner({
     return () => {
       socket?.off("messageViews", handler);
     };
-  }, [msg.id, userId]);
+  }, [msg.id, userId, socket]);
 
   const openSeenModal = () => {
     socket?.emit("getMessageViews", { messageId: msg.id });

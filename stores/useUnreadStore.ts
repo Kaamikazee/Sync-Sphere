@@ -1,6 +1,6 @@
 // stores/useUnreadStore.ts
+import { initSocket } from "@/lib/initSocket";
 import { create } from "zustand";
-import { getSocket } from "@/lib/socket";
 
 interface UnreadState {
   unreadCounts: Record<string, number>; // key: chatId, value: count
@@ -9,7 +9,7 @@ interface UnreadState {
 }
 
 export const useUnreadStore = create<UnreadState>((set, get) => {
-  const socket = getSocket();
+  const socket = initSocket();
 
   if (socket) {
     socket.on("chat:updateUnreadCount", ({ chatId, unreadCount }) => {
