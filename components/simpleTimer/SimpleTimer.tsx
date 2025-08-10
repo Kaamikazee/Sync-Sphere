@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
 import { FocusArea, Group, PomodoroSettings } from "@prisma/client";
 import Link from "next/link";
@@ -19,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { SessionTimerWidget } from "./SessionTimerWidget";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { initSocket } from "@/lib/initSocket";
 // import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
@@ -33,9 +33,7 @@ interface Props {
   pomodoroSettings: PomodoroSettings;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
-const socket = io(baseUrl);
 
 export const SimpleTimerContainer = ({
   // totalSeconds,
@@ -51,6 +49,7 @@ export const SimpleTimerContainer = ({
   // function normalizeToStartOfDayIST(date: Date): Date {
   //   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   // }
+  const socket = initSocket();
   const today = normalizeToStartOfDay(new Date());
 
   const [date, setDate] = useState<Date>(today);
@@ -206,7 +205,7 @@ export const SimpleTimerContainer = ({
       }, 1000);
       return () => clearInterval(tickInterval);
     }
-  }, [running, time, userId]);
+  }, [running, time, userId, socket]);
 
   const handleStart = () => {
     // capture wherever we’re at as the new baseline

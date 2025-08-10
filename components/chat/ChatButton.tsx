@@ -1,6 +1,7 @@
 "use client";
 
-import { getSocket } from "@/lib/socket";
+import { initSocket } from "@/lib/initSocket";
+// import { getSocket } from "@/lib/socket";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -10,17 +11,18 @@ interface Props {
   userId: string;
 }
 
-const socket = getSocket();
+// const socket = getSocket();
 
 export const ChatButton = ({ chatId, groupId, userId }: Props) => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const socket = initSocket();
 
   useEffect(() => {
     if (!socket || !chatId) return;
 
     socket.emit("joinUnreadRoom", { chatId, userId });
     socket.emit("getUnreadCount", { chatId, userId });
-  }, [chatId, userId]);
+  }, [chatId, userId, socket]);
 
   // 3. Handle incoming unread count updates
   useEffect(() => {

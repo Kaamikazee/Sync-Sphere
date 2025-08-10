@@ -24,8 +24,9 @@ import {
 } from "react";
 // import { io, Socket } from "socket.io-client";
 import { ChatMessage } from "./ChatMessage";
-import { getSocket } from "@/lib/socket";
+// import { getSocket } from "@/lib/socket";
 import { useMobile } from "@/hooks/use-mobile";
+import { initSocket } from "@/lib/initSocket";
 
 interface Props {
   group_id: string;
@@ -36,7 +37,7 @@ interface Props {
   groupImage: string;
   chatId: string | undefined;
 }
-const socket = getSocket();
+// const socket = getSocket();
 
 // helper factory (needs userId in closure)
 const createNormalizeMessage =
@@ -110,6 +111,7 @@ export const ChatContainer = ({
   chatId,
 }: Props) => {
   // useSocket();
+  const socket = initSocket();
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -154,7 +156,31 @@ export const ChatContainer = ({
       socket.emit("chat:unsubscribe", { chatId, userId });
       socket.off("connect", onConnect);
     };
-  }, [chatId, userId]);
+  }, [chatId, userId, socket]);
+
+  // inside your joinGroup effect (or create a small dedicated effect)
+useEffect(() => {
+  if (!socket) return;
+
+  const onConnect = () => {
+    console.log('[chat] socket connected -> rejoin rooms', socket.id);
+    socket.emit('joinGroup', { groupId, userId });
+    if (chatId) socket.emit('chat:subscribe', { chatId, userId });
+  };
+
+  // ensure connection
+  if (!socket.connected) socket.connect();
+
+  socket.on('connect', onConnect);
+  if (socket.connected) onConnect();
+
+  return () => {
+    socket.off('connect', onConnect);
+    // leave group when unmounting the component
+    if (socket.connected) socket.emit('leaveGroup', { groupId, userId });
+  };
+}, [socket, groupId, userId, chatId]);
+
 
   useEffect(() => {
   if (!socket) return;
@@ -182,7 +208,7 @@ export const ChatContainer = ({
   );
 
   socket.emit("markMessagesAsSeen", { messageIds });
-}, [history, userId]);
+}, [history, userId, socket]);
 
 
   useEffect(() => {
@@ -227,7 +253,7 @@ export const ChatContainer = ({
   return () => {
     socket.off("messagesSeen", handler);
   };
-}, [userId]);
+}, [userId, socket]);
 
 
 
@@ -283,7 +309,7 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
   });
 
   // olderMessages listener (registered in joinGroup effect) will handle results
-}, [hasMore, loadingMore, history]);
+}, [hasMore, loadingMore, history, socket]);
 
 
   useLayoutEffect(() => {
@@ -303,7 +329,7 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       socket?.off("user-online");
       socket?.off("user-offline");
     };
-  }, []);
+  }, [socket]);
 
   useEffect(() => {
     return () => {
@@ -417,7 +443,7 @@ const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       socket.off("userStopTyping");
       socket.off("online-users", handleOnlineUsers);
     };
-  }, [groupId, userId, normalizeMessage]);
+  }, [groupId, userId, normalizeMessage, socket]);
 
   const send = () => {
     if (!draft.trim()) return;

@@ -1,17 +1,27 @@
+// lib/useSocket.ts
 import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001';
-
-export const initSocket = (userId: string) => {
+export function createSocket() {
   if (!socket) {
-    console.log("✅ Creating new socket for:", userId);
     socket = io(baseUrl, {
-      auth: { userId },
+      autoConnect: false,
+      transports: ["websocket", "polling"], // ✅ Prefer WebSocket, allow fallback
+      reconnection: true,
+      reconnectionAttempts: 5, // optional: limit retries
+      reconnectionDelay: 1000, // optional: start retry after 1s
     });
-  } else {
-    console.log("⚠️ Reusing existing socket for:", userId);
+
+    socket.on("connect_error", (err) => {
+      console.error("Socket connection error:", err.message);
+    });
   }
   return socket;
-};
+}
+
+export function initSocket() {
+  if (!socket) return createSocket();
+  return socket;
+}

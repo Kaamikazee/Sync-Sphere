@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation } from "framer-motion";
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
-import { getSocket } from "@/lib/socket";
+import { initSocket } from "@/lib/initSocket";
 
 interface ChatMessageProps {
   msg: MessageWithSenderInfo;
@@ -16,7 +16,6 @@ interface ChatMessageProps {
   userId: string;
 }
 
-const socket = getSocket()
 
 function ChatMessageInner({
   msg,
@@ -28,6 +27,7 @@ function ChatMessageInner({
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
+  const socket = useMemo(() => initSocket(), []);
 
   // viewers fetched from server when modal opens (has seenAt)
   const [viewers, setViewers] = useState<
