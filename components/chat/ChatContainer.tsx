@@ -132,6 +132,7 @@ export const ChatContainer = ({
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const emittedMessageIds = useRef<Set<string>>(new Set());
+  
   const normalizeMessage = useMemo(
     () => createNormalizeMessage(userId),
     [userId]
@@ -567,15 +568,17 @@ export const ChatContainer = ({
   }, []);
 
   return (
-    <div
-      className="fixed inset-0 sm:overflow-hidden flex items-start sm:items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4 pt-6 sm:pt-0"
-      style={{ WebkitOverflowScrolling: "touch" }}
-    >
-      <div className="flex flex-col w-full items-center">
-        {/* Header */}
+  <div
+    className="fixed inset-0 sm:overflow-hidden flex items-start sm:items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4 pt-6 sm:pt-0"
+    style={{ WebkitOverflowScrolling: "touch" }}
+  >
+    <div className="flex flex-col w-full items-center h-full">
+      {/* Panel wrapper: controls total height for header + card */}
+      <div className="w-full max-w-3xl h-[calc(100dvh-4rem)] sm:h-[90vh] flex flex-col relative">
+        {/* Header (fixed inside the panel) */}
         <div
-  className="sticky w-full max-w-3xl max-h-[calc(100dvh-4rem)] sm:max-h-[90vh] h-full rounded-t-xl top-0 bg-white/20 backdrop-blur-lg border-b border-white/10 z-30 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200  hover:bg-white/20 shadow-[0_4px_6px_rgba(0,0,0,0.08)]"
->
+          className="absolute top-0 left-0 right-0 z-30 h-16 sm:h-20 bg-white/20 backdrop-blur-lg border-b border-white/10 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200 hover:bg-white/20 shadow-[0_4px_6px_rgba(0,0,0,0.08)]"
+        >
           <div className="text-lg sm:text-2xl font-bold flex items-center bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent tracking-wide">
             <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden mr-2 shrink-0 bg-white/10">
               {groupImage ? (
@@ -596,8 +599,8 @@ export const ChatContainer = ({
           </div>
 
           {/* bigger, pill-like typing indicator so it's readable on phone */}
-          <div className="mt-2 sm:mt-0">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-white/12 text-white/90 text-sm italic min-w-[8rem] max-w-[18rem] truncate">
+          <div className="sm:mt-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 mb-1 sm:mb-0 rounded-md bg-white/12 text-white/90 text-sm italic min-w-[8rem] max-w-[18rem] truncate">
               {typingUsers.length === 1
                 ? `${typingUsers[0].userName} is typing…`
                 : typingUsers.length > 1
@@ -607,17 +610,19 @@ export const ChatContainer = ({
           </div>
         </div>
 
-        <Card className="w-full max-w-3xl max-h-[calc(100dvh-4rem)] sm:max-h-[90vh] h-full flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 border-t-0 shadow-2xl rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)] rounded-t-none">
-
+        {/* Chat Card: push down by header height using mt-{headerHeight} so header doesn't overlap */}
+        <Card className="mt-16 sm:mt-20 w-full h-full flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 border-t-0 shadow-2xl rounded-xl rounded-t-none overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
           {/* Messages */}
           <CardContent
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1 overscroll-behavior-contain"
-            style={{ WebkitOverflowScrolling: "touch", paddingBottom: "calc(env(safe-area-inset-bottom))" }}
-
+            className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1 overscroll-behavior-contain"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              paddingBottom: "calc(env(safe-area-inset-bottom))",
+            }}
           >
             {loadingMore && (
-              <div className="text-center text-white/70 text-xs">``
+              <div className="text-center text-white/70 text-xs">
                 Loading more…
               </div>
             )}
@@ -643,8 +648,7 @@ export const ChatContainer = ({
           </CardContent>
 
           {/* Footer */}
-          {/* Footer */}
-          <CardFooter className="bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2">
+          <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2">
             {!isAutoScroll && (
               <button
                 onClick={() => {
@@ -676,12 +680,6 @@ export const ChatContainer = ({
               <textarea
                 ref={inputRef}
                 value={draft}
-                onFocus={() =>
-                  bottomRef.current?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "end",
-                  })
-                }
                 onChange={(e) => {
                   handleChange(e);
                   e.target.style.height = "auto"; // Reset height
@@ -710,5 +708,7 @@ export const ChatContainer = ({
         </Card>
       </div>
     </div>
-  );
+  </div>
+);
+
 };
