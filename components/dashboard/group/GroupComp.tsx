@@ -15,9 +15,7 @@ interface Props {
   SessionUserId: string;
 }
 
-
 // const socket = initSocket();
-
 
 export default function GroupComp({
   group: { id, image, name, createdAt, creatorName, isPrivate, chatId },
@@ -27,7 +25,7 @@ export default function GroupComp({
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const socket = useMemo(() => getSocket(), []);
   // console.log("UNREAD COUNT:", unreadCount);
-  
+
   // 2. Join unread room on mount
   useEffect(() => {
     if (!socket || !chatId) return;

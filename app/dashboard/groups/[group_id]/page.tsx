@@ -99,7 +99,7 @@ const Group = async ({ params: { group_id } }: Params) => {
           <Separator className="border-gray-300" />
 
           {/* Leaderboard Section */}
-          <section className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+          <section className="bg-slate-800 sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md sm:rounded-2xl sm:shadow-lg sm:hover:shadow-2xl transition-all duration-300 rounded-2xl shadow-lg p-4 sm:p-6">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">
               Leaderboard
             </h2>
