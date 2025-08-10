@@ -10,7 +10,6 @@ export function createSocket() {
       autoConnect: false,
       transports: ["websocket", "polling"], // ✅ Prefer WebSocket, allow fallback
       reconnection: true,
-      reconnectionAttempts: 5, // optional: limit retries
       reconnectionDelay: 1000, // optional: start retry after 1s
     });
 

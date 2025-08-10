@@ -1,13 +1,13 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
 import { FocusArea, Group, PomodoroSettings } from "@prisma/client";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useRunningStore } from "@/stores/useGlobalTimer";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { SthElse } from "./SthElse";
 import { BreakTimerWidget } from "./BreakTimerWidget";
@@ -33,7 +33,8 @@ interface Props {
   pomodoroSettings: PomodoroSettings;
 }
 
-
+const FocusAreaContainerMemo = React.memo(FocusAreaContainer);
+const SthElseMemo = React.memo(SthElse);
 
 export const SimpleTimerContainer = ({
   // totalSeconds,
@@ -53,7 +54,7 @@ export const SimpleTimerContainer = ({
   const today = normalizeToStartOfDay(new Date());
 
   const [date, setDate] = useState<Date>(today);
-  // const normalizedISTDate = normalizeToStartOfDayIST(date);
+  const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const isToday = date.getTime() === today.getTime();
 
@@ -231,15 +232,17 @@ export const SimpleTimerContainer = ({
 
   return (
     <div className="w-full overflow-x-hidden">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-4 bg-gradient-to-br from-sky-800/40 via-purple-800/30 to-indigo-800/40 backdrop-blur-sm">
+      <div
+        className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-4 bg-slate-800 sm:bg-gradient-to-br sm:from-sky-700 sm:via-purple-700 sm:to-indigo-700 sm:backdrop-blur-sm"
+      >
         <section className="flex flex-col items-center gap-6 w-full">
           <div className="w-full max-w-xl">
             {!running && (
               <AnimatePresence mode="wait">
                 <motion.div
                   key={date.getTime()}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={reduce ? undefined : { opacity: 0, y: 10 }}
+                  animate={reduce ? undefined : { opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -274,18 +277,22 @@ export const SimpleTimerContainer = ({
                 </motion.div>
               </AnimatePresence>
             )}
-            <div className="relative sm:bg-gradient-to-r sm:from-cyan-500/40 sm:via-sky-500/30 sm:to-indigo-600/40 sm:p-6 p-2 sm:rounded-2xl sm:shadow-xl sm:border sm:border-white/20 sm:backdrop-blur-md transition-all duration-300">
+            <div
+              className="relative bg-slate-800 p-3 rounded-xl shadow-sm
+               sm:bg-gradient-to-r sm:from-cyan-500/40 sm:via-sky-500/30 sm:to-indigo-600/40 sm:p-6 sm:rounded-2xl sm:shadow-xl sm:border sm:border-white/20 sm:backdrop-blur-md transition-all duration-300"
+            >
               <div
                 className="pointer-events-none absolute inset-0 rounded-2xl"
                 style={{
-                  background: `radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.25), transparent 40%)`,
+                  background:
+                    "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 60%)",
                 }}
               />
               <AnimatePresence mode="wait">
                 <motion.div
                   key={date.getTime()}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={reduce ? undefined : { opacity: 0, y: 10 }}
+                  animate={reduce ? undefined : { opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                 >
@@ -294,6 +301,11 @@ export const SimpleTimerContainer = ({
                     className={`relative mt-6 w-full sm:w-auto max-w-full sm:min-w-[40rem] bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 backdrop-blur-md text-white rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-transform duration-300 gap-2 py-2 ${
                       isPomodoro && "hidden"
                     }`}
+                    style={{
+                      willChange: "transform, opacity",
+                      transform: "translateZ(0)",
+                      backfaceVisibility: "hidden",
+                    }}
                   >
                     <div
                       className="pointer-events-none absolute inset-0 rounded-2xl z-0"
@@ -356,13 +368,13 @@ export const SimpleTimerContainer = ({
           <AnimatePresence mode="wait">
             <motion.div
               key={date.getTime()}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={reduce ? undefined : { opacity: 0, y: 10 }}
+              animate={reduce ? undefined : { opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
               <div className="flex flex-col gap-4 w-full max-w-xl">
-                <FocusAreaContainer
+                <FocusAreaContainerMemo
                   focusAreas={focusAreas}
                   timeSpent={focusAreaTotals || []}
                   handleStart={handleStart}
@@ -380,8 +392,8 @@ export const SimpleTimerContainer = ({
         </section>
         <aside className="w-full">
           <div className="p-4 h-full">
-            <div className="relative sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md sm:rounded-2xl sm:shadow-lg sm:p-6 p-3 sm:hover:shadow-2xl transition-all duration-300">
-              <SthElse groups={groups} userId={userId} />
+            <div className="relative sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md shadow-sm sm:rounded-2xl sm:shadow-lg sm:p-6 p-3 sm:hover:shadow-2xl transition-all duration-300">
+              <SthElseMemo groups={groups} userId={userId} />
             </div>
           </div>
         </aside>

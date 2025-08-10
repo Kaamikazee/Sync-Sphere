@@ -197,7 +197,7 @@ export const NewLeaderboard = ({
     backdrop-blur-none sm:backdrop-blur-md 
     border border-white/20 shadow-md sm:shadow-lg 
     transition-transform duration-300 
-    sm:hover:shadow-2xl sm:hover:scale-105 rounded-xl"
+    sm:hover:shadow-2xl sm:hover:scale-105 rounded-xl "
     >
       <div className="w-full max-w-3xl space-y-3 sm:space-y-4 mx-auto">
         <h2 className="text-lg sm:text-3xl font-extrabold text-[#5b3e96] mb-2 text-center">

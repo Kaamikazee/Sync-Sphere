@@ -189,7 +189,7 @@ function ChatMessageInner({
               aria-label={`Open seen by (${seenCount})`}
             >
               <span>✔</span>
-              <span className="text-[9px] text-gray-400">{seenCount-1}</span>
+              <span className="text-[9px] text-gray-400">{seenCount}</span>
             </button>
           )}
         </div>
@@ -216,7 +216,7 @@ function ChatMessageInner({
               >
                 ✕
               </button>
-              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By {seenCount-1}</h2>
+              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By {seenCount}</h2>
 
               <div className="space-y-3 max-h-60 overflow-auto">
                 {viewers.length > 0 ? (

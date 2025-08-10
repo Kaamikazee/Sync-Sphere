@@ -185,7 +185,7 @@ export function MemberComponent({
                 warningId ? "opacity-40 pointer-events-none" : ""
               }`}
             >
-              <span className="text-sm sm:text-lg font-bold text-[#2c2c2c]">
+              <span className="text-sm sm:text-lg font-bold text-white/50 sm:text-[#2c2c2c]">
                 #{index + 1}
               </span>
 
@@ -214,7 +214,7 @@ export function MemberComponent({
                 )}
               </div>
 
-              <span className="text-xs sm:text-base font-medium text-[#2c2c2c] flex items-center gap-1 flex-wrap max-w-[120px] sm:max-w-none">
+              <span className="text-xs sm:text-base font-medium text-white/80 sm:text-[#2c2c2c] flex items-center gap-1 flex-wrap max-w-[120px] sm:max-w-none">
                 {name ?? "Anonymous"}
                 {isMe && (
                   <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold">
@@ -226,7 +226,7 @@ export function MemberComponent({
 
             {/* Right section: Timer */}
             <span
-              className={`text-xs sm:text-xl font-mono text-[#2c2c2c] ${
+              className={`text-xs sm:text-xl font-mono text-white/80 sm:text-[#2c2c2c] ${
                 warningId ? "opacity-40" : ""
               }`}
             >

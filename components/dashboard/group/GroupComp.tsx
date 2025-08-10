@@ -4,10 +4,10 @@ import { MessageCircle, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GroupsWithUserName } from "@/lib/api";
-import { initSocket } from "@/lib/initSocket";
-// import { getSocket } from "@/lib/socket";
+// import { initSocket } from "@/lib/initSocket";
+import { getSocket } from "@/lib/socket";
 
 interface Props {
   group: GroupsWithUserName;
@@ -15,8 +15,8 @@ interface Props {
   SessionUserId: string;
 }
 
-// const socket = getSocket();
 
+// const socket = initSocket();
 
 
 export default function GroupComp({
@@ -25,8 +25,7 @@ export default function GroupComp({
   href,
 }: Props) {
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const socket = initSocket();
-
+  const socket = useMemo(() => getSocket(), []);
   // console.log("UNREAD COUNT:", unreadCount);
   
   // 2. Join unread room on mount

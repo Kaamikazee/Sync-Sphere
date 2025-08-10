@@ -4,7 +4,7 @@ import { CreateTodo } from "@/components/todo/CreateTodo";
 import { FocusArea, Todo } from "@prisma/client";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { ChevronDown, Edit, PauseCircle, Trash2 } from "lucide-react";
+import { ChevronDown, PauseCircle, Trash2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { UpdateTodo } from "@/components/todo/UpdateTodo";
@@ -14,6 +14,15 @@ import { ResumeTimer } from "./ResumeTimer";
 import { toast } from "sonner";
 import { useBreakTimer } from "@/stores/useBreakTimer";
 import { cn } from "@/lib/utils";
+import { EditFocusArea } from "./EditFocusArea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogTrigger,
+} from "../ui/dialog";
+import { useRouter } from "next/navigation";
+import { Button } from "../ui/button";
 
 const iconVariants = {
   hover: { scale: 1.2, rotate: 10 },
@@ -57,6 +66,8 @@ export function FocusAreaComp({
   const [IsFocusRunning, setIsFocusRunning] = useState(false);
   const [displayTime, setDisplayTime] = useState(timeSpent);
   const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const router = useRouter(); 
 
   const breakReason = useBreakStore((s) => s.breakReason);
 
@@ -180,6 +191,21 @@ export function FocusAreaComp({
     },
     onSuccess: (data) => {
       toast.success(`${name} logged ${formatHMS(data.duration)} seconds`);
+      router.refresh();
+    },
+  });
+
+  const { mutate: deleteFA } = useMutation({
+    mutationFn: async () => {
+      if (!focusAreaId) throw new Error("No focusAreaId available");
+      await axios.post("/api/focus_area/delete", {
+        focusAreaId,
+      });
+    },
+    onSuccess: () => {
+      setDialogOpen(false);
+      toast.success(`Deleted successful`);
+      router.refresh();
     },
   });
 
@@ -267,18 +293,37 @@ export function FocusAreaComp({
             whileTap="tap"
             variants={iconVariants}
           >
-            <Edit className="cursor-pointer" size={28} />
+            <EditFocusArea FaName={name} id={focusAreaId} />
           </motion.div>
 
           {/* Delete Button */}
-          <motion.div
-            className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
-            whileHover="hover"
-            whileTap="tap"
-            variants={iconVariants}
-          >
-            <Trash2 className="cursor-pointer" size={28} />
-          </motion.div>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger>
+              <motion.div
+                className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-2"
+                whileHover="hover"
+                whileTap="tap"
+                variants={iconVariants}
+              >
+                <Trash2 className="cursor-pointer" size={28} />
+              </motion.div>
+            </DialogTrigger>
+            <DialogContent>
+              Are you sure you want to delete this focus area? Previously logged
+              time will not be affected.
+              <DialogFooter>
+              <Button
+                onClick={() => {
+                  deleteFA();
+                }}
+                variant={"destructive"}
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Expandable Content */}

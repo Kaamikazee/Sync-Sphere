@@ -26,7 +26,7 @@ interface Props {
 }
 
 const baseUrl =
-  process.env.NEXTAUTH_URL || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_BASE_URL|| "http://localhost:3000";
 
 
 export const InviteContent = ({
