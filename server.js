@@ -424,11 +424,15 @@ app.prepare().then(() => {
         },
       });
 
+      
+      
+
       const recentFormatted = recent.reverse().map((msg) => {
         const allViews = msg.views ?? [];
         const seenByMe = allViews.some((v) => v.user.id === userId);
 
         const otherViews = allViews.filter((v) => v.user.id !== userId);
+        
 
         return {
           id: msg.id,
@@ -438,7 +442,7 @@ app.prepare().then(() => {
           createdAt: msg.createdAt,
           senderName: msg.sender?.name ?? "Unknown",
           senderImage: msg.sender?.image ?? null,
-          seenCount: otherViews.length,
+          seenCount: msg._count.views-1,
           seenPreview: otherViews.slice(0, 3).map((v) => ({
             id: v.user.id,
             name: v.user.name,

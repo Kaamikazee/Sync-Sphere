@@ -7,6 +7,9 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { initSocket } from "@/lib/initSocket";
+// IMPORTANT: import the exact same socket export that ChatContainer uses.
+// Make sure this file and ChatContainer import from the same module path.
+// import { initSocket } from "@/lib/useSocket"; // <- ensure this is the canonical socket module
 
 interface ChatMessageProps {
   msg: MessageWithSenderInfo;
@@ -15,7 +18,6 @@ interface ChatMessageProps {
   onReply: (msg: MessageWithSenderInfo) => void;
   userId: string;
 }
-
 
 function ChatMessageInner({
   msg,
@@ -27,6 +29,8 @@ function ChatMessageInner({
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
+
+  // use the SAME socket instance as ChatContainer
   const socket = useMemo(() => initSocket(), []);
 
   // viewers fetched from server when modal opens (has seenAt)
@@ -34,7 +38,7 @@ function ChatMessageInner({
     { id: string; name: string; image?: string | null; seenAt?: string | null }[]
   >([]);
 
-  // quick preview (from normalized msg). prefer server-provided seenPreview
+  // Quick preview: prefer server-provided seenPreview
   const quickPreview =
     Array.isArray((msg as any).seenPreview) && (msg as any).seenPreview.length > 0
       ? (msg as any).seenPreview
@@ -52,6 +56,7 @@ function ChatMessageInner({
   const seenCount =
     typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
 
+  // Handler for messageViews event scoped to this message
   useEffect(() => {
     const handler = (payload: { messageId: string; views: any[] }) => {
       if (!payload || payload.messageId !== msg.id) return;
@@ -67,14 +72,47 @@ function ChatMessageInner({
       );
     };
 
-    socket?.on("messageViews", handler);
+    if (!socket) return;
+
+    socket.on("messageViews", handler);
     return () => {
-      socket?.off("messageViews", handler);
+      socket.off("messageViews", handler);
     };
   }, [msg.id, userId, socket]);
 
+  // Open modal and request viewers; ensure the emit reaches server even if socket is not connected.
   const openSeenModal = () => {
-    socket?.emit("getMessageViews", { messageId: msg.id });
+    if (!socket) {
+      setShowSeenModal(true);
+      return;
+    }
+
+    const emitRequest = () => {
+      try {
+        socket.emit("getMessageViews", { messageId: msg.id });
+      } catch (err) {
+        console.warn("getMessageViews emit failed:", err);
+      }
+    };
+
+    if (socket.connected) {
+      emitRequest();
+    } else {
+      // wait for one connect and then emit
+      const onceConnect = () => {
+        emitRequest();
+        socket.off("connect", onceConnect);
+      };
+      socket.on("connect", onceConnect);
+
+      // ensure socket attempts to connect
+      try {
+        socket.connect();
+      } catch (err) {
+        console.warn("socket.connect() failed:", err);
+      }
+    }
+
     setShowSeenModal(true);
   };
 
@@ -84,6 +122,8 @@ function ChatMessageInner({
     }
     controls.start({ x: 0 });
   };
+
+  const canPortal = typeof window !== "undefined" && !!document?.body;
 
   return (
     <motion.div
@@ -145,11 +185,11 @@ function ChatMessageInner({
             <button
               onClick={openSeenModal}
               className="hover:text-blue-500 transition-colors flex items-center gap-1"
-              title={`Seen by ${seenCount}`}
+              title={`Seen by ${seenCount}+`}
               aria-label={`Open seen by (${seenCount})`}
             >
               <span>✔</span>
-              <span className="text-[9px] text-gray-400">{seenCount}</span>
+              <span className="text-[9px] text-gray-400">{seenCount-1}</span>
             </button>
           )}
         </div>
@@ -157,7 +197,7 @@ function ChatMessageInner({
 
       {isOwn &&
         showSeenModal &&
-        typeof document !== "undefined" &&
+        canPortal &&
         createPortal(
           <div
             className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
@@ -176,7 +216,7 @@ function ChatMessageInner({
               >
                 ✕
               </button>
-              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By</h2>
+              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By {seenCount-1}</h2>
 
               <div className="space-y-3 max-h-60 overflow-auto">
                 {viewers.length > 0 ? (
