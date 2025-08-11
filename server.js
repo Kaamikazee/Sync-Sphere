@@ -32,50 +32,25 @@ app.prepare().then(() => {
   const groupOnlineUsers = new Map(); // groupId -> Set of userIds
   const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
 
-  // server-side helper — drop this in and call instead of older implementations
-async function emitUnreadCount(chatId, userId, socket = null) {
-  try {
-    if (!chatId || !userId) return;
-
-    // fetch the user's chatSeen (may be null)
-    const mySeen = await prisma.chatSeen.findUnique({
-      where: { chatId_userId: { chatId, userId } },
-      select: { seenAt: true },
+  async function emitUnreadCount(chatId, userId) {
+    const unreadCount = await prisma.message.count({
+      where: {
+        chatId,
+        senderId: { not: userId },
+        views: {
+          none: {
+            userId: userId,
+          },
+        },
+      },
     });
 
-    // Compose robust where clause:
-    // - same chat
-    // - only messages not sent by this user
-    // - if we have chatSeen, only messages strictly newer than seenAt
-    // - ALWAYS exclude messages the user already has a MessageView for
-    const andClauses = [
-      // exclude messages that user explicitly viewed (so they won't be counted again)
-      { views: { none: { userId } } },
-    ];
-    if (mySeen && mySeen.seenAt) {
-      andClauses.push({ createdAt: { gt: mySeen.seenAt } });
-    }
-
-    const where = {
+    io.to(`chat_${chatId}_${userId}`).emit("chat:updateUnreadCount", {
       chatId,
-      NOT: { senderId: userId },
-      AND: andClauses,
-    };
-
-    const unreadCount = await prisma.message.count({ where });
-
-    const room = `chat_${chatId}_${userId}`;
-
-    // broadcast to per-user room (keeps multi-tab/devices in sync)
-    io.to(room).emit("chat:updateUnreadCount", { chatId, unreadCount });
-
-    // also reply directly to the provided socket (if available) so the requester always gets it
-    if (socket) socket.emit("chat:updateUnreadCount", { chatId, unreadCount });
-  } catch (err) {
-    console.error("[emitUnreadCount] error:", err);
+      userId,
+      unreadCount,
+    });
   }
-}
-
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
@@ -86,41 +61,10 @@ async function emitUnreadCount(chatId, userId, socket = null) {
       socket.join(room);
     });
 
-    // on the server
     socket.on("getUnreadCount", async ({ chatId, userId }) => {
-      try {
-        if (!chatId || !userId) return;
+      if (!chatId || !userId) return;
 
-        // compute unread count using ChatSeen (same logic as emitUnreadCount)
-        const mySeen = await prisma.chatSeen.findUnique({
-          where: { chatId_userId: { chatId, userId } },
-          select: { seenAt: true },
-        });
-
-        const where = {
-          chatId,
-          NOT: { senderId: userId },
-          ...(mySeen ? { createdAt: { gt: mySeen.seenAt } } : {}),
-        };
-
-        const unreadCount = await prisma.message.count({ where });
-
-        const room = `chat_${chatId}_${userId}`;
-        console.log("[getUnreadCount] replying", {
-          chatId,
-          userId,
-          unreadCount,
-          room,
-        });
-
-        // 1) emit to the per-user room (keeps multi-tab/devices in sync)
-        io.to(room).emit("chat:updateUnreadCount", { chatId, unreadCount });
-
-        // 2) also reply **directly** to the requesting socket (guaranteed delivery)
-        socket.emit("chat:updateUnreadCount", { chatId, unreadCount });
-      } catch (err) {
-        console.error("[getUnreadCount] error:", err);
-      }
+      await emitUnreadCount(chatId, userId);
     });
 
     socket.on("chat:subscribe", ({ chatId, userId }) => {
@@ -139,166 +83,64 @@ async function emitUnreadCount(chatId, userId, socket = null) {
         return;
 
       try {
-        // 1) create per-message MessageView rows (skip duplicates)
+        // Bulk insert (avoids duplicates)
         await prisma.messageView.createMany({
-          data: messageIds.map((id) => ({ userId, messageId: id })),
+          data: messageIds.map((id) => ({
+            userId,
+            messageId: id,
+          })),
           skipDuplicates: true,
         });
 
-        // 2) fetch messages info (chatId + createdAt)
-        const msgs = await prisma.message.findMany({
+        const seenByUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, image: true },
+        });
+
+        const chatIds = await prisma.message.findMany({
           where: { id: { in: messageIds } },
-          select: { id: true, chatId: true, createdAt: true },
+          select: { chatId: true },
+          distinct: ["chatId"],
         });
 
-        // group message ids by chatId and find max createdAt per chat
-        const byChat = new Map(); // chatId -> { ids: [...], maxCreatedAt: Date }
-        for (const m of msgs) {
-          if (!byChat.has(m.chatId))
-            byChat.set(m.chatId, { ids: [], maxCreatedAt: m.createdAt });
-          const obj = byChat.get(m.chatId);
-          obj.ids.push(m.id);
-          if (m.createdAt > obj.maxCreatedAt) obj.maxCreatedAt = m.createdAt;
-        }
-
-        // fetch existing ChatSeen rows for these chatIds (for this user) to keep monotonicity
-        const chatIds = Array.from(byChat.keys());
-        const existingSeen = await prisma.chatSeen.findMany({
-          where: { chatId: { in: chatIds }, userId },
-          select: { chatId: true, seenAt: true },
-        });
-        const existingSeenMap = new Map(
-          existingSeen.map((r) => [r.chatId, r.seenAt])
-        );
-
-        // upsert chatSeen for each affected chat
-        for (const [chatId, { ids, maxCreatedAt }] of byChat) {
-          const existing = existingSeenMap.get(chatId);
-          // ensure monotonic: newSeenAt = max(existing, maxCreatedAt, now())
-          // prefer maxCreatedAt (the latest message the user marked as seen);
-          // but we should not move seenAt backwards if existing is later.
-          const candidate = maxCreatedAt;
-          const newSeenAt =
-            existing && existing > candidate ? existing : candidate;
-
-          await prisma.chatSeen.upsert({
-            where: { chatId_userId: { chatId, userId } },
-            update: { seenAt: newSeenAt },
-            create: { chatId, userId, seenAt: newSeenAt },
-          });
-
-          const mySeen = await prisma.chatSeen.findUnique({
-            where: { chatId_userId: { chatId, userId } },
-            select: { seenAt: true },
-          });
-          const room = `chat_${chatId}_${userId}`;
-
-
-          const unreadCount = await prisma.message.count({
-            where: {
-              chatId: chatId,
-              NOT: { senderId: userId },
-              ...(mySeen ? { createdAt: { gt: mySeen.seenAt } } : {}),
-            },
-          });
-
-          io.to(room).emit("chat:updateUnreadCount", {
-            chatId: chatId,
-            unreadCount,
-          });
-          socket.emit("chat:updateUnreadCount", {
-            chatId: chatId,
-            unreadCount,
-          });
-
-          // notify other clients in the chat that these specific messages were seen by this user
-          const seenByUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { id: true, name: true, image: true },
-          });
-
+        // scope emit to rooms (do not send to the user who just marked)
+        for (const { chatId } of chatIds) {
           io.to(`chat_${chatId}`).except(socket.id).emit("messagesSeen", {
-            messageIds: ids,
+            messageIds,
             seenByUser,
+            // optionally you can include updated counts for these messages:
+            // updatedCounts: { [messageId]: newCount, ... } (compute if you want)
           });
 
-          // update unread counts for this user if needed
+          // update unread counts per chat if necessary
           emitUnreadCount(chatId, userId);
         }
+
+        // After marking messages as seen
       } catch (error) {
         console.error("❌ Failed to mark messages as seen:", error);
       }
     });
 
     socket.on("getMessageViews", async ({ messageId }) => {
-      try {
-        const msg = await prisma.message.findUnique({
-          where: { id: messageId },
-          select: { id: true, chatId: true, createdAt: true },
-        });
-        if (!msg) return socket.emit("messageViews", { messageId, views: [] });
-
-        // explicit per-message views
-        const explicit = await prisma.messageView.findMany({
-          where: { messageId },
-          include: {
-            user: {
-              select: { id: true, name: true, image: true, username: true },
-            },
+      const views = await prisma.messageView.findMany({
+        where: { messageId },
+        orderBy: { seenAt: "desc" },
+        include: {
+          user: {
+            select: { id: true, name: true, image: true, username: true },
           },
-          orderBy: { seenAt: "desc" },
-        });
+        },
+      });
 
-        // chatSeens that imply this message was seen
-        const chatSeens = await prisma.chatSeen.findMany({
-          where: { chatId: msg.chatId, seenAt: { gte: msg.createdAt } },
-          include: {
-            user: {
-              select: { id: true, name: true, image: true, username: true },
-            },
-          },
-        });
+      const payload = views.map((v) => ({
+        id: v.user.id,
+        name: v.user.name,
+        image: v.user.image ?? null,
+        seenAt: v.seenAt,
+      }));
 
-        // merge into a map to dedupe
-        const map = new Map(); // userId => { id, name, image, seenAt }
-        for (const v of explicit) {
-          map.set(v.user.id, {
-            id: v.user.id,
-            name: v.user.name,
-            image: v.user.image ?? null,
-            seenAt: v.seenAt,
-          });
-        }
-        for (const cs of chatSeens) {
-          if (!map.has(cs.userId)) {
-            map.set(cs.userId, {
-              id: cs.user.id,
-              name: cs.user.name,
-              image: cs.user.image ?? null,
-              seenAt: cs.seenAt,
-            });
-          } else {
-            // If both exist, keep the one with the more precise seenAt (explicit messageView likely better)
-            const existing = map.get(cs.userId);
-            if (cs.seenAt > existing.seenAt) {
-              map.set(cs.userId, {
-                id: cs.user.id,
-                name: cs.user.name,
-                image: cs.user.image ?? null,
-                seenAt: cs.seenAt,
-              });
-            }
-          }
-        }
-
-        const views = Array.from(map.values()).sort(
-          (a, b) => b.seenAt - a.seenAt
-        );
-        socket.emit("messageViews", { messageId, views });
-      } catch (err) {
-        console.error("Error in getMessageViews:", err);
-        socket.emit("messageViews", { messageId, views: [] });
-      }
+      socket.emit("messageViews", { messageId, views: payload });
     });
 
     socket.on("startActivity", async ({ activityId, startTime }) => {
@@ -355,7 +197,6 @@ async function emitUnreadCount(chatId, userId, socket = null) {
       }
 
       try {
-        // fetch a page of messages (same strategy as before)
         let messages;
         if (beforeMessageId) {
           const ref = await prisma.message.findUnique({
@@ -364,16 +205,29 @@ async function emitUnreadCount(chatId, userId, socket = null) {
           });
           if (!ref) return;
           messages = await prisma.message.findMany({
-            where: { chatId, createdAt: { lt: ref.createdAt } },
+            where: {
+              chatId,
+              createdAt: { lt: ref.createdAt },
+            },
             orderBy: { createdAt: "desc" },
             take: PAGE_SIZE,
             include: {
               sender: { select: { name: true, image: true } },
               replyTo: { include: { sender: { select: { name: true } } } },
+              // minimal preview
+              views: {
+                where: { userId: { not: userId } },
+                take: 3,
+                orderBy: { seenAt: "desc" },
+                select: {
+                  user: { select: { id: true, name: true, image: true } },
+                },
+              },
               _count: { select: { views: true } },
             },
           });
         } else {
+          // similar to above for the first page
           messages = await prisma.message.findMany({
             where: { chatId },
             orderBy: { createdAt: "desc" },
@@ -381,93 +235,25 @@ async function emitUnreadCount(chatId, userId, socket = null) {
             include: {
               sender: { select: { name: true, image: true } },
               replyTo: { include: { sender: { select: { name: true } } } },
+              views: {
+                where: { userId: { not: userId } },
+                take: 3,
+                orderBy: { seenAt: "desc" },
+                select: {
+                  user: { select: { id: true, name: true, image: true } },
+                },
+              },
               _count: { select: { views: true } },
             },
           });
         }
 
-        const page = messages.reverse(); // earliest -> latest in this page
-        const messageIds = page.map((m) => m.id);
+        const formattedMessages = messages.reverse().map((msg) => {
+          const allViews = msg.views ?? []; // array of { user: { id, name, image, ... }, seenAt }
+          const seenByMe = allViews.some((v) => v.user.id === userId);
 
-        // 1) get chatSeens for other users for this chat
-        const chatSeens = await prisma.chatSeen.findMany({
-          where: { chatId, userId: { not: userId } },
-          select: {
-            userId: true,
-            seenAt: true,
-            user: { select: { id: true, name: true, image: true } },
-          },
-        });
-
-        // 2) get explicit messageViews for these messageIds
-        const messageViews = await prisma.messageView.findMany({
-          where: { messageId: { in: messageIds } },
-          include: { user: { select: { id: true, name: true, image: true } } },
-        });
-
-        // 3) get this requester's ChatSeen
-        const myChatSeen = await prisma.chatSeen.findUnique({
-          where: { chatId_userId: { chatId, userId } },
-          select: { seenAt: true },
-        });
-
-        // group messageViews by messageId for quick lookup
-        const viewsByMessage = new Map();
-        for (const v of messageViews) {
-          if (!viewsByMessage.has(v.messageId))
-            viewsByMessage.set(v.messageId, []);
-          viewsByMessage.get(v.messageId).push({
-            id: v.user.id,
-            name: v.user.name,
-            image: v.user.image ?? null,
-            seenAt: v.seenAt,
-          });
-        }
-
-        const formattedMessages = page.map((msg) => {
-          const explicit = viewsByMessage.get(msg.id) || [];
-
-          // unique map of other users who've seen this message
-          const seenUsersMap = new Map();
-
-          // add explicit viewers
-          for (const u of explicit) {
-            if (u.id === userId) continue; // exclude requester
-            seenUsersMap.set(u.id, {
-              id: u.id,
-              name: u.name,
-              image: u.image,
-              seenAt: u.seenAt,
-            });
-          }
-
-          // add chatSeens whose seenAt >= message.createdAt
-          for (const cs of chatSeens) {
-            if (cs.seenAt >= msg.createdAt) {
-              const u = cs.user ?? { id: cs.userId, name: null, image: null };
-              if (u.id === userId) continue;
-              if (!seenUsersMap.has(u.id))
-                seenUsersMap.set(u.id, {
-                  id: u.id,
-                  name: u.name,
-                  image: u.image ?? null,
-                  seenAt: cs.seenAt,
-                });
-            }
-          }
-
-          const seenCount = seenUsersMap.size;
-          const seenPreview = Array.from(seenUsersMap.values())
-            .slice(0, 3)
-            .map((u) => ({
-              id: u.id,
-              name: u.name,
-              image: u.image ?? null,
-            }));
-
-          const seenByMe =
-            (myChatSeen && myChatSeen.seenAt >= msg.createdAt) ||
-            explicit.some((u) => u.id === userId);
+          // exclude requester from counts/previews
+          const otherViews = allViews.filter((v) => v.user.id !== userId);
 
           return {
             id: msg.id,
@@ -475,15 +261,19 @@ async function emitUnreadCount(chatId, userId, socket = null) {
             senderId: msg.senderId,
             content: msg.content,
             createdAt: msg.createdAt,
-            senderName: msg.sender?.name ?? "Unknown",
-            senderImage: msg.sender?.image ?? null,
-            seenCount,
-            seenPreview,
+            senderName: msg.sender.name,
+            senderImage: msg.sender.image,
+            seenCount: otherViews.length ?? 0,
+            seenPreview: otherViews.slice(0, 3).map((v) => ({
+              id: v.user.id,
+              name: v.user.name,
+              image: v.user.image,
+            })),
             seenByMe,
             replyTo: msg.replyTo
               ? {
                   id: msg.replyTo.id,
-                  senderName: msg.replyTo.sender?.name ?? null,
+                  senderName: msg.replyTo.sender.name,
                   content: msg.replyTo.content,
                 }
               : null,
@@ -561,239 +351,125 @@ async function emitUnreadCount(chatId, userId, socket = null) {
     //  --- CHAT HANDLER ---
 
     socket.on("joinGroup", async ({ groupId, userId }) => {
-      if (socket.data.groupId === groupId && socket.data.userId === userId) {
-        console.log("[server] joinGroup ignored (already joined)", {
-          groupId,
-          userId,
-          socketId: socket.id,
-        });
-        return;
-      }
-      try {
-        console.log(
-          "[server] joinGroup received for groupId, userId:",
-          groupId,
-          userId,
-          "socket:",
-          socket.id
-        );
-        // save on socket
-        socket.data.userId = userId;
-        socket.data.groupId = groupId;
+      console.log("Group Joined", groupId);
 
-        socket.join(groupId);
+      socket.data.userId = userId;
+      socket.data.groupId = groupId;
+      socket.join(groupId);
+      const current = userTimers.get(userId);
+      socket.to(groupId).emit("user-joined", { userId, ...current });
 
-        // Broadcast presence info to group (existing timers)
-        const current = userTimers.get(userId);
-        socket.to(groupId).emit("user-joined", { userId, ...current });
-
-        // Ensure there's a chat for this group
-        let chat = await prisma.chat.findFirst({ where: { groupId } });
-        if (!chat) {
-          chat = await prisma.chat.create({
-            data: {
-              group: { connect: { id: groupId } },
-            },
-          });
-        }
-
-        // persist chatId on socket and join chat room
-        socket.data.chatId = chat.id;
-        socket.join(`chat_${chat.id}`);
-        console.log(
-          `Socket: ${socket.id} & Group: ${groupId} (chat ${chat.id})`
-        );
-
-        // --- Upsert ChatSeen for this user to NOW (mark everything up to join time as seen) ---
-        if (userId) {
-          try {
-            const now = new Date();
-            console.log("[server] upserting chatSeen for", {
-              chatId: chat.id,
-              userId,
-            });
-            await prisma.chatSeen.upsert({
-              where: { chatId_userId: { chatId: chat.id, userId } },
-              update: { seenAt: now },
-              create: { chatId: chat.id, userId, seenAt: now },
-            });
-            console.log("[server] upserted chatSeen OK for", {
-              chatId: chat.id,
-              userId,
-            });
-
-            // Optionally notify others that this user caught up up to `now`
-            const seenByUser = await prisma.user.findUnique({
-              where: { id: userId },
-              select: { id: true, name: true, image: true },
-            });
-
-            // Emit a "bulk" seen event — clients can interpret as "all messages <= seenAt are seen"
-            console.log("[server] emitting messagesSeenBulk", {
-              chatId: chat.id,
-              seenAt: now,
-              seenByUser: seenByUser?.id,
-            });
-            io.to(`chat_${chat.id}`)
-              .except(socket.id)
-              .emit("messagesSeenBulk", {
-                seenByUser,
-                seenAt: now,
-              });
-            socket.emit("messagesSeenBulk", {
-              seenByUser,
-              seenAt: now,
-            });
-
-            // update unread counts (optional)
-            emitUnreadCount(chat.id, userId);
-          } catch (err) {
-            console.error("Error upserting ChatSeen on join:", err);
-          }
-        }
-
-        // --- Load recent messages (page) and compute seen metadata using ChatSeen + MessageView ---
-        const PAGE_SIZE = 50;
-        const recent = await prisma.message.findMany({
-          where: { chatId: chat.id },
-          orderBy: { createdAt: "desc" },
-          take: PAGE_SIZE,
-          include: {
-            sender: { select: { name: true, image: true } },
-            replyTo: {
-              select: {
-                id: true,
-                content: true,
-                sender: { select: { name: true } },
+      let chat = await prisma.chat.findFirst({
+        where: { groupId },
+        // include: {
+        //   messages: {
+        //     orderBy: {
+        //       createdAt: "asc",
+        //     },
+        //   },
+        // },
+      });
+      if (!chat) {
+        chat = await prisma.chat.create({
+          data: {
+            group: {
+              connect: {
+                id: groupId,
               },
             },
-            _count: { select: { views: true } },
           },
+          // include: {
+          //   messages: { orderBy: { createdAt: "asc" } },
+          // },
         });
+      }
+      socket.data.chatId = chat.id;
+      socket.join(`chat_${chat.id}`);
+      console.log(`Socket: ${socket.id} & Group: ${groupId}`);
 
-        // Compose combined seen info server-side (so client gets consistent seenCount/preview/seenByMe)
-        // See getMessages handler for the same logic — reuse that pattern here:
-        const messages = recent.reverse(); // earliest => latest in page
-        const messageIds = messages.map((m) => m.id);
-
-        // 1) chatSeens for other users
-        const chatSeens = await prisma.chatSeen.findMany({
-          where: { chatId: chat.id, userId: { not: userId } },
-          select: {
-            userId: true,
-            seenAt: true,
-            user: { select: { id: true, name: true, image: true } },
+      const PAGE_SIZE = 50;
+      const recent = await prisma.message.findMany({
+        where: {
+          chatId: chat.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: PAGE_SIZE,
+        include: {
+          sender: {
+            select: {
+              name: true,
+              image: true,
+            },
           },
-        });
+          replyTo: {
+            select: {
+              id: true,
+              content: true,
+              sender: { select: { name: true } },
+            },
+          },
+          views: {
+            where: { userId: { not: userId } },
+            take: 3,
+            orderBy: { seenAt: "desc" },
+            select: {
+              user: {
+                select: { id: true, name: true, image: true },
+              },
+            },
+          },
+          _count: { select: { views: true } },
+        },
+      });
 
-        // 2) explicit messageViews for these messages
-        const messageViews = await prisma.messageView.findMany({
-          where: { messageId: { in: messageIds } },
-          include: { user: { select: { id: true, name: true, image: true } } },
-        });
+      
+      
 
-        // 3) the requester's ChatSeen (myChatSeen)
-        const myChatSeen = await prisma.chatSeen.findUnique({
-          where: { chatId_userId: { chatId: chat.id, userId } },
-          select: { seenAt: true },
-        });
+      const recentFormatted = recent.reverse().map((msg) => {
+        const allViews = msg.views ?? [];
+        const seenByMe = allViews.some((v) => v.user.id === userId);
 
-        // helper: group messageViews by messageId
-        const viewsByMessage = new Map();
-        for (const v of messageViews) {
-          if (!viewsByMessage.has(v.messageId))
-            viewsByMessage.set(v.messageId, []);
-          viewsByMessage.get(v.messageId).push({
+        const otherViews = allViews.filter((v) => v.user.id !== userId);
+        
+
+        return {
+          id: msg.id,
+          chatId: msg.chatId,
+          senderId: msg.senderId,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          senderName: msg.sender?.name ?? "Unknown",
+          senderImage: msg.sender?.image ?? null,
+          seenCount: msg._count.views-1,
+          seenPreview: otherViews.slice(0, 3).map((v) => ({
             id: v.user.id,
             name: v.user.name,
-            image: v.user.image,
-            seenAt: v.seenAt,
-          });
-        }
+            image: v.user.image ?? null,
+          })),
+          seenByMe,
+          replyTo: msg.replyTo
+            ? {
+                id: msg.replyTo.id,
+                senderName: msg.replyTo.sender.name,
+                content: msg.replyTo.content,
+              }
+            : null,
+        };
+      });
 
-        const recentFormatted = messages.map((msg) => {
-          // build a unique set of other users who have seen this message (via MessageView OR ChatSeen)
-          const seenUsersMap = new Map();
+      socket.emit("recentMessages", recentFormatted);
 
-          // explicit messageViews
-          const explicit = viewsByMessage.get(msg.id) || [];
-          for (const u of explicit) {
-            if (u.id === userId) continue; // exclude requester from preview/count
-            seenUsersMap.set(u.id, {
-              id: u.id,
-              name: u.name,
-              image: u.image ?? null,
-              seenAt: u.seenAt,
-            });
-          }
-
-          // add users with chatSeen >= msg.createdAt
-          for (const cs of chatSeens) {
-            if (cs.seenAt >= msg.createdAt) {
-              const u = cs.user ?? { id: cs.userId, name: null, image: null };
-              if (u.id === userId) continue;
-              // prefer existing explicit seenAt if present; otherwise use cs.seenAt
-              if (!seenUsersMap.has(u.id))
-                seenUsersMap.set(u.id, {
-                  id: u.id,
-                  name: u.name,
-                  image: u.image ?? null,
-                  seenAt: cs.seenAt,
-                });
-            }
-          }
-
-          const seenPreview = Array.from(seenUsersMap.values())
-            .slice(0, 3)
-            .map((u) => ({
-              id: u.id,
-              name: u.name,
-              image: u.image ?? null,
-            }));
-
-          const seenCount = seenUsersMap.size;
-
-          const seenByMe =
-            (myChatSeen && myChatSeen.seenAt >= msg.createdAt) ||
-            explicit.some((u) => u.id === userId);
-
-          return {
-            id: msg.id,
-            chatId: msg.chatId,
-            senderId: msg.senderId,
-            content: msg.content,
-            createdAt: msg.createdAt,
-            senderName: msg.sender?.name ?? "Unknown",
-            senderImage: msg.sender?.image ?? null,
-            seenCount,
-            seenPreview,
-            seenByMe,
-            replyTo: msg.replyTo
-              ? {
-                  id: msg.replyTo.id,
-                  senderName: msg.replyTo.sender?.name ?? null,
-                  content: msg.replyTo.content,
-                }
-              : null,
-          };
-        });
-
-        // send the recent messages to requester
-        socket.emit("recentMessages", recentFormatted);
-
-        // Track online users (unchanged)
-        if (!groupOnlineUsers.has(groupId))
-          groupOnlineUsers.set(groupId, new Set());
-        groupOnlineUsers.get(groupId).add(userId);
-        socketToUserGroup.set(socket.id, { userId, groupId });
-        io.to(groupId).emit(
-          "online-users",
-          Array.from(groupOnlineUsers.get(groupId))
-        );
-      } catch (err) {
-        console.error("Error in joinGroup:", err);
-        socket.emit("error", "Failed to join group");
-      }
+      // Track online users
+      if (!groupOnlineUsers.has(groupId))
+        groupOnlineUsers.set(groupId, new Set());
+      groupOnlineUsers.get(groupId).add(userId);
+      socketToUserGroup.set(socket.id, { userId, groupId });
+      io.to(groupId).emit(
+        "online-users",
+        Array.from(groupOnlineUsers.get(groupId))
+      );
     });
 
     socket.on("start-timer", ({ userId, startTime }) => {

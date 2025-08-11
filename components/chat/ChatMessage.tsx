@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation } from "framer-motion";
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
+import { initSocket } from "@/lib/initSocket";
 // IMPORTANT: import the exact same socket export that ChatContainer uses.
 // Make sure this file and ChatContainer import from the same module path.
 // import { initSocket } from "@/lib/useSocket"; // <- ensure this is the canonical socket module
@@ -16,7 +17,6 @@ interface ChatMessageProps {
   isOnline: boolean;
   onReply: (msg: MessageWithSenderInfo) => void;
   userId: string;
-  openSeenModal: (MessageId: string) => void;
 }
 
 function ChatMessageInner({
@@ -25,65 +25,94 @@ function ChatMessageInner({
   isOnline,
   onReply,
   userId,
-  openSeenModal,
 }: ChatMessageProps) {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
 
+  // use the SAME socket instance as ChatContainer
+  const socket = useMemo(() => initSocket(), []);
 
   // viewers fetched from server when modal opens (has seenAt)
-  const viewersFromMsg = useMemo(() => {
-    // prefer server-provided seenPreview (already shaped), else derive from msg.views
-    if (
-      Array.isArray((msg as any).seenPreview) &&
-      (msg as any).seenPreview.length > 0
-    ) {
-      return (msg as any).seenPreview.map((v: any) => ({
-        id: v.id,
-        name: v.name,
-        image: v.image ?? null,
-        seenAt: v.seenAt ?? null,
-      }));
-    }
-
-    if (Array.isArray((msg as any).views) && (msg as any).views.length > 0) {
-      return (msg as any).views
-        .map((v: any) =>
-          v.user
-            ? {
-                id: v.user.id,
-                name: v.user.name,
-                image: v.user.image ?? null,
-                seenAt: v.seenAt ?? null,
-              }
-            : {
-                id: v.id ?? v.userId,
-                name: v.name ?? "",
-                image: v.image ?? null,
-                seenAt: v.seenAt ?? null,
-              }
-        )
-        .filter((v: any) => v.id !== userId);
-    }
-
-    return [];
-  }, [msg, userId]);
+  const [viewers, setViewers] = useState<
+    { id: string; name: string; image?: string | null; seenAt?: string | null }[]
+  >([]);
 
   // Quick preview: prefer server-provided seenPreview
-  const quickPreview = viewersFromMsg.slice(0, 3);
+  const quickPreview =
+    Array.isArray((msg as any).seenPreview) && (msg as any).seenPreview.length > 0
+      ? (msg as any).seenPreview
+      : Array.isArray((msg as any).views)
+      ? (msg as any).views
+          .map((v: any) =>
+            v.user
+              ? { id: v.user.id, name: v.user.name, image: v.user.image }
+              : { id: v.id ?? v.userId, name: v.name ?? "", image: v.image ?? null }
+          )
+          .filter((v: any) => v.id !== userId)
+          .slice(0, 3)
+      : [];
+
   const seenCount =
-    typeof (msg as any).seenCount === "number"
-      ? (msg as any).seenCount
-      : quickPreview.length;
+    typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
+
+  // Handler for messageViews event scoped to this message
+  useEffect(() => {
+    const handler = (payload: { messageId: string; views: any[] }) => {
+      if (!payload || payload.messageId !== msg.id) return;
+      setViewers(
+        (payload.views || [])
+          .filter((v: any) => v.id !== userId)
+          .map((v: any) => ({
+            id: v.id,
+            name: v.name ?? "",
+            image: v.image ?? null,
+            seenAt: v.seenAt ?? null,
+          }))
+      );
+    };
+
+    if (!socket) return;
+
+    socket.on("messageViews", handler);
+    return () => {
+      socket.off("messageViews", handler);
+    };
+  }, [msg.id, userId, socket]);
 
   // Open modal and request viewers; ensure the emit reaches server even if socket is not connected.
-  const handleOpenSeenModal = () => {
-    try {
-      openSeenModal(msg.id);
-    } catch (err) {
-      console.warn("openSeenModal failed:", err);
+  const openSeenModal = () => {
+    if (!socket) {
+      setShowSeenModal(true);
+      return;
     }
+
+    const emitRequest = () => {
+      try {
+        socket.emit("getMessageViews", { messageId: msg.id });
+      } catch (err) {
+        console.warn("getMessageViews emit failed:", err);
+      }
+    };
+
+    if (socket.connected) {
+      emitRequest();
+    } else {
+      // wait for one connect and then emit
+      const onceConnect = () => {
+        emitRequest();
+        socket.off("connect", onceConnect);
+      };
+      socket.on("connect", onceConnect);
+
+      // ensure socket attempts to connect
+      try {
+        socket.connect();
+      } catch (err) {
+        console.warn("socket.connect() failed:", err);
+      }
+    }
+
     setShowSeenModal(true);
   };
 
@@ -103,12 +132,8 @@ function ChatMessageInner({
       dragDirectionLock
       onDragEnd={handleDragEnd}
       animate={controls}
-      dragConstraints={
-        isOwn ? { left: 0, right: 120 } : { left: -120, right: 0 }
-      }
-      className={`flex ${
-        isOwn ? "justify-end" : "justify-start"
-      } py-1 px-2 relative`}
+      dragConstraints={isOwn ? { left: 0, right: 120 } : { left: -120, right: 0 }}
+      className={`flex ${isOwn ? "justify-end" : "justify-start"} py-1 px-2 relative`}
     >
       {!isOwn && (
         <div className="relative w-7 h-7 sm:w-8 sm:h-8 mr-2 shrink-0">
@@ -137,9 +162,7 @@ function ChatMessageInner({
           isOwn ? "bg-white text-black" : "bg-[#dcf8c6] text-black"
         }`}
       >
-        {!isOwn && (
-          <p className="text-xs font-semibold mb-1">{msg.senderName}</p>
-        )}
+        {!isOwn && <p className="text-xs font-semibold mb-1">{msg.senderName}</p>}
 
         {msg.replyTo && (
           <div className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md">
@@ -160,7 +183,7 @@ function ChatMessageInner({
 
           {isOwn && seenCount > 0 && (
             <button
-              onClick={handleOpenSeenModal}
+              onClick={openSeenModal}
               className="hover:text-blue-500 transition-colors flex items-center gap-1"
               title={`Seen by ${seenCount}+`}
               aria-label={`Open seen by (${seenCount})`}
@@ -193,13 +216,11 @@ function ChatMessageInner({
               >
                 ✕
               </button>
-              <h2 className="text-md font-semibold text-gray-800 mb-4">
-                Seen By {seenCount}
-              </h2>
+              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By {seenCount}</h2>
 
               <div className="space-y-3 max-h-60 overflow-auto">
-                {viewersFromMsg.length > 0 ? (
-                  viewersFromMsg.map((viewer:any) => (
+                {viewers.length > 0 ? (
+                  viewers.map((viewer) => (
                     <div key={viewer.id} className="flex items-center gap-3">
                       {viewer.image ? (
                         <Image
@@ -216,14 +237,10 @@ function ChatMessageInner({
                         </div>
                       )}
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {viewer.name}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900">{viewer.name}</p>
                         <p className="text-xs text-gray-500">
                           {viewer.seenAt
-                            ? `Seen at ${new Date(
-                                viewer.seenAt
-                              ).toLocaleTimeString([], {
+                            ? `Seen at ${new Date(viewer.seenAt).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}`
@@ -244,4 +261,4 @@ function ChatMessageInner({
   );
 }
 
-export const ChatMessage = ChatMessageInner;
+export const ChatMessage = React.memo(ChatMessageInner);

@@ -2,14 +2,7 @@
 "use client";
 
 // import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 // import { Input } from "@/components/ui/input";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
@@ -111,7 +104,7 @@ export const ChatContainer = ({
   chatId,
 }: Props) => {
   // useSocket();
-  const socket = useMemo(initSocket, []);
+  const socket = initSocket();
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -148,9 +141,6 @@ export const ChatContainer = ({
     // ensure connection
     if (!socket.connected) socket.connect();
 
-    // --- inside your useEffect that registers handlers ---
-    // replace the existing onConnect with this version:
-
     const onConnect = () => {
       console.log("[chat] socket connected -> rejoin rooms", socket.id);
       // join the group room
@@ -159,29 +149,7 @@ export const ChatContainer = ({
       if (chatId) socket.emit("chat:subscribe", { chatId, userId });
       // request online users list
       socket.emit("getOnlineUsers", { groupId });
-
-      // <<< IMPORTANT: explicitly request recent messages on connect
-      // Use the same server event you use for pagination; call with no beforeMessageId
-      try {
-        socket.emit("getMessages", { limit: 20 }); // adjust limit as needed
-      } catch (err) {
-        console.warn("getMessages emit failed in onConnect:", err);
-      }
     };
-
-    // later, after registering socket.on handlers, ensure we call onConnect or wait for connect:
-    if (socket.connected) {
-      onConnect();
-    } else {
-      // make sure we request after the connection is established
-      const once = () => {
-        onConnect();
-        socket.off("connect", once);
-      };
-      socket.on("connect", once);
-      // don't force a new connect here if you don't want it — socket.connect() is optional
-      // socket.connect();
-    }
 
     const handleRecentMessages = (msgs: MessageWithSenderInfo[]) => {
       const enriched = msgs.map(normalizeMessage);
@@ -244,107 +212,34 @@ export const ChatContainer = ({
 
     const handleOnlineUsers = (ids: string[]) => setOnlineUserIds(ids);
 
-    // bulk seen: server says "user X has seen everything <= seenAt"
-    const handleMessagesSeenBulk = ({
-      seenByUser,
-      seenAt,
-    }: {
-      seenByUser: any;
-      seenAt: string | Date;
-    }) => {
-      console.log("[chat] messagesSeenBulk", { seenByUser, seenAt });
-      if (!seenByUser || !seenAt) return;
-      const seenDate = new Date(seenAt);
-
-      setHistory((prev) =>
-        prev.map((msg) => {
-          // only affect messages up to seenAt and not sent by the seen user
-          if (new Date(msg.createdAt) > seenDate) return msg;
-          if (msg.senderId === seenByUser.id) return msg; // sender doesn't count
-
-          // if the preview already contains this user, nothing to do
-          const already = (msg.seenPreview || []).some(
-            (v) => v.id === seenByUser.id
-          );
-          if (already) return msg;
-
-          const newPreview = [
-            ...(msg.seenPreview || []),
-            {
-              id: seenByUser.id,
-              name: seenByUser.name,
-              image: seenByUser.image ?? null,
-            },
-          ].slice(0, 3);
-
-          return {
-            ...msg,
-            seenCount: (msg.seenCount || 0) + 1,
-            seenPreview: newPreview,
-          };
-        })
-      );
-    };
-
     const handleMessagesSeen = ({ seenByUser, messageIds }: any) => {
       if (!seenByUser || !messageIds || messageIds.length === 0) return;
 
       setHistory((prev) =>
         prev.map((msg) => {
           if (!messageIds.includes(msg.id)) return msg;
-
-          // If this is the current user, we likely already set seenByMe optimistically — ignore.
-          if (seenByUser.id === userId) {
-            // Optionally: ensure seenByMe true for these messages
-            return { ...msg, seenByMe: true };
-          }
+          if (seenByUser.id === userId) return msg; // already marked optimistically
 
           const already = (msg.seenPreview || []).some(
             (v) => v.id === seenByUser.id
           );
-          if (already) return msg;
-
-          const newPreview = [
-            ...(msg.seenPreview || []),
-            {
-              id: seenByUser.id,
-              name: seenByUser.name,
-              image: seenByUser.image ?? null,
-            },
-          ].slice(0, 3);
+          const newPreview = already
+            ? msg.seenPreview
+            : [
+                ...(msg.seenPreview || []),
+                {
+                  id: seenByUser.id,
+                  name: seenByUser.name,
+                  image: seenByUser.image ?? null,
+                },
+              ].slice(0, 3);
 
           return {
             ...msg,
-            seenCount: (msg.seenCount || 0) + 1,
+            seenCount: msg.seenCount ? msg.seenCount + (already ? 0 : 1) : 1,
             seenPreview: newPreview,
           };
         })
-      );
-    };
-
-    const handleMessageViews = (payload: {
-      messageId: string;
-      views: any[];
-    }) => {
-      console.log("[chat] messageViews (container) payload:", payload);
-      setHistory((prev) =>
-        prev.map((m) =>
-          m.id === payload.messageId
-            ? {
-                ...m,
-                // store raw views or transform into seenPreview/viewers
-                views: payload.views,
-                seenPreview: (payload.views || [])
-                  .filter((v: any) => v.user && v.user.id !== userId)
-                  .slice(0, 3)
-                  .map((v: any) => ({
-                    id: v.user.id,
-                    name: v.user.name,
-                    image: v.user.image ?? null,
-                  })),
-              }
-            : m
-        )
       );
     };
 
@@ -356,9 +251,7 @@ export const ChatContainer = ({
     socket.on("userTyping", handleUserTyping);
     socket.on("userStopTyping", handleUserStopTyping);
     socket.on("online-users", handleOnlineUsers);
-    socket.on("messagesSeenBulk", handleMessagesSeenBulk);
     socket.on("messagesSeen", handleMessagesSeen);
-    socket.on("messageViews", handleMessageViews);
 
     // if already connected, run onConnect to rejoin
     if (socket.connected) onConnect();
@@ -381,27 +274,12 @@ export const ChatContainer = ({
       socket.off("userTyping", handleUserTyping);
       socket.off("userStopTyping", handleUserStopTyping);
       socket.off("online-users", handleOnlineUsers);
-      socket.off("messagesSeenBulk", handleMessagesSeenBulk);
       socket.off("messagesSeen", handleMessagesSeen);
 
       // clear per-chat caches to avoid unbounded growth
       emittedMessageIds.current.clear();
     };
   }, [socket, groupId, userId, chatId, normalizeMessage]);
-
-  const openSeenModal = (messageId: string) => {
-    // emit getMessageViews for this messageId and container's single messageViews handler
-    if (!socket) return;
-    if (socket.connected) socket.emit("getMessageViews", { messageId });
-    else {
-      const once = () => {
-        socket.emit("getMessageViews", { messageId });
-        socket.off("connect", once);
-      };
-      socket.on("connect", once);
-      socket.connect();
-    }
-  };
 
   // inside the consolidated effect (or in a small dedicated effect)
   useEffect(() => {
@@ -413,7 +291,6 @@ export const ChatContainer = ({
         groupId,
         chatId,
       });
-      console.log("[client] emitting joinGroup", { groupId, userId });
       socket.emit("joinGroup", { groupId, userId });
       if (chatId) socket.emit("chat:subscribe", { chatId, userId });
       socket.emit("getOnlineUsers", { groupId });
@@ -430,6 +307,38 @@ export const ChatContainer = ({
       socket.off("reconnect", rejoinRooms);
     };
   }, [socket, groupId, userId, chatId]);
+
+  // This useEffect is only for debugging, if everything is working correctly, you can remove it
+  useEffect(() => {
+    if (!socket) return;
+
+    const onDisconnect = (reason: any) =>
+      console.warn("[chat] socket disconnect", reason);
+    const onReconnectAttempt = (attempt: number) =>
+      console.log("[chat] reconnect attempt", attempt);
+    const onReconnectFailed = () => console.error("[chat] reconnect failed");
+
+    socket.on("disconnect", onDisconnect);
+    socket.on("reconnect_attempt", onReconnectAttempt);
+    socket.on("reconnect_failed", onReconnectFailed);
+
+    return () => {
+      socket.off("disconnect", onDisconnect);
+      socket.off("reconnect_attempt", onReconnectAttempt);
+      socket.off("reconnect_failed", onReconnectFailed);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (!socket.connected) socket.connect();
+        // ensure rejoinRooms handler on connect will do the join
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [socket]);
 
   // --- mark messages as seen when history updates (optimistic + reliable emit) ---
   useEffect(() => {
@@ -595,17 +504,6 @@ export const ChatContainer = ({
   }, []);
 
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        if (!socket.connected) socket.connect();
-        // ensure rejoinRooms handler on connect will do the join
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [socket]);
-
-  useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -666,132 +564,151 @@ export const ChatContainer = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4">
-      <Card className="w-full max-w-3xl max-h-[100dvh] sm:max-h-[90vh] h-full flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 shadow-2xl rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
-        {/* Header */}
-        <CardHeader className="sticky top-0 bg-white/10 backdrop-blur-md border-b border-white/25 z-10 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200 hover:bg-white/20">
-          <CardTitle className="text-lg sm:text-2xl font-bold flex items-center bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent tracking-wide">
-            <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden mr-2 shrink-0 bg-white/10">
-              {groupImage ? (
-                <Image
-                  src={groupImage}
-                  alt="Group Image"
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full text-sm sm:text-base font-bold text-white bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600">
-                  {groupName?.charAt(0).toUpperCase() || "?"}
+    <div
+      className="fixed inset-0 sm:overflow-hidden flex items-start sm:items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4 pt-6 sm:pt-0"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
+      <div className="flex flex-col w-full items-center h-full">
+        {/* Panel wrapper: controls total height for header + card */}
+        <div className="w-full max-w-3xl h-[calc(100dvh-4rem)] sm:h-[90vh] flex flex-col relative">
+          {/* Header (fixed inside the panel) */}
+          <div className="absolute top-0 left-0 right-0 z-30 h-16 sm:h-20 bg-white/20 backdrop-blur-lg border-b border-white/10 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200 hover:bg-white/20 shadow-[0_4px_6px_rgba(0,0,0,0.08)]">
+            <div className="text-lg sm:text-2xl font-bold flex items-center bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent tracking-wide">
+              <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden mr-2 shrink-0 bg-white/10">
+                {groupImage ? (
+                  <Image
+                    src={groupImage}
+                    alt="Group Image"
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full text-sm sm:text-base font-bold text-white bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600">
+                    {groupName?.charAt(0).toUpperCase() || "?"}
+                  </div>
+                )}
+              </div>
+
+              {groupName}
+            </div>
+
+            {/* bigger, pill-like typing indicator so it's readable on phone */}
+            <div className="sm:mt-0">
+              <div className="inline-flex items-center gap-2 px-3 py-1 mb-1 sm:mb-0 rounded-md bg-white/12 text-white/90 text-sm italic min-w-[8rem] max-w-[18rem] truncate">
+                {typingUsers.length === 1
+                  ? `${typingUsers[0].userName} is typing…`
+                  : typingUsers.length > 1
+                  ? `${typingUsers
+                      .map((u) => u.userName)
+                      .join(", ")} are typing…`
+                  : ""}
+              </div>
+            </div>
+          </div>
+
+          {/* Chat Card: push down by header height using mt-{headerHeight} so header doesn't overlap */}
+          <Card className="mt-16 sm:mt-20 w-full h-full flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 border-t-0 shadow-2xl rounded-xl rounded-t-none overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
+            {/* Messages */}
+            <CardContent
+              ref={messagesContainerRef}
+              className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1 overscroll-behavior-contain"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                paddingBottom: "calc(env(safe-area-inset-bottom))",
+              }}
+            >
+              {loadingMore && (
+                <div className="text-center text-white/70 text-xs">
+                  Loading more…
                 </div>
               )}
-            </div>
+              <div ref={topRef} />
+              {history.map((msg) => {
+                const isOwn = msg.senderId === userId;
+                return (
+                  <ChatMessage
+                    key={msg.id}
+                    userId={userId}
+                    msg={msg}
+                    isOwn={isOwn}
+                    isOnline={onlineUserIds.includes(msg.senderId)}
+                    onReply={(m) => {
+                      setReplyTo(m);
+                      setTimeout(() => inputRef.current?.focus(), 0);
+                    }}
+                  />
+                );
+              })}
 
-            {groupName}
-          </CardTitle>
-          <CardDescription className="text-[10px] sm:text-xs text-white/80 mt-1 sm:mt-0 italic">
-            {typingUsers.length === 1
-              ? `${typingUsers[0].userName} is typing…`
-              : typingUsers.length > 1
-              ? `${typingUsers.map((u) => u.userName).join(", ")} are typing…`
-              : ""}
-          </CardDescription>
-        </CardHeader>
+              <div ref={bottomRef} />
+            </CardContent>
 
-        {/* Messages */}
-        <CardContent
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1 overscroll-behavior-contain"
-        >
-          {loadingMore && (
-            <div className="text-center text-white/70 text-xs">
-              Loading more…
-            </div>
-          )}
-          <div ref={topRef} />
-          {history.map((msg) => {
-            const isOwn = msg.senderId === userId;
-            return (
-              <ChatMessage
-                key={msg.id}
-                userId={userId}
-                msg={msg}
-                isOwn={isOwn}
-                isOnline={onlineUserIds.includes(msg.senderId)}
-                onReply={(m) => {
-                  setReplyTo(m);
-                  setTimeout(() => inputRef.current?.focus(), 0);
-                }}
-                openSeenModal={openSeenModal}
-              />
-            );
-          })}
+            {/* Footer */}
+            {/* Footer */}
+            <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2 relative">
+              {replyTo && (
+                <div className="w-full bg-white/20 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
+                  <div className="text-white/85 text-xs">
+                    <strong>{replyTo.senderName}</strong>:{" "}
+                    <em>{replyTo.content.slice(0, 30)}…</em>
+                  </div>
+                  <button
+                    onClick={() => setReplyTo(null)}
+                    className="text-white font-bold ml-2 text-lg leading-none transition-transform hover:rotate-90"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
-          <div ref={bottomRef} />
-        </CardContent>
+              <div className="flex gap-3 items-center">
+                <textarea
+                  ref={inputRef}
+                  value={draft}
+                  onChange={(e) => {
+                    handleChange(e);
+                    e.target.style.height = "auto"; // Reset height
+                    e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
+                  }}
+                  onKeyDown={(e) => {
+                    handleKeyDown(e);
+                  }}
+                  rows={1}
+                  placeholder="Type a message…"
+                  style={{ maxHeight: "160px" }}
+                  className="min-w-[18rem] sm:min-w-[22rem] flex-1 sm:flex-[2] resize-none overflow-auto bg-white/20 text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-md py-2 px-4 text-base transition-all duration-200 no-scrollbar"
+                />
 
-        {/* Footer */}
-        <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2 relative">
-          {replyTo && (
-            <div className="w-full bg-white/20 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
-              <div className="text-white/85 text-xs">
-                <strong>{replyTo.senderName}</strong>:{" "}
-                <em>{replyTo.content.slice(0, 30)}…</em>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  type="button"
+                  onClick={send}
+                  className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200"
+                  aria-label="Send message"
+                >
+                  <Send size={22} />
+                </button>
               </div>
+            </CardFooter>
+            {/* Floating "scroll to bottom" button — floats above the footer so it never overlaps the send button */}
+            {!isAutoScroll && (
               <button
-                onClick={() => setReplyTo(null)}
-                className="text-white font-bold ml-2 text-lg leading-none transition-transform hover:rotate-90"
+                onClick={() => {
+                  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                  setIsAutoScroll(true);
+                }}
+                className="fixed right-4 bottom-3 sm:bottom-6 z-50 bg-white/20 backdrop-blur-sm p-2 rounded-full shadow hover:bg-white/30 transition-transform duration-200 hover:scale-105"
+                aria-label="Scroll to bottom"
+                // avoid stealing focus / closing keyboard on mobile accidentally
+                onMouseDown={(e) => e.preventDefault()}
+                type="button"
               >
-                ×
+                <MoveDownIcon size={18} className="text-white" />
               </button>
-            </div>
-          )}
-
-          <div className="flex gap-3 items-center">
-            <textarea
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => {
-                handleChange(e);
-                e.target.style.height = "auto"; // Reset height
-                e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
-              }}
-              onKeyDown={(e) => {
-                handleKeyDown(e);
-              }}
-              rows={1}
-              placeholder="Type a message…"
-              style={{ maxHeight: "160px" }}
-              className="min-w-[18rem] sm:min-w-[22rem] flex-1 sm:flex-[2] resize-none overflow-auto bg-white/20 text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-md py-2 px-4 text-base transition-all duration-200 no-scrollbar"
-            />
-
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              type="button"
-              onClick={send}
-              className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200"
-              aria-label="Send message"
-            >
-              <Send size={22} />
-            </button>
-          </div>
-        </CardFooter>
-      </Card>
-      {/* Floating "scroll to bottom" button — floats above the footer so it never overlaps the send button */}
-      {!isAutoScroll && (
-        <button
-          onClick={() => {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-            setIsAutoScroll(true);
-          }}
-          className="fixed right-4 bottom-3 sm:bottom-6 z-50 bg-white/20 backdrop-blur-sm p-2 rounded-full shadow hover:bg-white/30 transition-transform duration-200 hover:scale-105"
-          aria-label="Scroll to bottom"
-          // avoid stealing focus / closing keyboard on mobile accidentally
-          onMouseDown={(e) => e.preventDefault()}
-          type="button"
-        >
-          <MoveDownIcon size={18} className="text-white" />
-        </button>
-      )}
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
