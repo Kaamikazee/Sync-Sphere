@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { Clock, Users } from "lucide-react";
 import MenuAppBar from "@/components/ui/appbar";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/sign-in");
+  }
   return (
     <>
     <MenuAppBar />

@@ -111,7 +111,7 @@ export const ChatContainer = ({
   chatId,
 }: Props) => {
   // useSocket();
-  const socket = initSocket();
+  const socket = useMemo(initSocket, []);
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -148,6 +148,9 @@ export const ChatContainer = ({
     // ensure connection
     if (!socket.connected) socket.connect();
 
+    // --- inside your useEffect that registers handlers ---
+    // replace the existing onConnect with this version:
+
     const onConnect = () => {
       console.log("[chat] socket connected -> rejoin rooms", socket.id);
       // join the group room
@@ -156,7 +159,29 @@ export const ChatContainer = ({
       if (chatId) socket.emit("chat:subscribe", { chatId, userId });
       // request online users list
       socket.emit("getOnlineUsers", { groupId });
+
+      // <<< IMPORTANT: explicitly request recent messages on connect
+      // Use the same server event you use for pagination; call with no beforeMessageId
+      try {
+        socket.emit("getMessages", { limit: 20 }); // adjust limit as needed
+      } catch (err) {
+        console.warn("getMessages emit failed in onConnect:", err);
+      }
     };
+
+    // later, after registering socket.on handlers, ensure we call onConnect or wait for connect:
+    if (socket.connected) {
+      onConnect();
+    } else {
+      // make sure we request after the connection is established
+      const once = () => {
+        onConnect();
+        socket.off("connect", once);
+      };
+      socket.on("connect", once);
+      // don't force a new connect here if you don't want it — socket.connect() is optional
+      // socket.connect();
+    }
 
     const handleRecentMessages = (msgs: MessageWithSenderInfo[]) => {
       const enriched = msgs.map(normalizeMessage);
