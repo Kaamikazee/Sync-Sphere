@@ -42,14 +42,21 @@ export default function MenuAppBar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 w-full backdrop-blur-lg bg-white/20 border-b border-white/30 z-50">
+      <nav
+        className="fixed top-0 left-0 w-full 
+  bg-gradient-to-r from-indigo-500/30 via-purple-500/30 to-pink-500/30 
+  backdrop-blur-xl 
+  border-b border-white/20 
+  shadow-lg shadow-indigo-900/20 
+  z-50"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center">
           {/* Desktop layout (logo left, menu center/right) */}
           <div className="hidden md:flex items-center justify-between w-full">
             <div className="flex items-center gap-6">
               <Link
                 href="/dashboard"
-                className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500"
+                className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500"
               >
                 Sync Sphere
               </Link>
@@ -106,7 +113,7 @@ export default function MenuAppBar() {
               {/* Logo on right */}
               <Link
                 href="/dashboard"
-                className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500 whitespace-nowrap"
+                className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-500 to-pink-500 whitespace-nowrap"
               >
                 Sync Sphere
               </Link>
@@ -207,7 +214,7 @@ export default function MenuAppBar() {
       </AnimatePresence>
 
       {/* Add a placeholder element to keep page content from jumping under the fixed header */}
-      <div aria-hidden className="h-16 md:h-20" />
+      <div aria-hidden className="h-16" />
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { CreateTodo } from "@/components/todo/CreateTodo";
 import { FocusArea, Todo } from "@prisma/client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { ChevronDown, PauseCircle, Trash2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
@@ -67,6 +67,7 @@ export function FocusAreaComp({
   const [displayTime, setDisplayTime] = useState(timeSpent);
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
   const router = useRouter(); 
 
   const breakReason = useBreakStore((s) => s.breakReason);
@@ -191,6 +192,9 @@ export function FocusAreaComp({
     },
     onSuccess: (data) => {
       toast.success(`${name} logged ${formatHMS(data.duration)} seconds`);
+      queryClient.invalidateQueries({
+      queryKey: ["focusAreaTotals"],
+    });
       router.refresh();
     },
   });

@@ -29,7 +29,7 @@ export default function GroupComp({
   // 2. Join unread room on mount
   useEffect(() => {
     if (!socket || !chatId) return;
-
+    console.log("[client] joining unread room", { chatId, userId, socketId: socket?.id, connected: socket?.connected });
     socket.emit("joinUnreadRoom", { chatId, userId });
     socket.emit("getUnreadCount", { chatId, userId });
   }, [chatId, userId, socket]);
@@ -46,6 +46,7 @@ export default function GroupComp({
       userId: string;
       unreadCount: number;
     }) => {
+      console.log("[client] chat:updateUnreadCount", { incomingChatId, unreadCount });
       if (incomingChatId === chatId) {
         setUnreadCount(unreadCount);
       }

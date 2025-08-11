@@ -5,7 +5,8 @@ import { MemberComponent } from "./MemberComponent";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { UserPermission } from "@prisma/client";
-import { initSocket } from "@/lib/initSocket";
+import { getSocket } from "@/lib/socket";
+// import { initSocket } from "@/lib/initSocket";
 
 export interface MemberWithTimer {
   id: string;
@@ -38,7 +39,7 @@ export const NewLeaderboard = ({
   const [loading, setLoading] = useState(true);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const socket = initSocket();
+  const socket = getSocket();
 
   const fetchMembers = async () => {
     const res = await fetch(`/api/simple_timer/get?groupId=${groupId}`);

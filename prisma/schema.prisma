@@ -17,8 +17,8 @@ model User {
   id                   String                 @id @default(cuid())
   name                 String?
   username             String                 @unique
-  timezone    String   @default("Asia/Kolkata") // IANA timezone
-  resetHour   Int      @default(0)              // 0 = midnight, 4 = 4 AM reset
+  timezone             String                 @default("Asia/Kolkata") // IANA timezone
+  resetHour            Int                    @default(0) // 0 = midnight, 4 = 4 AM reset
   surname              String?
   email                String?                @unique
   emailVerified        DateTime?
@@ -36,14 +36,15 @@ model User {
   message              Message[]
   todos                Todo[]
   announcements        Announcement[]
-  comment              Comment[]
-  seen                 AnnouncementView[]
-  announcementReaction AnnouncementReaction[]
-  commentReaction      CommentReaction[]
+  announcementComments  Comment[]
+  announcementViews     AnnouncementView[]
+  announcementReactions AnnouncementReaction[]
+  commentReactions      CommentReaction[]
   notifications        Notification[]
   receivedWarnings     Warning[]              @relation("ReceivedWarnings")
   issuedWarnings       Warning[]              @relation("IssuedWarnings")
   messageViews         MessageView[]
+  seen                 ChatSeen[]
 
   createdAt DateTime @default(now())
 
@@ -323,10 +324,11 @@ model DailyTotal {
 }
 
 model Chat {
-  id       String    @id @default(cuid())
-  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  id       String     @id @default(cuid())
+  group    Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   groupId  String
   messages Message[]
+  seen     ChatSeen[]
 }
 
 model Message {
@@ -364,6 +366,19 @@ model MessageView {
   @@id([userId, messageId])
   @@index([userId])
   @@index([messageId])
+}
+
+model ChatSeen {
+  id     String   @id @default(cuid())
+  chat   Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  seenAt DateTime @default(now())
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
 }
 
 // NOTIFICATION SYSTEM

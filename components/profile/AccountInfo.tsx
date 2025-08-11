@@ -106,7 +106,7 @@ export const AccountInfo = ({
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-6 mt-8"
+              className="space-y-6"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <FormField

@@ -13,10 +13,7 @@ const Settings = async () => {
   return (
     <>
       <main>
-        <div className="mb-7">
-            
         <MenuAppBar/>
-        </div>
         {/* <Heading /> */}
         <AccountInfo session={session} />
         <div className="p-4 sm:p-6">

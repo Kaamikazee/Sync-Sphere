@@ -47,6 +47,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+    // Or keep some:
+    // removeConsole: { exclude: ["error", "warn"] }
+  },
 };
 
 export default withPWA(nextConfig);

@@ -12,13 +12,13 @@ import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { SthElse } from "./SthElse";
 import { BreakTimerWidget } from "./BreakTimerWidget";
 import PomodoroContainer from "../dashboard/pomodoro/PomodoroContainer";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { SessionTimerWidget } from "./SessionTimerWidget";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
-import { initSocket } from "@/lib/initSocket";
+import { getSocket } from "@/lib/socket";
 // import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
@@ -37,26 +37,22 @@ const FocusAreaContainerMemo = React.memo(FocusAreaContainer);
 const SthElseMemo = React.memo(SthElse);
 
 export const SimpleTimerContainer = ({
-  // totalSeconds,
   userId,
   isRunning,
   startTimeStamp,
   focusAreas,
-  // timeSpentOfFA: focusAreaTotals,
   // todos,
   groups,
   pomodoroSettings,
 }: Props) => {
-  // function normalizeToStartOfDayIST(date: Date): Date {
-  //   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  // }
-  const socket = initSocket();
+  const socket = getSocket();
   const today = normalizeToStartOfDay(new Date());
 
   const [date, setDate] = useState<Date>(today);
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const isToday = date.getTime() === today.getTime();
+  const queryClient = useQueryClient();
 
   function formatUserDate(date: Date) {
     return date.toLocaleDateString("en-IN", {
@@ -216,9 +212,13 @@ export const SimpleTimerContainer = ({
     setStartTime(now);
     setRunning(true);
     socket?.emit("start-timer", { userId, startTime: now });
-
+    
     // setCurrentSessionTime(0);
     useRunningStore.getState().setRunning(true, true); // ✅ resets timer
+    queryClient.invalidateQueries({ queryKey: ["totalSeconds", userId, date] });
+    queryClient.invalidateQueries({
+      queryKey: ["focusAreaTotals", userId, date],
+    });
   };
 
   const handleStop = () => {
@@ -228,13 +228,15 @@ export const SimpleTimerContainer = ({
     // mutate();
     socket?.emit("stop-timer", { userId, totalSeconds: time });
     stop();
+    queryClient.invalidateQueries({ queryKey: ["totalSeconds", userId, date] });
+    queryClient.invalidateQueries({
+      queryKey: ["focusAreaTotals", userId, date],
+    });
   };
 
   return (
     <div className="w-full overflow-x-hidden">
-      <div
-        className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-4 bg-slate-800 sm:bg-gradient-to-br sm:from-sky-700 sm:via-purple-700 sm:to-indigo-700 sm:backdrop-blur-sm"
-      >
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 p-4 bg-slate-800 sm:bg-gradient-to-br sm:from-sky-700 sm:via-purple-700 sm:to-indigo-700 sm:backdrop-blur-sm">
         <section className="flex flex-col items-center gap-6 w-full">
           <div className="w-full max-w-xl">
             {!running && (

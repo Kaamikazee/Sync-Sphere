@@ -1,6 +1,6 @@
 "use client";
 
-import { initSocket } from "@/lib/initSocket";
+import { getSocket } from "@/lib/socket";
 // import { getSocket } from "@/lib/socket";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -11,11 +11,10 @@ interface Props {
   userId: string;
 }
 
-// const socket = getSocket();
 
 export const ChatButton = ({ chatId, groupId, userId }: Props) => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
-  const socket = initSocket();
+  const socket = getSocket();
 
   useEffect(() => {
     if (!socket || !chatId) return;

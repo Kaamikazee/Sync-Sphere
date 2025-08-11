@@ -42,7 +42,7 @@ const Group = async ({ params: { group_id } }: Params) => {
 
   return (
     <>
-      <div className="mb-12">
+      <div className="">
         <MenuAppBar />
       </div>
       <main className="min-h-screen bg-gradient-to-br from-purple-500/30 via-blue-400/30 to-indigo-500/30 backdrop-blur-md">
