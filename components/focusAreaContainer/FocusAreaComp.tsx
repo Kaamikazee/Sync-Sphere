@@ -250,6 +250,7 @@ export function FocusAreaComp({
         <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
           {/* Play / Pause Button */}
           <motion.div
+          data-ripple
             className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-1"
             whileHover="hover"
             whileTap="tap"
@@ -280,6 +281,7 @@ export function FocusAreaComp({
 
           {/* Clickable Header */}
           <div
+          data-ripple
             onClick={() => setOpen((prev) => !prev)}
             className="cursor-pointer flex-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-5 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300 flex justify-between items-center text-base sm:text-lg font-semibold sm:font-bold min-h-[64px]"
           >

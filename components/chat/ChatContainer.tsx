@@ -680,6 +680,7 @@ export const ChatContainer = ({
                 />
 
                 <button
+                  data-ripple
                   onMouseDown={(e) => e.preventDefault()}
                   type="button"
                   onClick={send}

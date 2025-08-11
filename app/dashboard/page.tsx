@@ -3,7 +3,6 @@ import { Clock, Users } from "lucide-react";
 import MenuAppBar from "@/components/ui/appbar";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-
 export default async function DashboardPage() {
   const session = await getServerSession();
 
@@ -18,6 +17,7 @@ export default async function DashboardPage() {
           {/* ── Timer Card */}
           <Link href="/dashboard/timer" className="group">
             <div
+            data-ripple
               className="relative p-8 bg-gradient-to-br from-cyan-700/30 via-blue-600/30 to-indigo-700/30 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg
                               hover:shadow-2xl hover:-translate-y-1 transition-transform duration-300"
             >
@@ -46,6 +46,7 @@ export default async function DashboardPage() {
           {/* ── Groups Card */}
           <Link href="/dashboard/groups" className="group">
             <div
+            data-ripple
               className="relative p-8 bg-gradient-to-br from-purple-700/30 via-pink-600/30 to-red-700/30 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg
                               hover:shadow-2xl hover:-translate-y-1 transition-transform duration-300"
             >

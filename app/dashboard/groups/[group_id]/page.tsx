@@ -62,6 +62,7 @@ const Group = async ({ params: { group_id } }: Params) => {
 
             {(userRole === "ADMIN" || userRole === "OWNER") && (
               <ActiveLink
+              data-ripple
                 href={`${group_id}/members`}
                 className="px-6 py-2 bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 hover:bg-gradient-to-r hover:from-green-300 hover:via-lime-300 hover:to-emerald-400 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
               >
@@ -71,7 +72,7 @@ const Group = async ({ params: { group_id } }: Params) => {
 
             <ChatButton groupId={group_id} chatId={group.chat[0].id} userId={session.user.id} />
 
-            <Link href={`${group_id}/announcement`}>
+            <Link data-ripple href={`${group_id}/announcement`}>
               <div className="px-6 py-2 bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 hover:bg-gradient-to-r hover:from-rose-400 hover:via-red-400 hover:to-orange-300 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">
                 Announcement
               </div>

@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 
 
+@tailwind utilities;
+
+
 @custom-variant dark (&:is(.dark *));
 
 /* Hide scrollbar for Firefox */
@@ -446,6 +449,26 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+/* ripple base (optional tweaks) */
+.ripple-span {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: scale(0);
+  opacity: 1;
+  will-change: transform, opacity;
+  /* fallback if you prefer css animation instead of inline transition:
+     animation: ripple 600ms linear;
+  */
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
 
 @layer base {
   * {

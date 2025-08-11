@@ -19,6 +19,7 @@ export default async function AllGroupsPage() {
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
           {groups.map((group: AllGroups) => (
             <div
+            data-ripple
               key={group.id}
               className="backdrop-blur-lg bg-white/10 border border-white/20 rounded-2xl shadow-lg p-4 sm:p-6 transition hover:scale-[1.02] hover:shadow-2xl"
             >

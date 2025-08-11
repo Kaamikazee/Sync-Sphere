@@ -249,11 +249,11 @@ export const SimpleTimerContainer = ({
                   transition={{ duration: 0.3 }}
                 >
                   <div className="flex items-center gap-4 mb-6">
-                    <Button variant="ghost" onClick={() => changeDateBy(-1)}>
+                    <Button data-ripple variant="ghost" onClick={() => changeDateBy(-1)}>
                       <ChevronLeft className="w-6 h-6 text-white/70" />
                     </Button>
                     <Popover open={open} onOpenChange={setOpen}>
-                      <PopoverTrigger asChild>
+                      <PopoverTrigger data-ripple asChild>
                         <Button className="w-52 text-lg font-bold bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm shadow-md rounded-xl">
                           {formatUserDate(date)}
                         </Button>
@@ -272,7 +272,7 @@ export const SimpleTimerContainer = ({
                         />
                       </PopoverContent>
                     </Popover>
-                    <Button variant="ghost" onClick={() => changeDateBy(1)}>
+                    <Button data-ripple variant="ghost" onClick={() => changeDateBy(1)}>
                       <ChevronRight className="w-6 h-6 text-white/70" />
                     </Button>
                   </div>
@@ -333,6 +333,7 @@ export const SimpleTimerContainer = ({
                             transition={{ duration: 0.2 }}
                           >
                             <Button
+                            data-ripple
                               className="cursor-pointer bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl"
                               onClick={triggerStop}
                             >

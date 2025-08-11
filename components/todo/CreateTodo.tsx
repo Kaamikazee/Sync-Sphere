@@ -86,6 +86,7 @@ export function CreateTodo({ focusAreaId }: Props) {
 
   const Trigger = (
     <Button
+    data-ripple
       className="bg-gradient-to-r from-green-400 via-lime-400 to-emerald-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform px-4 py-2 text-sm sm:text-base"
       variant="outline"
     >
@@ -145,6 +146,7 @@ export function CreateTodo({ focusAreaId }: Props) {
           {isMobile ? (
             <DrawerClose asChild>
               <Button
+              data-ripple
                 type="button"
                 variant="outline"
                 className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform text-sm sm:text-base"
@@ -155,6 +157,7 @@ export function CreateTodo({ focusAreaId }: Props) {
           ) : (
             <DialogClose asChild>
               <Button
+              data-ripple
                 type="button"
                 variant="outline"
                 className="w-full sm:w-auto bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white hover:scale-105 transition-transform text-sm sm:text-base"
@@ -165,6 +168,7 @@ export function CreateTodo({ focusAreaId }: Props) {
           )}
 
           <Button
+          data-ripple
             type="submit"
             disabled={isLoading}
             className="w-full sm:w-auto bg-gradient-to-r from-lime-400 via-green-400 to-emerald-500 text-white shadow-md hover:scale-105 transition-transform text-sm sm:text-base"
@@ -179,7 +183,7 @@ export function CreateTodo({ focusAreaId }: Props) {
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={setIsOpen}>
-        <DrawerTrigger asChild>{Trigger}</DrawerTrigger>
+        <DrawerTrigger data-ripple asChild>{Trigger}</DrawerTrigger>
         <DrawerContent className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar">
           <DrawerHeader>
             <DrawerTitle className="text-white text-lg sm:text-xl">
@@ -198,7 +202,7 @@ export function CreateTodo({ focusAreaId }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{Trigger}</DialogTrigger>
+      <DialogTrigger data-ripple asChild>{Trigger}</DialogTrigger>
       <DialogContent className="w-[90vw] max-w-xs sm:max-w-sm md:max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-white text-lg sm:text-xl">

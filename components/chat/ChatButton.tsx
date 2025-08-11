@@ -47,7 +47,7 @@ export const ChatButton = ({ chatId, groupId, userId }: Props) => {
   }, [chatId, socket]);
 
   return (
-    <Link href={`${groupId}/chat`}>
+    <Link data-ripple href={`${groupId}/chat`}>
       <div className="relative px-6 py-2 bg-gradient-to-r from-cyan-500/40 via-sky-500/30 to-indigo-600/40 hover:bg-gradient-to-r hover:from-cyan-400/40 hover:via-sky-400/30 hover:to-indigo-500/40 text-white rounded-full shadow-md hover:shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer">
         Chat Room
         {unreadCount > 0 && (

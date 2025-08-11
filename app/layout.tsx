@@ -30,6 +30,7 @@ import {
   rubikMono,
   cinzel,
 } from "@/lib/font";
+import RippleProvider from "@/components/common/RippleProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -125,6 +126,7 @@ export default function RootLayout({
           <QueryProvider>
             <Toaster richColors />
             <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
+            <RippleProvider />
             {children}
           </QueryProvider>
         </AuthProvider>

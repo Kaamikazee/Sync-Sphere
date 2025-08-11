@@ -22,6 +22,7 @@ export default async function GroupList() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full max-w-6xl">
           {userGroups.map((group) => (
             <div
+            data-ripple
               key={group.id}
               className="backdrop-blur-lg bg-white/10 border border-white/20 rounded-2xl shadow-lg p-4 sm:p-6 transition hover:scale-[1.02] hover:shadow-2xl"
             >
