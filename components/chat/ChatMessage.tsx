@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation } from "framer-motion";
 import Image from "next/image";
 import { createPortal } from "react-dom";
@@ -19,6 +19,7 @@ interface ChatMessageProps {
   userId: string;
   openSeenModal: (messageId: string) => void;
   onJumpToMessage: (messageId: string) => void;
+   registerRef?: (id: string, el: HTMLDivElement | null) => void;
 }
 
 function ChatMessageInner({
@@ -29,16 +30,21 @@ function ChatMessageInner({
   userId,
   openSeenModal,
   onJumpToMessage,
+  registerRef
 }: ChatMessageProps) {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
 
-  // use the SAME socket instance as ChatContainer
-  // const socket = useMemo(() => initSocket(), []);
+    useEffect(() => {
+  console.log("[registerRef] setting ref for", msg.id, containerRef.current);
+  registerRef?.(msg.id, containerRef.current ?? null);
+  return () => {
+    console.log("[registerRef] clearing ref for", msg.id);
+    registerRef?.(msg.id, null);
+  };
+}, [msg.id, registerRef]);
 
-  // viewers fetched from server when modal opens (has seenAt)
-  // Quick preview: prefer server-provided seenPreview
 
   const viewersFromMsg = useMemo(() => {
     // prefer server-provided seenPreview (already shaped), else derive from msg.views
@@ -68,29 +74,6 @@ function ChatMessageInner({
   const seenCount = typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
 
 
-  // Handler for messageViews event scoped to this message
-  // useEffect(() => {
-  //   const handler = (payload: { messageId: string; views: any[] }) => {
-  //     if (!payload || payload.messageId !== msg.id) return;
-  //     setViewers(
-  //       (payload.views || [])
-  //         .filter((v: any) => v.id !== userId)
-  //         .map((v: any) => ({
-  //           id: v.id,
-  //           name: v.name ?? "",
-  //           image: v.image ?? null,
-  //           seenAt: v.seenAt ?? null,
-  //         }))
-  //     );
-  //   };
-
-  //   if (!socket) return;
-
-  //   socket.on("messageViews", handler);
-  //   return () => {
-  //     socket.off("messageViews", handler);
-  //   };
-  // }, [msg.id, userId, socket]);
 
   // Open modal and request viewers; ensure the emit reaches server even if socket is not connected.
   // open modal: call container's openSeenModal and show the UI
@@ -116,6 +99,7 @@ function ChatMessageInner({
   return (
     <motion.div
       ref={containerRef}
+      data-message-id={msg.id}
       drag="x"
       dragDirectionLock
       onDragEnd={handleDragEnd}

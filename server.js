@@ -94,6 +94,38 @@ app.prepare().then(() => {
       socket.join(room);
     });
 
+    // server.js (or wherever you set up socket.io)
+io.on("connection", (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  socket.on("getMessageById", async ({ messageId }) => {
+    try {
+      // Get the message + sender info from DB
+      const message = await prisma.message.findUnique({
+        where: { id: messageId },
+        include: {
+          sender: {
+            select: { id: true, name: true, image: true }
+          }
+        }
+      });
+
+      if (!message) {
+        socket.emit("messageByIdError", { messageId, error: "Message not found" });
+        return;
+      }
+
+      // Send back only to the requesting client
+      socket.emit("messageById", message);
+
+    } catch (err) {
+      console.error("Error fetching message:", err);
+      socket.emit("messageByIdError", { messageId, error: "Server error" });
+    }
+  });
+});
+
+
     socket.on("getUnreadCount", async ({ chatId, userId }) => {
       if (!chatId || !userId) return;
 

@@ -135,41 +135,55 @@ export const ChatContainer = ({
   const joinLatestCreatedAtRef = useRef<Date | null>(null);
   const emittedIds = emittedMessageIds.current;
   const messageRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
 
-const jumpToMessage = useCallback(
-  async (messageId: string) => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
+  const jumpToMessage = useCallback(
+    async (messageId: string) => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
 
-    const el = messageRefs.current.get(messageId) ?? null;
-    if (el) {
-      // scroll into view within the scrollable container
-      el.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
+      const el = messageRefs.current.get(messageId) ?? null;
+      if (el) {
+        // scroll into view within the scrollable container
+        el.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
 
-      // add highlight (tailwind classes or custom CSS)
-      el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
+        // add highlight (tailwind classes or custom CSS)
+        el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
 
-      // remove highlight after 2s
-      setTimeout(() => {
-        el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50");
-      }, 2000);
-      return;
-    }
+        // remove highlight after 2s
+        setTimeout(() => {
+          el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50");
+        }, 2000);
+        return;
+      }
 
-    // fallback: message is not present — request from server
-    try {
-      socket?.emit("getMessageById", { messageId });
-      // handle the server response in the socket "messageById" listener
-    } catch (err) {
-      console.warn("getMessageById emit failed:", err);
-    }
-  },
-  [messagesContainerRef, messageRefs, socket] // dependencies
-);
+      // fallback: message is not present — request from server
+      try {
+        socket?.emit("getMessageById", { messageId });
+        // handle the server response in the socket "messageById" listener
+      } catch (err) {
+        console.warn("getMessageById emit failed:", err);
+      }
+    },
+    [messagesContainerRef, messageRefs, socket] // dependencies
+  );
+  
+  const waitForMessageElement = async (
+  id: string,
+  { timeout = 5000, interval = 50 } = {}
+): Promise<HTMLElement | null> => {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const el = messageRefs.current.get(id) ?? null;
+    if (el) return el;
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  return null;
+};
 
 
   const normalizeMessage = useMemo(
@@ -227,8 +241,14 @@ const jumpToMessage = useCallback(
         return;
       }
 
+      const container = messagesContainerRef.current;
+      // capture current scroll metrics
+      const prevScrollHeight = container?.scrollHeight ?? 0;
+      const prevScrollTop = container?.scrollTop ?? 0;
+
       setHistory((prev) => {
         const enriched = msgs.map(normalizeMessage);
+        // merge while deduping (keep older msgs earlier)
         const combined = [...enriched, ...prev];
         const seen = new Set<string>();
         return combined.filter((m) => {
@@ -238,9 +258,18 @@ const jumpToMessage = useCallback(
         });
       });
 
-      setLoadingMore(false);
-      // keep view stable near top
-      setTimeout(() => topRef.current?.scrollIntoView({ behavior: "auto" }), 0);
+      // wait for next paint/layout, then restore scroll so view stays stable
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const newScrollHeight = container?.scrollHeight ?? 0;
+          if (container) {
+            // set scrollTop so that the viewport remains at same message
+            container.scrollTop =
+              newScrollHeight - prevScrollHeight + prevScrollTop;
+          }
+          setLoadingMore(false);
+        });
+      });
     };
 
     const handleNewMessage = (msg: any) => {
@@ -335,12 +364,11 @@ const jumpToMessage = useCallback(
     // handle when server returns a specific message (or a small page around it)
     const handleMessageById = (msg: MessageWithSenderInfo | null) => {
       if (!msg) return;
+
+      // quickly insert if not present
       setHistory((prev) => {
-        // avoid duplicates
         if (prev.some((m) => m.id === msg.id)) return prev;
-        // we assume server returns context so we append/insert correctly; simplest: append then sort by createdAt if needed
         const combined = [...prev, normalizeMessage(msg)];
-        // optionally sort combined by createdAt
         combined.sort(
           (a, b) =>
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -348,14 +376,10 @@ const jumpToMessage = useCallback(
         return combined;
       });
 
-      // wait next paint so DOM exists, then jump
-      requestAnimationFrame(() => {
-        // small delay to let React render the newly added message
-        setTimeout(() => jumpToMessage(msg.id), 50);
-      });
+      // mark pending jump; the pendingJump effect will await the element or request more context
+      setPendingJumpId(msg.id);
     };
 
-    
     // register named handlers so we can reliably remove them
     socket.on("connect", onConnect);
     socket.on("recentMessages", handleRecentMessages);
@@ -396,7 +420,15 @@ const jumpToMessage = useCallback(
       // clear per-chat caches to avoid unbounded growth
       emittedIds.clear();
     };
-  }, [socket, groupId, userId, chatId, normalizeMessage, emittedIds, jumpToMessage]);
+  }, [
+    socket,
+    groupId,
+    userId,
+    chatId,
+    normalizeMessage,
+    emittedIds,
+    jumpToMessage,
+  ]);
 
   // inside the consolidated effect (or in a small dedicated effect)
   useEffect(() => {
@@ -425,26 +457,47 @@ const jumpToMessage = useCallback(
     };
   }, [socket, groupId, userId, chatId]);
 
-  // This useEffect is only for debugging, if everything is working correctly, you can remove it
+  // This useEffect is for pending jump id
   useEffect(() => {
-    if (!socket) return;
+  if (!pendingJumpId) return;
+  let mounted = true;
 
-    const onDisconnect = (reason: any) =>
-      console.warn("[chat] socket disconnect", reason);
-    const onReconnectAttempt = (attempt: number) =>
-      console.log("[chat] reconnect attempt", attempt);
-    const onReconnectFailed = () => console.error("[chat] reconnect failed");
-
-    socket.on("disconnect", onDisconnect);
-    socket.on("reconnect_attempt", onReconnectAttempt);
-    socket.on("reconnect_failed", onReconnectFailed);
-
-    return () => {
-      socket.off("disconnect", onDisconnect);
-      socket.off("reconnect_attempt", onReconnectAttempt);
-      socket.off("reconnect_failed", onReconnectFailed);
+  (async () => {
+    const tryWait = async (timeout = 3000) => {
+      // helper that polls messageRefs (you already have waitForMessageElement helper)
+      return await waitForMessageElement(pendingJumpId, { timeout, interval: 50 });
     };
-  }, [socket]);
+
+    // 1) try to find the element (short wait)
+    let el = await tryWait(1500);
+
+    // 2) if not found, ask server for nearby messages (so it mounts)
+    if (!el) {
+      console.log("[pendingJump] element not found — requesting context for", pendingJumpId);
+      socket?.emit("getMessagesAroundId", { messageId: pendingJumpId, before: 10, after: 5 });
+      // give server some time to push messages and React to render
+      el = await tryWait(4000);
+    }
+
+    if (!mounted) return;
+
+    if (el) {
+      // scroll & highlight
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
+      setTimeout(() => el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50"), 2000);
+    } else {
+      console.warn("[pendingJump] could not find element after fallback:", pendingJumpId);
+      // optional: toast the user or scroll to top/bottom as last resort
+    }
+
+    if (mounted) setPendingJumpId(null);
+  })();
+
+  return () => {
+    mounted = false;
+  };
+}, [pendingJumpId, messageRefs, socket, history]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -709,8 +762,6 @@ const jumpToMessage = useCallback(
     };
   }, []);
 
-  
-
   return (
     <div
       className="fixed inset-0 sm:overflow-hidden flex items-start sm:items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4 pt-6 sm:pt-0"
@@ -774,30 +825,34 @@ const jumpToMessage = useCallback(
               {history.map((msg) => {
                 const isOwn = msg.senderId === userId;
                 return (
-    <div
-      key={msg.id}
-       id={`message-${msg.id}`}
-      ref={(el) => {
-        // keep the reference in the map — remove if el is null on unmount
-        if (el) messageRefs.current.set(msg.id, el);
-        else messageRefs.current.delete(msg.id);
-      }}
-      data-message-id={msg.id}
-    >
-      <ChatMessage
-        userId={userId}
-        msg={msg}
-        isOwn={isOwn}
-        isOnline={onlineUserIds.includes(msg.senderId)}
-        onReply={(m) => {
-          setReplyTo(m);
-          setTimeout(() => inputRef.current?.focus(), 0);
-        }}
-        onJumpToMessage={(id) => jumpToMessage(id)} // new prop for click-to-jump
-        openSeenModal={openSeenModal}
-      />
-    </div>
-  );
+                  <div
+                    key={msg.id}
+                    id={`message-${msg.id}`}
+                    ref={(el) => {
+                      // keep the reference in the map — remove if el is null on unmount
+                      if (el) messageRefs.current.set(msg.id, el);
+                      else messageRefs.current.delete(msg.id);
+                    }}
+                    data-message-id={msg.id}
+                  >
+                    <ChatMessage
+                      userId={userId}
+                      msg={msg}
+                      isOwn={isOwn}
+                      isOnline={onlineUserIds.includes(msg.senderId)}
+                      onReply={(m) => {
+                        setReplyTo(m);
+                        setTimeout(() => inputRef.current?.focus(), 0);
+                      }}
+                      onJumpToMessage={(id) => jumpToMessage(id)} // new prop for click-to-jump
+                      openSeenModal={openSeenModal}
+                      registerRef={(id, el) => {
+                        if (el) messageRefs.current.set(id, el);
+                        else messageRefs.current.delete(id);
+                      }}
+                    />
+                  </div>
+                );
               })}
 
               <div ref={bottomRef} />
