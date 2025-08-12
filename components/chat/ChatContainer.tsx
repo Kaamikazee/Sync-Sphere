@@ -97,7 +97,6 @@ const createNormalizeMessage =
     };
   };
 
-
 export const ChatContainer = ({
   group_id: groupId,
   userId,
@@ -135,7 +134,44 @@ export const ChatContainer = ({
   const initialMessageIdsRef = useRef(new Set<string>());
   const joinLatestCreatedAtRef = useRef<Date | null>(null);
   const emittedIds = emittedMessageIds.current;
-  
+  const messageRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
+const jumpToMessage = useCallback(
+  async (messageId: string) => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const el = messageRefs.current.get(messageId) ?? null;
+    if (el) {
+      // scroll into view within the scrollable container
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+
+      // add highlight (tailwind classes or custom CSS)
+      el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
+
+      // remove highlight after 2s
+      setTimeout(() => {
+        el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50");
+      }, 2000);
+      return;
+    }
+
+    // fallback: message is not present — request from server
+    try {
+      socket?.emit("getMessageById", { messageId });
+      // handle the server response in the socket "messageById" listener
+    } catch (err) {
+      console.warn("getMessageById emit failed:", err);
+    }
+  },
+  [messagesContainerRef, messageRefs, socket] // dependencies
+);
+
+
   const normalizeMessage = useMemo(
     () => createNormalizeMessage(userId),
     [userId]
@@ -144,7 +180,6 @@ export const ChatContainer = ({
   // subscribe to per-user chat room for unread counts
   useEffect(() => {
     if (!socket) return;
-
 
     // ensure connection
     if (!socket.connected) socket.connect();
@@ -159,31 +194,31 @@ export const ChatContainer = ({
       socket.emit("getOnlineUsers", { groupId });
     };
 
-     const handleRecentMessages = (msgs: MessageWithSenderInfo[]) => {
-    // Normalize and mark these initial recent messages as seen locally (server pointer already marked them)
-    const enriched = msgs.map(normalizeMessage).map(m => ({
-      ...m,
-      // treat initial recent messages as already 'seen by me' (server set the pointer)
-      seenByMe: true,
-    }));
-    setHistory(enriched);
+    const handleRecentMessages = (msgs: MessageWithSenderInfo[]) => {
+      // Normalize and mark these initial recent messages as seen locally (server pointer already marked them)
+      const enriched = msgs.map(normalizeMessage).map((m) => ({
+        ...m,
+        // treat initial recent messages as already 'seen by me' (server set the pointer)
+        seenByMe: true,
+      }));
+      setHistory(enriched);
 
-    // record initial message IDs so we don't emit markMessagesAsSeen for them
-    initialRecentLoadedRef.current = true;
-    initialMessageIdsRef.current = new Set(msgs.map((m) => m.id));
+      // record initial message IDs so we don't emit markMessagesAsSeen for them
+      initialRecentLoadedRef.current = true;
+      initialMessageIdsRef.current = new Set(msgs.map((m) => m.id));
 
-    // store latest message createdAt for potential client-side checks (optional)
-    if (msgs.length > 0) {
-      // msgs may be in any order; pick the max createdAt
-      const maxTs = msgs.reduce((max, m) => {
-        const t = new Date(m.createdAt).getTime();
-        return Math.max(max, t);
-      }, 0);
-      joinLatestCreatedAtRef.current = new Date(maxTs);
-    } else {
-      joinLatestCreatedAtRef.current = null;
-    }
-  };
+      // store latest message createdAt for potential client-side checks (optional)
+      if (msgs.length > 0) {
+        // msgs may be in any order; pick the max createdAt
+        const maxTs = msgs.reduce((max, m) => {
+          const t = new Date(m.createdAt).getTime();
+          return Math.max(max, t);
+        }, 0);
+        joinLatestCreatedAtRef.current = new Date(maxTs);
+      } else {
+        joinLatestCreatedAtRef.current = null;
+      }
+    };
 
     const handleOlderMessages = (msgs: MessageWithSenderInfo[]) => {
       if (!msgs || msgs.length === 0) {
@@ -297,6 +332,30 @@ export const ChatContainer = ({
       );
     };
 
+    // handle when server returns a specific message (or a small page around it)
+    const handleMessageById = (msg: MessageWithSenderInfo | null) => {
+      if (!msg) return;
+      setHistory((prev) => {
+        // avoid duplicates
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        // we assume server returns context so we append/insert correctly; simplest: append then sort by createdAt if needed
+        const combined = [...prev, normalizeMessage(msg)];
+        // optionally sort combined by createdAt
+        combined.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        return combined;
+      });
+
+      // wait next paint so DOM exists, then jump
+      requestAnimationFrame(() => {
+        // small delay to let React render the newly added message
+        setTimeout(() => jumpToMessage(msg.id), 50);
+      });
+    };
+
+    
     // register named handlers so we can reliably remove them
     socket.on("connect", onConnect);
     socket.on("recentMessages", handleRecentMessages);
@@ -307,6 +366,7 @@ export const ChatContainer = ({
     socket.on("online-users", handleOnlineUsers);
     socket.on("messageViews", handleMessageViews);
     socket.on("messagesSeen", handleMessagesSeen);
+    socket.on("messageById", handleMessageById);
 
     // if already connected, run onConnect to rejoin
     if (socket.connected) onConnect();
@@ -331,11 +391,12 @@ export const ChatContainer = ({
       socket.off("online-users", handleOnlineUsers);
       socket.off("messagesSeen", handleMessagesSeen);
       socket.off("messageViews", handleMessageViews);
+      socket.off("messageById", handleMessageById);
 
       // clear per-chat caches to avoid unbounded growth
       emittedIds.clear();
     };
-  }, [socket, groupId, userId, chatId, normalizeMessage, emittedIds]);
+  }, [socket, groupId, userId, chatId, normalizeMessage, emittedIds, jumpToMessage]);
 
   // inside the consolidated effect (or in a small dedicated effect)
   useEffect(() => {
@@ -398,70 +459,69 @@ export const ChatContainer = ({
 
   // --- mark messages as seen when history updates (optimistic + reliable emit) ---
   // --- mark messages as seen when history updates (optimistic + reliable emit) ---
-useEffect(() => {
-  if (!socket) return;
+  useEffect(() => {
+    if (!socket) return;
 
-  // find unseen messages according to UI state, sender filter and local emitted cache
-  const unseenMessages = history.filter(
-    (m) =>
-      !m.seenByMe &&
-      m.senderId !== userId &&
-      !emittedMessageIds.current.has(m.id)
-  );
-  if (unseenMessages.length === 0) return;
+    // find unseen messages according to UI state, sender filter and local emitted cache
+    const unseenMessages = history.filter(
+      (m) =>
+        !m.seenByMe &&
+        m.senderId !== userId &&
+        !emittedMessageIds.current.has(m.id)
+    );
+    if (unseenMessages.length === 0) return;
 
-  // Only emit for messages that were NOT part of the initial recentMessages load.
-  // That prevents emitting all historical ids on join (server pointer already handled those).
-  const toEmit = unseenMessages.filter((m) => {
-    // if initial recent not yet loaded, allow emit (we might be restoring state or reconnecting)
-    if (!initialRecentLoadedRef.current) return true;
-    // otherwise, skip ids that were part of the initial recent batch
-    return !initialMessageIdsRef.current.has(m.id);
-  });
+    // Only emit for messages that were NOT part of the initial recentMessages load.
+    // That prevents emitting all historical ids on join (server pointer already handled those).
+    const toEmit = unseenMessages.filter((m) => {
+      // if initial recent not yet loaded, allow emit (we might be restoring state or reconnecting)
+      if (!initialRecentLoadedRef.current) return true;
+      // otherwise, skip ids that were part of the initial recent batch
+      return !initialMessageIdsRef.current.has(m.id);
+    });
 
-  if (toEmit.length === 0) return;
+    if (toEmit.length === 0) return;
 
-  const messageIds = toEmit.map((m) => m.id);
+    const messageIds = toEmit.map((m) => m.id);
 
-  // mark locally as seen (optimistic)
-  messageIds.forEach((id) => emittedMessageIds.current.add(id));
-  setHistory((prev) =>
-    prev.map((msg) =>
-      messageIds.includes(msg.id)
-        ? {
-            ...msg,
-            seenByMe: true,
-          }
-        : msg
-    )
-  );
+    // mark locally as seen (optimistic)
+    messageIds.forEach((id) => emittedMessageIds.current.add(id));
+    setHistory((prev) =>
+      prev.map((msg) =>
+        messageIds.includes(msg.id)
+          ? {
+              ...msg,
+              seenByMe: true,
+            }
+          : msg
+      )
+    );
 
-  const emitMarkSeen = () => {
-    try {
-      socket.emit("markMessagesAsSeen", { messageIds });
-    } catch (err) {
-      console.warn("Failed to emit markMessagesAsSeen:", err);
-      // rollback optimistic flags? usually not necessary: we'll re-sync on next server event.
-    }
-  };
+    const emitMarkSeen = () => {
+      try {
+        socket.emit("markMessagesAsSeen", { messageIds });
+      } catch (err) {
+        console.warn("Failed to emit markMessagesAsSeen:", err);
+        // rollback optimistic flags? usually not necessary: we'll re-sync on next server event.
+      }
+    };
 
-  if (socket.connected) {
-    emitMarkSeen();
-  } else {
-    // ensure we emit after connect
-    const handle = () => {
+    if (socket.connected) {
       emitMarkSeen();
-      socket.off("connect", handle);
-    };
-    socket.on("connect", handle);
+    } else {
+      // ensure we emit after connect
+      const handle = () => {
+        emitMarkSeen();
+        socket.off("connect", handle);
+      };
+      socket.on("connect", handle);
 
-    // cleanup this temporary handler if effect re-runs or unmounts before connecting
-    return () => {
-      socket.off("connect", handle);
-    };
-  }
-}, [history, userId, socket]);
-
+      // cleanup this temporary handler if effect re-runs or unmounts before connecting
+      return () => {
+        socket.off("connect", handle);
+      };
+    }
+  }, [history, userId, socket]);
 
   // --- key handlers ---
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -649,6 +709,8 @@ useEffect(() => {
     };
   }, []);
 
+  
+
   return (
     <div
       className="fixed inset-0 sm:overflow-hidden flex items-start sm:items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700 p-2 sm:p-4 pt-6 sm:pt-0"
@@ -712,25 +774,35 @@ useEffect(() => {
               {history.map((msg) => {
                 const isOwn = msg.senderId === userId;
                 return (
-                  <ChatMessage
-                    key={msg.id}
-                    userId={userId}
-                    msg={msg}
-                    isOwn={isOwn}
-                    openSeenModal={openSeenModal}
-                    isOnline={onlineUserIds.includes(msg.senderId)}
-                    onReply={(m) => {
-                      setReplyTo(m);
-                      setTimeout(() => inputRef.current?.focus(), 0);
-                    }}
-                  />
-                );
+    <div
+      key={msg.id}
+       id={`message-${msg.id}`}
+      ref={(el) => {
+        // keep the reference in the map — remove if el is null on unmount
+        if (el) messageRefs.current.set(msg.id, el);
+        else messageRefs.current.delete(msg.id);
+      }}
+      data-message-id={msg.id}
+    >
+      <ChatMessage
+        userId={userId}
+        msg={msg}
+        isOwn={isOwn}
+        isOnline={onlineUserIds.includes(msg.senderId)}
+        onReply={(m) => {
+          setReplyTo(m);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+        onJumpToMessage={(id) => jumpToMessage(id)} // new prop for click-to-jump
+        openSeenModal={openSeenModal}
+      />
+    </div>
+  );
               })}
 
               <div ref={bottomRef} />
             </CardContent>
 
-            {/* Footer */}
             {/* Footer */}
             <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2 relative">
               {replyTo && (

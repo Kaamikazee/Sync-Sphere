@@ -18,6 +18,7 @@ interface ChatMessageProps {
   onReply: (msg: MessageWithSenderInfo) => void;
   userId: string;
   openSeenModal: (messageId: string) => void;
+  onJumpToMessage: (messageId: string) => void;
 }
 
 function ChatMessageInner({
@@ -27,6 +28,7 @@ function ChatMessageInner({
   onReply,
   userId,
   openSeenModal,
+  onJumpToMessage,
 }: ChatMessageProps) {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -150,12 +152,17 @@ function ChatMessageInner({
       >
         {!isOwn && <p className="text-xs font-semibold mb-1">{msg.senderName}</p>}
 
-        {msg.replyTo && (
-          <div className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md">
-            <strong>{msg.replyTo.senderName}</strong>:{" "}
-            {String(msg.replyTo.content).slice(0, 40)}…
-          </div>
-        )}
+        {msg.replyTo?.id && (
+  <button
+    onClick={() => onJumpToMessage?.(msg.replyTo!.id)}
+    type="button"
+    onMouseDown={(e) => e.preventDefault()}
+    className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md"
+  >
+    <strong>{msg.replyTo.senderName}</strong>:{" "}
+    {String(msg.replyTo.content).slice(0, 40)}…
+  </button>
+)}
 
         <div className="whitespace-pre-wrap">{msg.content}</div>
 
