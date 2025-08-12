@@ -135,13 +135,57 @@ io.on("connection", (socket) => {
     socket.on("chat:subscribe", async ({ chatId, userId }) => {
   console.log(`[chat:subscribe] Joining room chat_${chatId}_${userId}`);
   socket.join(`chat_${chatId}_${userId}`);
+  socket.data.subscribedChatId = chatId; // optional flag
 
   try {
-    // send the initial unread count immediately to this room/user
+    // send the initial unread count
     await emitUnreadCount(chatId, userId);
+
+    // --- mark the recent page of messages as seen for this user ---
+    const PAGE_SIZE = 50;
+    const recent = await prisma.message.findMany({
+      where: { chatId },
+      orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      select: { id: true, createdAt: true },
+    });
+
+    const recentIds = recent.map(m => m.id);
+    const maxCreatedAt = recent.reduce((acc, m) => (m.createdAt > acc ? m.createdAt : acc), new Date(0));
+    const latestId = recent.length ? recent[0].id : null;
+
+    if (recentIds.length) {
+      // create message view rows (skip duplicates)
+      await prisma.messageView.createMany({
+        data: recentIds.map(id => ({ userId, messageId: id })),
+        skipDuplicates: true,
+      });
+
+      // upsert chatReadReceipt to point to newest message seen
+      await prisma.chatReadReceipt.upsert({
+        where: { userId_chatId: { userId, chatId } },
+        create: { userId, chatId, lastSeenAt: maxCreatedAt, lastSeenMessageId: latestId },
+        update: { lastSeenAt: maxCreatedAt, lastSeenMessageId: latestId },
+      });
+
+      // inform other clients in the chat (except this socket)
+      // --- NEW: tell other clients that this user has seen those recent messages ---
+      const seenByUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, image: true },
+      });
+
+      io.to(`chat_${chatId}`).except(socket.id).emit("messagesSeen", {
+        messageIds: recentIds,
+        seenByUser,
+      });
+
+      // update unread counts for other users as needed
+      await emitUnreadCount(chatId, userId);
+    }
+
   } catch (err) {
-    console.error("Failed to emit unread count on subscribe:", err);
-    // as a fallback, also send a direct emit to the socket
+    console.error("Failed to do subscribe + mark-as-seen:", err);
     socket.emit("chat:updateUnreadCount", { chatId, userId, unreadCount: 0 });
   }
 });
@@ -486,31 +530,6 @@ io.on("connection", (socket) => {
       replyTo: { select: { id: true, content: true, sender: { select: { name: true } } } },
     },
   });
-
-
-// compute newest message from the fetched `recent` array (safe regardless of order)
-const newest = recent.reduce((latest, msg) => {
-  if (!latest || msg.createdAt > latest.createdAt) return msg;
-  return latest;
-}, null);
-
-const latestSeenAt = newest ? newest.createdAt : new Date();
-const latestSeenMessageId = newest ? newest.id : null;
-
-// Always update BOTH fields
-await prisma.chatReadReceipt.upsert({
-  where: { userId_chatId: { userId, chatId: chat.id } },
-  update: {
-    lastSeenAt: latestSeenAt,
-    lastSeenMessageId: latestSeenMessageId,
-  },
-  create: {
-    userId,
-    chatId: chat.id,
-    lastSeenAt: latestSeenAt,
-    lastSeenMessageId: latestSeenMessageId,
-  },
-});
 
 
 
