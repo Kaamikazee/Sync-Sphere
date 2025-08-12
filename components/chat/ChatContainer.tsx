@@ -138,6 +138,8 @@ export const ChatContainer = ({
   useEffect(() => {
     if (!socket) return;
 
+    const emittedIds = emittedMessageIds.current;
+
     // ensure connection
     if (!socket.connected) socket.connect();
 
@@ -210,7 +212,27 @@ export const ChatContainer = ({
       setTypingUsers((curr) => curr.filter((x) => x.userId !== uid));
     };
 
+    
     const handleOnlineUsers = (ids: string[]) => setOnlineUserIds(ids);
+    
+    const handleMessageViews = (payload: { messageId: string; views: any[] }) => {
+    console.log("[chat] messageViews (container) payload:", payload);
+    setHistory(prev =>
+      prev.map(m =>
+        m.id === payload.messageId
+          ? {
+              ...m,
+              // store raw views or transform into seenPreview/viewers
+              views: payload.views,
+              seenPreview: (payload.views || [])
+                .filter((v: any) => v.user && v.user.id !== userId)
+                .slice(0, 3)
+                .map((v: any) => ({ id: v.user.id, name: v.user.name, image: v.user.image ?? null }))
+            }
+          : m
+      )
+    );
+  };
 
     const handleMessagesSeen = ({ seenByUser, messageIds }: any) => {
       if (!seenByUser || !messageIds || messageIds.length === 0) return;
@@ -251,6 +273,7 @@ export const ChatContainer = ({
     socket.on("userTyping", handleUserTyping);
     socket.on("userStopTyping", handleUserStopTyping);
     socket.on("online-users", handleOnlineUsers);
+    socket.on("messageViews", handleMessageViews);
     socket.on("messagesSeen", handleMessagesSeen);
 
     // if already connected, run onConnect to rejoin
@@ -275,9 +298,10 @@ export const ChatContainer = ({
       socket.off("userStopTyping", handleUserStopTyping);
       socket.off("online-users", handleOnlineUsers);
       socket.off("messagesSeen", handleMessagesSeen);
+      socket.off("messageViews", handleMessageViews);
 
       // clear per-chat caches to avoid unbounded growth
-      emittedMessageIds.current.clear();
+      emittedIds.clear();
     };
   }, [socket, groupId, userId, chatId, normalizeMessage]);
 
@@ -448,6 +472,20 @@ export const ChatContainer = ({
     }, 300);
   };
 
+  const openSeenModal = (messageId: string) => {
+  // emit getMessageViews for this messageId and container's single messageViews handler
+  if (!socket) return;
+  if (socket.connected) socket.emit("getMessageViews", { messageId });
+  else {
+    const once = () => {
+      socket.emit("getMessageViews", { messageId });
+      socket.off("connect", once);
+    };
+    socket.on("connect", once);
+    socket.connect();
+  }
+};
+
   // --- pagination helper ---
   const loadMoreMessages = useCallback(() => {
     if (!hasMore || loadingMore) return;
@@ -490,18 +528,18 @@ export const ChatContainer = ({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [hasMore, loadingMore, history, loadMoreMessages]);
 
-  useEffect(() => {
-    const onViewportResize = () => {
-      // keep input visible by scrolling messages to bottom
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    };
+  // useEffect(() => {
+  //   const onViewportResize = () => {
+  //     // keep input visible by scrolling messages to bottom
+  //     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  //   };
 
-    const vv = window.visualViewport;
-    if (vv) vv.addEventListener("resize", onViewportResize);
-    return () => {
-      if (vv) vv.removeEventListener("resize", onViewportResize);
-    };
-  }, []);
+  //   const vv = window.visualViewport;
+  //   if (vv) vv.addEventListener("resize", onViewportResize);
+  //   return () => {
+  //     if (vv) vv.removeEventListener("resize", onViewportResize);
+  //   };
+  // }, []);
 
   useEffect(() => {
     return () => {
@@ -631,6 +669,7 @@ export const ChatContainer = ({
                     userId={userId}
                     msg={msg}
                     isOwn={isOwn}
+                    openSeenModal={openSeenModal}
                     isOnline={onlineUserIds.includes(msg.senderId)}
                     onReply={(m) => {
                       setReplyTo(m);

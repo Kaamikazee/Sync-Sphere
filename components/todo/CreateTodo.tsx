@@ -183,7 +183,7 @@ export function CreateTodo({ focusAreaId }: Props) {
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={setIsOpen}>
-        <DrawerTrigger data-ripple asChild>{Trigger}</DrawerTrigger>
+        <DrawerTrigger data-ripple data-ripple-color="rgba(0,0,0,0.15)"  asChild>{Trigger}</DrawerTrigger>
         <DrawerContent className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto no-scrollbar">
           <DrawerHeader>
             <DrawerTitle className="text-white text-lg sm:text-xl">
@@ -202,7 +202,7 @@ export function CreateTodo({ focusAreaId }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger data-ripple asChild>{Trigger}</DialogTrigger>
+      <DialogTrigger data-ripple data-ripple-color="rgba(0,0,0,0.15)"  asChild>{Trigger}</DialogTrigger>
       <DialogContent className="w-[90vw] max-w-xs sm:max-w-sm md:max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-white text-lg sm:text-xl">

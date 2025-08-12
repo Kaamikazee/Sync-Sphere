@@ -14,37 +14,37 @@ datasource db {
 }
 
 model User {
-  id                   String                 @id @default(cuid())
-  name                 String?
-  username             String                 @unique
-  timezone             String                 @default("Asia/Kolkata") // IANA timezone
-  resetHour            Int                    @default(0) // 0 = midnight, 4 = 4 AM reset
-  surname              String?
-  email                String?                @unique
-  emailVerified        DateTime?
-  hashedPassword       String?
-  image                String?
-  bio                  String?
-  fcmToken             String?
-  sessions             Session[]
-  accounts             Account[]
-  completedOnboarding  Boolean                @default(false)
-  createdGroups        Group[]                @relation("CreatedBy")
-  subscriptions        Subscription[]
-  pomodoroSettings     PomodoroSettings[]
-  activities           Activity[]
-  message              Message[]
-  todos                Todo[]
-  announcements        Announcement[]
+  id                    String                 @id @default(cuid())
+  name                  String?
+  username              String                 @unique
+  timezone              String                 @default("Asia/Kolkata") // IANA timezone
+  resetHour             Int                    @default(0) // 0 = midnight, 4 = 4 AM reset
+  surname               String?
+  email                 String?                @unique
+  emailVerified         DateTime?
+  hashedPassword        String?
+  image                 String?
+  bio                   String?
+  fcmToken              String?
+  sessions              Session[]
+  accounts              Account[]
+  completedOnboarding   Boolean                @default(false)
+  createdGroups         Group[]                @relation("CreatedBy")
+  subscriptions         Subscription[]
+  pomodoroSettings      PomodoroSettings[]
+  activities            Activity[]
+  message               Message[]
+  todos                 Todo[]
+  announcements         Announcement[]
   announcementComments  Comment[]
   announcementViews     AnnouncementView[]
   announcementReactions AnnouncementReaction[]
   commentReactions      CommentReaction[]
-  notifications        Notification[]
-  receivedWarnings     Warning[]              @relation("ReceivedWarnings")
-  issuedWarnings       Warning[]              @relation("IssuedWarnings")
-  messageViews         MessageView[]
-  seen                 ChatSeen[]
+  notifications         Notification[]
+  receivedWarnings      Warning[]              @relation("ReceivedWarnings")
+  issuedWarnings        Warning[]              @relation("IssuedWarnings")
+  messageViews          MessageView[]
+  readReceipt           ChatReadReceipt[]
 
   createdAt DateTime @default(now())
 
@@ -324,11 +324,11 @@ model DailyTotal {
 }
 
 model Chat {
-  id       String     @id @default(cuid())
-  group    Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  groupId  String
-  messages Message[]
-  seen     ChatSeen[]
+  id           String            @id @default(cuid())
+  group        Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId      String
+  messages     Message[]
+  readReceipts ChatReadReceipt[]
 }
 
 model Message {
@@ -368,17 +368,18 @@ model MessageView {
   @@index([messageId])
 }
 
-model ChatSeen {
-  id     String   @id @default(cuid())
-  chat   Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  chatId String
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-  seenAt DateTime @default(now())
+model ChatReadReceipt {
+  userId            String
+  chatId            String
+  lastSeenMessageId String? // nullable if user never read anything
+  lastSeenAt        DateTime @default(now())
 
-  @@unique([chatId, userId])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@id([userId, chatId]) // unique per user per chat
   @@index([chatId])
-  @@index([userId])
+  @@index([lastSeenAt])
 }
 
 // NOTIFICATION SYSTEM

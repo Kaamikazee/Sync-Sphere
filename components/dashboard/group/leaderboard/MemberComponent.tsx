@@ -146,7 +146,7 @@ export function MemberComponent({
   return (
     <Dialog>
       <form>
-        <DialogTrigger asChild>
+        <DialogTrigger data-ripple asChild>
           <div
             className={`flex items-center justify-between px-3 py-2 sm:px-6 sm:py-4 
             rounded-xl relative text-white/90 transition-transform duration-200 
@@ -265,11 +265,12 @@ export function MemberComponent({
           {/* Footer buttons (wrap on small screens) */}
           <DialogFooter className="mt-4 sm:mt-6 flex flex-wrap justify-end gap-2">
             <Link href={`/profile/${id}/reports`} className="w-full sm:w-auto">
-              <Button size="sm" className="w-full sm:min-w-[100px]">
+              <Button data-ripple size="sm" className="w-full sm:min-w-[100px]">
                 Reports
               </Button>
             </Link>
             <Button
+            data-ripple
               size="sm"
               type="submit"
               disabled={isPending}
@@ -281,6 +282,7 @@ export function MemberComponent({
             {(role === "ADMIN" || role === "OWNER") &&
               (!warningId ? (
                 <Button
+                data-ripple
                   size="sm"
                   type="submit"
                   variant="destructive"
@@ -292,6 +294,7 @@ export function MemberComponent({
                 </Button>
               ) : (
                 <Button
+                data-ripple
                   size="sm"
                   type="submit"
                   variant="outline"

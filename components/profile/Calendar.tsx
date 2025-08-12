@@ -123,6 +123,8 @@ export function CalendarComp({ userId, onDaySelect }: Props) {
 
           return (
             <div
+            data-ripple
+            data-ripple-color="rgba(0,0,0,0.15)"
               key={day.toISOString()}
               className={`h-16 rounded-lg p-1 text-xs flex flex-col items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-105 hover:shadow-lg ${color}`}
               onClick={() => {

@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { motion, useAnimation } from "framer-motion";
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
-import { initSocket } from "@/lib/initSocket";
+// import { initSocket } from "@/lib/initSocket";
 // IMPORTANT: import the exact same socket export that ChatContainer uses.
 // Make sure this file and ChatContainer import from the same module path.
 // import { initSocket } from "@/lib/useSocket"; // <- ensure this is the canonical socket module
@@ -17,6 +17,7 @@ interface ChatMessageProps {
   isOnline: boolean;
   onReply: (msg: MessageWithSenderInfo) => void;
   userId: string;
+  openSeenModal: (messageId: string) => void;
 }
 
 function ChatMessageInner({
@@ -25,94 +26,79 @@ function ChatMessageInner({
   isOnline,
   onReply,
   userId,
+  openSeenModal,
 }: ChatMessageProps) {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
 
   // use the SAME socket instance as ChatContainer
-  const socket = useMemo(() => initSocket(), []);
+  // const socket = useMemo(() => initSocket(), []);
 
   // viewers fetched from server when modal opens (has seenAt)
-  const [viewers, setViewers] = useState<
-    { id: string; name: string; image?: string | null; seenAt?: string | null }[]
-  >([]);
-
   // Quick preview: prefer server-provided seenPreview
-  const quickPreview =
-    Array.isArray((msg as any).seenPreview) && (msg as any).seenPreview.length > 0
-      ? (msg as any).seenPreview
-      : Array.isArray((msg as any).views)
-      ? (msg as any).views
-          .map((v: any) =>
-            v.user
-              ? { id: v.user.id, name: v.user.name, image: v.user.image }
-              : { id: v.id ?? v.userId, name: v.name ?? "", image: v.image ?? null }
-          )
-          .filter((v: any) => v.id !== userId)
-          .slice(0, 3)
-      : [];
 
-  const seenCount =
-    typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
+  const viewersFromMsg = useMemo(() => {
+    // prefer server-provided seenPreview (already shaped), else derive from msg.views
+    if (Array.isArray((msg as any).seenPreview) && (msg as any).seenPreview.length > 0) {
+      return (msg as any).seenPreview.map((v: any) => ({
+        id: v.id,
+        name: v.name,
+        image: v.image ?? null,
+        seenAt: v.seenAt ?? null,
+      }));
+    }
+
+    if (Array.isArray((msg as any).views) && (msg as any).views.length > 0) {
+      return (msg as any).views
+        .map((v: any) =>
+          v.user
+            ? { id: v.user.id, name: v.user.name, image: v.user.image ?? null, seenAt: v.seenAt ?? null }
+            : { id: v.id ?? v.userId, name: v.name ?? "", image: v.image ?? null, seenAt: v.seenAt ?? null }
+        )
+        .filter((v: any) => v.id !== userId);
+    }
+
+    return [];
+  }, [msg, userId]);
+
+    const quickPreview = viewersFromMsg.slice(0, 3);
+  const seenCount = typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
+
 
   // Handler for messageViews event scoped to this message
-  useEffect(() => {
-    const handler = (payload: { messageId: string; views: any[] }) => {
-      if (!payload || payload.messageId !== msg.id) return;
-      setViewers(
-        (payload.views || [])
-          .filter((v: any) => v.id !== userId)
-          .map((v: any) => ({
-            id: v.id,
-            name: v.name ?? "",
-            image: v.image ?? null,
-            seenAt: v.seenAt ?? null,
-          }))
-      );
-    };
+  // useEffect(() => {
+  //   const handler = (payload: { messageId: string; views: any[] }) => {
+  //     if (!payload || payload.messageId !== msg.id) return;
+  //     setViewers(
+  //       (payload.views || [])
+  //         .filter((v: any) => v.id !== userId)
+  //         .map((v: any) => ({
+  //           id: v.id,
+  //           name: v.name ?? "",
+  //           image: v.image ?? null,
+  //           seenAt: v.seenAt ?? null,
+  //         }))
+  //     );
+  //   };
 
-    if (!socket) return;
+  //   if (!socket) return;
 
-    socket.on("messageViews", handler);
-    return () => {
-      socket.off("messageViews", handler);
-    };
-  }, [msg.id, userId, socket]);
+  //   socket.on("messageViews", handler);
+  //   return () => {
+  //     socket.off("messageViews", handler);
+  //   };
+  // }, [msg.id, userId, socket]);
 
   // Open modal and request viewers; ensure the emit reaches server even if socket is not connected.
-  const openSeenModal = () => {
-    if (!socket) {
-      setShowSeenModal(true);
-      return;
+  // open modal: call container's openSeenModal and show the UI
+  const handleOpenSeenModal = () => {
+    // request data from server via container
+    try {
+      openSeenModal(msg.id);
+    } catch (err) {
+      console.warn("openSeenModal failed:", err);
     }
-
-    const emitRequest = () => {
-      try {
-        socket.emit("getMessageViews", { messageId: msg.id });
-      } catch (err) {
-        console.warn("getMessageViews emit failed:", err);
-      }
-    };
-
-    if (socket.connected) {
-      emitRequest();
-    } else {
-      // wait for one connect and then emit
-      const onceConnect = () => {
-        emitRequest();
-        socket.off("connect", onceConnect);
-      };
-      socket.on("connect", onceConnect);
-
-      // ensure socket attempts to connect
-      try {
-        socket.connect();
-      } catch (err) {
-        console.warn("socket.connect() failed:", err);
-      }
-    }
-
     setShowSeenModal(true);
   };
 
@@ -183,7 +169,7 @@ function ChatMessageInner({
 
           {isOwn && seenCount > 0 && (
             <button
-              onClick={openSeenModal}
+              onClick={handleOpenSeenModal}
               className="hover:text-blue-500 transition-colors flex items-center gap-1"
               title={`Seen by ${seenCount}+`}
               aria-label={`Open seen by (${seenCount})`}
@@ -219,8 +205,8 @@ function ChatMessageInner({
               <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By {seenCount}</h2>
 
               <div className="space-y-3 max-h-60 overflow-auto">
-                {viewers.length > 0 ? (
-                  viewers.map((viewer) => (
+                {viewersFromMsg.length > 0 ? (
+                  viewersFromMsg.map((viewer: any) => (
                     <div key={viewer.id} className="flex items-center gap-3">
                       {viewer.image ? (
                         <Image
