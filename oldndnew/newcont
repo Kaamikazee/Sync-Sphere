@@ -135,6 +135,8 @@ export const ChatContainer = ({
   const initialMessageIdsRef = useRef(new Set<string>());
   const joinLatestCreatedAtRef = useRef<Date | null>(null);
   const emittedIds = emittedMessageIds.current;
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+
   
   const normalizeMessage = useMemo(
     () => createNormalizeMessage(userId),
@@ -297,6 +299,27 @@ export const ChatContainer = ({
       );
     };
 
+    // handler for unread updates
+const handleUnreadUpdate = ({ chatId: incomingChatId, userId: uid, unreadCount }: any) => {
+  // only care about updates for this authenticated user
+  if (uid !== userId) return;
+  if (incomingChatId !== chatId) {
+    // optional: if you manage multiple chats in UI, store per-chat counts
+    return;
+  }
+  console.log('[client] unread update', incomingChatId, uid, unreadCount);
+  setUnreadCount(unreadCount);
+};
+
+
+// right after subscribing to per-chat room, request immediate count as a fallback
+if (chatId) {
+  socket.emit("chat:subscribe", { chatId, userId });
+  // small extra safety: ask server to emit unread count now
+  socket.emit("getUnreadCount", { chatId, userId });
+}
+
+
     // register named handlers so we can reliably remove them
     socket.on("connect", onConnect);
     socket.on("recentMessages", handleRecentMessages);
@@ -307,6 +330,8 @@ export const ChatContainer = ({
     socket.on("online-users", handleOnlineUsers);
     socket.on("messageViews", handleMessageViews);
     socket.on("messagesSeen", handleMessagesSeen);
+    socket.on("chat:updateUnreadCount", handleUnreadUpdate);
+
 
     // if already connected, run onConnect to rejoin
     if (socket.connected) onConnect();
@@ -331,6 +356,8 @@ export const ChatContainer = ({
       socket.off("online-users", handleOnlineUsers);
       socket.off("messagesSeen", handleMessagesSeen);
       socket.off("messageViews", handleMessageViews);
+      socket.off("chat:updateUnreadCount", handleUnreadUpdate);
+
 
       // clear per-chat caches to avoid unbounded growth
       emittedIds.clear();
@@ -438,7 +465,10 @@ useEffect(() => {
 
   const emitMarkSeen = () => {
     try {
-      socket.emit("markMessagesAsSeen", { messageIds });
+      if (history && history.length > 0) {
+  const last = history[history.length - 1];
+  socket.emit("markMessagesAsSeen", { upToMessageId: last.id });
+}
     } catch (err) {
       console.warn("Failed to emit markMessagesAsSeen:", err);
       // rollback optimistic flags? usually not necessary: we'll re-sync on next server event.

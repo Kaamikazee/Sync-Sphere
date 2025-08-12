@@ -33,57 +33,34 @@ app.prepare().then(() => {
   const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
 
   async function emitUnreadCount(chatId, userId) {
-  try {
     const receipt = await prisma.chatReadReceipt.findUnique({
       where: { userId_chatId: { userId, chatId } },
-      select: { lastSeenAt: true, lastSeenMessageId: true },
+      select: { lastSeenAt: true },
     });
-
-    const baseWhere = { chatId, senderId: { not: userId } };
-    let lastSeenAt = receipt?.lastSeenAt;
-
-    // If no lastSeenAt but we have an ID, resolve it once
-    if (!lastSeenAt && receipt?.lastSeenMessageId) {
-      const msg = await prisma.message.findUnique({
-        where: { id: receipt.lastSeenMessageId },
-        select: { createdAt: true },
-      });
-      lastSeenAt = msg?.createdAt || null;
-
-      // Optional: persist it so future queries are faster
-      if (lastSeenAt) {
-        await prisma.chatReadReceipt.update({
-          where: { userId_chatId: { userId, chatId } },
-          data: { lastSeenAt },
-        });
-      }
-    }
-
     let unreadCount;
-    if (!lastSeenAt) {
-      // No read pointer → all messages unread
-      unreadCount = await prisma.message.count({ where: baseWhere });
-    } else {
-      // Compare using createdAt, which works with UUIDs
-      unreadCount = await prisma.message.count({
-        where: {
-          ...baseWhere,
-          createdAt: { gt: lastSeenAt },
-        },
-      });
-    }
+    const baseWhere = { chatId, senderId: { not: userId } }; 
+   
+    if (!receipt || !receipt.lastSeenAt) {
+    // user never set a pointer — all messages from others are unread
+    unreadCount = await prisma.message.count({
+      where: baseWhere,
+    });
+  } else {
+    unreadCount = await prisma.message.count({
+      where: {
+        ...baseWhere,
+        createdAt: { gt: receipt.lastSeenAt },
+      },
+    });
+  }
+  
 
     io.to(`chat_${chatId}_${userId}`).emit("chat:updateUnreadCount", {
       chatId,
       userId,
       unreadCount,
     });
-  } catch (err) {
-    console.error("[emitUnreadCount] error", err);
   }
-}
-
-
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
@@ -455,35 +432,16 @@ app.prepare().then(() => {
     },
   });
 
+  const recentReversed = recent.reverse(); // oldest -> newest
+  const latest = recent[0];
+  const latestSeenAt = latest ? latest.createdAt : new Date();
 
-// compute newest message from the fetched `recent` array (safe regardless of order)
-const newest = recent.reduce((latest, msg) => {
-  if (!latest || msg.createdAt > latest.createdAt) return msg;
-  return latest;
-}, null);
-
-const latestSeenAt = newest ? newest.createdAt : new Date();
-const latestSeenMessageId = newest ? newest.id : null;
-
-// Always update BOTH fields
-await prisma.chatReadReceipt.upsert({
-  where: { userId_chatId: { userId, chatId: chat.id } },
-  update: {
-    lastSeenAt: latestSeenAt,
-    lastSeenMessageId: latestSeenMessageId,
-  },
-  create: {
-    userId,
-    chatId: chat.id,
-    lastSeenAt: latestSeenAt,
-    lastSeenMessageId: latestSeenMessageId,
-  },
-});
-
-
-
-
-const recentReversed = recent.reverse();
+  // upsert pointer (cheap O(1) write)
+  await prisma.chatReadReceipt.upsert({
+    where: { userId_chatId: { userId, chatId: chat.id } },
+    update: { lastSeenAt: latestSeenAt },
+    create: { userId, chatId: chat.id, lastSeenAt: latestSeenAt },
+  });
 
   // create MessageView rows only for the recent messages (bounded cost)
   const recentIds = recentReversed.map((m) => m.id);
