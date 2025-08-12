@@ -48,33 +48,21 @@ export async function getDailyStats(
       baseDate
     );
 
-  // --- fetch segments that *overlap* the day interval ---
-const segments = await db.timerSegment.findMany({
-  where: {
-    userId,
-    AND: [
-      // segment starts before the end of the day
-      { start: { lt: endUTC } },
-      // and either ends after the start of the day, or is still running (end: null)
-      {
-        OR: [
-          { end: { gt: startUTC } },
-          { end: null },
-        ],
-      },
-    ],
-  },
-  select: {
-    duration: true,
-    start: true,
-    end: true,
-    type: true,
-    label: true,
-    focusArea: { select: { name: true } },
-  },
-  orderBy: { start: "asc" },
-});
-
+  const segments = await db.timerSegment.findMany({
+    where: {
+      userId,
+      start: { gte: startUTC, lte: endUTC },
+    },
+    select: {
+      duration: true,
+      start: true,
+      end: true,
+      type: true,
+      label: true,
+      focusArea: { select: { name: true } },
+    },
+    orderBy: { start: "asc" },
+  });
 
   if (!segments.length) {
     return { summary: [], focusAreaData: [], activityTypeData: [] };
@@ -101,30 +89,12 @@ const segments = await db.timerSegment.findMany({
   });
 }
 
-function clampToDayStart(date: Date) {
-  return date < startUTC ? startUTC : date;
-}
 
-if (!segments.length) {
-  return { summary: [], focusAreaData: [], activityTypeData: [] };
-}
-
-// clamp start time so if the first segment started before startUTC we still show "day start"
-const firstSeg = segments[0];
-const startedDate = clampToDayStart(firstSeg.start);
-const started = formatTimeLocal(startedDate, timezone);
-
-// find last non-break focus segment that intersects the day
-// while calculating last, check if the segment type is not "BREAK" and segment.focusArea?.name is defined then only consider it
-const nonBreaks = segments.filter(s => s.type !== "BREAK" && s.focusArea?.name);
-const lastSeg = nonBreaks.slice(-1)[0];
-
+  const started = formatTimeLocal(segments[0].start, timezone);
+  // while calculating last, check if the segment type is not "BREAK" and segment.focusArea?.name is defined then only consider it
+  const last = segments.filter(s => s.type !== "BREAK" && s.focusArea?.name).slice(-1)[0] || {};
   // If last segment is still running, use current time
-  const finished = lastSeg
-  ? lastSeg.end
-    ? formatTimeLocal(lastSeg.end, timezone) // show real end even if after endUTC
-    : "Focusing..."
-  : "Focusing...";
+  const finished = last.end ? formatTimeLocal(last.end, timezone) : "Focusing...";
 
   const summary = [
     { label: "Total", value: formatDuration(totalDuration) },
@@ -152,32 +122,13 @@ const lastSeg = nonBreaks.slice(-1)[0];
   const focusAreaData = Object.values(focusAreaMap);
 
   // Activity type aggregation (minutes)
-// Activity type aggregation (minutes)
-const activityMap: Record<string, { name: string; value: number; color: string }> = {
+ const activityMap: Record<string, { name: string; value: number; color: string }> = {
   Productive: { name: "Productive", value: 0, color: "#4CAF50" },
   Other: { name: "Other", value: 0, color: "#9E9E9E" },
 };
 
-// threshold (minutes) — 4 hours
-const IGNORE_THRESHOLD_MIN = 4 * 60;
-
 for (const s of segments) {
-  // base duration from DB (seconds -> minutes)
-  const dbDurationMinutes = (s.duration || 0) / 60;
-
-  // If segment is still running (end === null) you may want to use current runtime:
-  // const runningDurationMinutes = (Date.now() - s.start.getTime()) / 1000 / 60;
-  // const durationMinutes = s.end ? dbDurationMinutes : runningDurationMinutes;
-
-  // For now we'll use DB duration; uncomment above lines if you want running segments estimated.
-  const durationMinutes = dbDurationMinutes;
-
-  // If this is NOT a focusArea segment and it's longer than 4 hours, skip it
-  const isNonFocusLong = !s.focusArea?.name && s.type !== "BREAK" && durationMinutes > IGNORE_THRESHOLD_MIN;
-  if (isNonFocusLong) {
-    // skip adding this to activity map entirely
-    continue;
-  }
+  const durationMinutes = (s.duration || 0) / 60;
 
   if (s.type === "BREAK" && s.label) {
     const breakName = s.label;
@@ -185,19 +136,20 @@ for (const s of segments) {
       activityMap[breakName] = {
         name: breakName,
         value: 0,
-        color: "#F44336",
+        color: "#F44336", // or maybe a random color generator
       };
     }
     activityMap[breakName].value += durationMinutes;
+
   } else if (s.focusArea?.name) {
     activityMap.Productive.value += durationMinutes;
+
   } else {
     activityMap.Other.value += durationMinutes;
   }
 }
 
 const activityTypeData = Object.values(activityMap);
-
 
 return { summary, focusAreaData, activityTypeData };
 }
