@@ -1,15 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useAnimation } from "framer-motion";
+import {
+  motion,
+  useAnimation,
+  AnimatePresence,
+  useReducedMotion,
+} from "framer-motion";
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
-// import { initSocket } from "@/lib/initSocket";
-// IMPORTANT: import the exact same socket export that ChatContainer uses.
-// Make sure this file and ChatContainer import from the same module path.
-// import { initSocket } from "@/lib/useSocket"; // <- ensure this is the canonical socket module
 
 interface ChatMessageProps {
   msg: MessageWithSenderInfo;
@@ -19,7 +18,10 @@ interface ChatMessageProps {
   userId: string;
   openSeenModal: (messageId: string) => void;
   onJumpToMessage: (messageId: string) => void;
-   registerRef?: (id: string, el: HTMLDivElement | null) => void;
+  registerRef?: (id: string, el: HTMLDivElement | null) => void;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onDelete?: (messageId: string) => void;
+  onToggleReaction?: (messageId: string, emoji: string) => void;
 }
 
 function ChatMessageInner({
@@ -30,25 +32,45 @@ function ChatMessageInner({
   userId,
   openSeenModal,
   onJumpToMessage,
-  registerRef
+  registerRef,
+  onEdit,
+  onDelete,
+  onToggleReaction,
 }: ChatMessageProps) {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const [showSeenModal, setShowSeenModal] = useState(false);
 
-    useEffect(() => {
-  console.log("[registerRef] setting ref for", msg.id, containerRef.current);
-  registerRef?.(msg.id, containerRef.current ?? null);
-  return () => {
-    console.log("[registerRef] clearing ref for", msg.id);
-    registerRef?.(msg.id, null);
-  };
-}, [msg.id, registerRef]);
+  // editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(msg.content ?? "");
+  // Popover state
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [popoverPos, setPopoverPos] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const [popoverPreferBelow, setPopoverPreferBelow] = useState(false);
 
+  const shouldReduceMotion = useReducedMotion();
 
+  useEffect(() => {
+    // update edit text if msg.content changes (e.g., external edit)
+    setEditText(msg.content ?? "");
+  }, [msg.content]);
+
+  useEffect(() => {
+    registerRef?.(msg.id, containerRef.current ?? null);
+    return () => registerRef?.(msg.id, null);
+  }, [msg.id, registerRef]);
+
+  // derive viewers (unchanged)
   const viewersFromMsg = useMemo(() => {
-    // prefer server-provided seenPreview (already shaped), else derive from msg.views
-    if (Array.isArray((msg as any).seenPreview) && (msg as any).seenPreview.length > 0) {
+    if (
+      Array.isArray((msg as any).seenPreview) &&
+      (msg as any).seenPreview.length > 0
+    ) {
       return (msg as any).seenPreview.map((v: any) => ({
         id: v.id,
         name: v.name,
@@ -61,8 +83,18 @@ function ChatMessageInner({
       return (msg as any).views
         .map((v: any) =>
           v.user
-            ? { id: v.user.id, name: v.user.name, image: v.user.image ?? null, seenAt: v.seenAt ?? null }
-            : { id: v.id ?? v.userId, name: v.name ?? "", image: v.image ?? null, seenAt: v.seenAt ?? null }
+            ? {
+                id: v.user.id,
+                name: v.user.name,
+                image: v.user.image ?? null,
+                seenAt: v.seenAt ?? null,
+              }
+            : {
+                id: v.id ?? v.userId,
+                name: v.name ?? "",
+                image: v.image ?? null,
+                seenAt: v.seenAt ?? null,
+              }
         )
         .filter((v: any) => v.id !== userId);
     }
@@ -70,15 +102,13 @@ function ChatMessageInner({
     return [];
   }, [msg, userId]);
 
-    const quickPreview = viewersFromMsg.slice(0, 3);
-  const seenCount = typeof (msg as any).seenCount === "number" ? (msg as any).seenCount : quickPreview.length;
+  const quickPreview = viewersFromMsg.slice(0, 3);
+  const seenCount =
+    typeof (msg as any).seenCount === "number"
+      ? (msg as any).seenCount
+      : quickPreview.length;
 
-
-
-  // Open modal and request viewers; ensure the emit reaches server even if socket is not connected.
-  // open modal: call container's openSeenModal and show the UI
   const handleOpenSeenModal = () => {
-    // request data from server via container
     try {
       openSeenModal(msg.id);
     } catch (err) {
@@ -96,6 +126,195 @@ function ChatMessageInner({
 
   const canPortal = typeof window !== "undefined" && !!document?.body;
 
+  // Save edited content
+  const saveEdit = () => {
+    const trimmed = (editText ?? "").trim();
+    if (!trimmed) {
+      // do not allow empty message; you can choose to delete instead
+      return;
+    }
+    onEdit?.(msg.id, trimmed);
+    setIsEditing(false);
+  };
+
+  // Confirm delete
+  const confirmDelete = () => {
+    const ok = window.confirm("Delete this message? This cannot be undone.");
+    if (!ok) return;
+    onDelete?.(msg.id);
+    setPopoverOpen(false);
+  };
+
+  // ===== Reaction helpers =====
+  // msg.reactions: array of { id, emoji, createdAt, user: { id, name, image } }
+  const reactions: any[] = useMemo(
+    () => (Array.isArray((msg as any).reactions) ? (msg as any).reactions : []),
+    [msg]
+  );
+  const reactionSummary = Array.isArray((msg as any).reactionSummary)
+    ? (msg as any).reactionSummary
+    : undefined;
+
+  // fallback compute summary if server didn't provide it
+  const computedSummary = useMemo(() => {
+    if (reactionSummary) return reactionSummary;
+    const map = new Map<
+      string,
+      { emoji: string; count: number; reactedByMe: boolean; sampleUsers: any[] }
+    >();
+    for (const r of reactions) {
+      const e = r.emoji;
+      const entry = map.get(e) || {
+        emoji: e,
+        count: 0,
+        reactedByMe: false,
+        sampleUsers: [] as any[],
+      };
+      entry.count += 1;
+      if (r.user && r.user.id === userId) entry.reactedByMe = true;
+      if (r.user)
+        entry.sampleUsers.push({
+          id: r.user.id,
+          name: r.user.name,
+          image: r.user.image ?? null,
+        });
+      map.set(e, entry);
+    }
+    return Array.from(map.values()).map((v) => ({
+      ...v,
+      sampleUsers: v.sampleUsers.slice(0, 3),
+    }));
+  }, [reactions, reactionSummary, userId]);
+
+  // Build full reaction groups for the bottom section (full lists)
+  const reactionGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        emoji: string;
+        users: { id: string; name: string; image?: string | null }[];
+      }
+    >();
+    for (const r of reactions) {
+      const e = r.emoji;
+      const list = map.get(e) || { emoji: e, users: [] as any[] };
+      if (r.user) {
+        list.users.push({
+          id: r.user.id,
+          name: r.user.name,
+          image: r.user.image ?? null,
+        });
+      } else {
+        // fallback: some reactions may not have user object
+        list.users.push({
+          id: r.userId ?? r.id ?? Math.random().toString(36).slice(2),
+          name: r.name ?? "Unknown",
+          image: r.image ?? null,
+        });
+      }
+      map.set(e, list);
+    }
+    return Array.from(map.values());
+  }, [reactions]);
+
+  // emojis to show in picker / top of popover
+  const DEFAULT_EMOJIS = ["👍", "❤️", "😂", "🔥", "😢", "🎉", "✅", "❌", "⚡"];
+
+  // ----- Popover open/close + positioning -----
+  const openPopover = (e?: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    // guard: if user clicked an interactive element (button/input/textarea/etc) don't open popover
+    if (e) {
+      const target = e.target as HTMLElement;
+      if (
+        target.closest("button") ||
+        target.closest("input") ||
+        target.closest("textarea") ||
+        target.closest("a")
+      ) {
+        return;
+      }
+    }
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const left = Math.max(
+      8,
+      Math.min(
+        window.innerWidth - 8,
+        rect.left + rect.width / 2 + window.scrollX
+      )
+    );
+    // decide prefer below if not enough room above (mobile-friendly)
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const preferBelow = spaceBelow > spaceAbove;
+    const top = preferBelow
+      ? rect.bottom + window.scrollY + 8 // below
+      : rect.top + window.scrollY - 8; // above
+
+    setPopoverPreferBelow(preferBelow);
+    setPopoverPos({ left, top });
+    setPopoverOpen(true);
+  };
+
+  useEffect(() => {
+    if (!popoverOpen) return;
+
+    const onDocDown = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(target) &&
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
+        setPopoverOpen(false);
+      }
+    };
+
+    const onScroll = (ev: Event) => {
+      const target = ev.target as Node | null;
+      // if the scroll happened inside the popover or the message bubble (container), ignore it
+      if (
+        (popoverRef.current && target && popoverRef.current.contains(target)) ||
+        (containerRef.current &&
+          target &&
+          containerRef.current.contains(target))
+      ) {
+        return;
+      }
+      // otherwise close (this closes when user scrolls anywhere else)
+      setPopoverOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDocDown);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [popoverOpen]);
+
+  // Close popover when editing begins
+  useEffect(() => {
+    if (isEditing) setPopoverOpen(false);
+  }, [isEditing]);
+
+  // ----- framer-motion variants -----
+  const popoverVariants = {
+    hidden: { opacity: 0, scale: 0.96, y: popoverPreferBelow ? -6 : 6 },
+    visible: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.96, y: popoverPreferBelow ? -6 : 6 },
+  };
+
+  const chipTap = shouldReduceMotion ? {} : { whileTap: { scale: 0.95 } };
+  const emojiTap = shouldReduceMotion
+    ? {}
+    : { whileTap: { scale: 0.9 }, whileHover: { scale: 1.08 } };
+
   return (
     <motion.div
       ref={containerRef}
@@ -104,8 +323,12 @@ function ChatMessageInner({
       dragDirectionLock
       onDragEnd={handleDragEnd}
       animate={controls}
-      dragConstraints={isOwn ? { left: 0, right: 120 } : { left: -120, right: 0 }}
-      className={`flex ${isOwn ? "justify-end" : "justify-start"} py-1 px-2 relative`}
+      dragConstraints={
+        isOwn ? { left: 0, right: 120 } : { left: -120, right: 0 }
+      }
+      className={`flex ${
+        isOwn ? "justify-end" : "justify-start"
+      } py-1 px-2 relative`}
     >
       {!isOwn && (
         <div className="relative w-7 h-7 sm:w-8 sm:h-8 mr-2 shrink-0">
@@ -130,48 +353,148 @@ function ChatMessageInner({
       )}
 
       <div
+        // clicking the bubble opens the popover (guarded inside openPopover)
+        onClick={(e) => {
+          if (msg.isDeleted) return;
+          openPopover(e);
+        }}
         className={`rounded-xl px-3 py-2 text-sm shadow-sm max-w-[85%] sm:max-w-[75%] break-words ${
           isOwn ? "bg-white text-black" : "bg-[#dcf8c6] text-black"
+        } ${
+          msg.isDeleted ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
         }`}
+        role="button"
+        aria-label={msg.isDeleted ? "Message deleted" : "Open message actions"}
+        aria-disabled={msg.isDeleted}
       >
-        {!isOwn && <p className="text-xs font-semibold mb-1">{msg.senderName}</p>}
+        {!isOwn && (
+          <p className="text-xs font-semibold mb-1">{msg.senderName}</p>
+        )}
 
         {msg.replyTo?.id && (
-  <button
-    onClick={() => onJumpToMessage?.(msg.replyTo!.id)}
-    type="button"
-    onMouseDown={(e) => e.preventDefault()}
-    className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md"
-  >
-    <strong>{msg.replyTo.senderName}</strong>:{" "}
-    {String(msg.replyTo.content).slice(0, 40)}…
-  </button>
-)}
+          <button
+            onClick={() => onJumpToMessage?.(msg.replyTo!.id)}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md"
+          >
+            <strong>{msg.replyTo.senderName}</strong>:{" "}
+            {String(msg.replyTo.content).slice(0, 40)}…
+          </button>
+        )}
 
-        <div className="whitespace-pre-wrap">{msg.content}</div>
+        {/* message content or edit area */}
+        {isEditing ? (
+          <div className="mt-1">
+            <textarea
+              autoFocus
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              className="w-full resize-none p-2 rounded-md bg-white/90 text-black"
+              rows={3}
+            />
+            <div className="flex gap-2 justify-end mt-2">
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditText(msg.content ?? "");
+                }}
+                type="button"
+                className="px-3 py-1 rounded-md bg-gray-200 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                type="button"
+                className="px-3 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="whitespace-pre-wrap">{msg.content}</div>
+        )}
 
-        <div className="flex items-center justify-end gap-2 text-[10px] text-gray-500 mt-1">
-          <span>
-            {new Date(msg.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
+        {/* Reaction chips (animated layout) */}
+        {!msg.isDeleted && (
+          <div
+            className={`mt-2 ${
+              isOwn ? "flex justify-end" : "flex justify-start"
+            }`}
+          >
+            <div className="flex flex-wrap gap-2 max-w-full">
+              {(computedSummary || []).map((r: any) => (
+                <motion.button
+                  key={r.emoji}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onToggleReaction?.(msg.id, r.emoji)}
+                  type="button"
+                  layout
+                  {...chipTap}
+                  className={
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm shadow-sm select-none whitespace-nowrap leading-none " +
+                    (r.reactedByMe
+                      ? "ring-2 ring-yellow-300 bg-white"
+                      : "bg-white/90 hover:bg-white")
+                  }
+                  aria-label={`React with/unreact ${r.emoji}`}
+                >
+                  <span className="text-lg leading-none">{r.emoji}</span>
+                  <motion.span
+                    layout
+                    className="text-xs text-gray-700"
+                    aria-hidden
+                  >
+                    {r.count}
+                  </motion.span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
 
-          {isOwn && seenCount > 0 && (
-            <button
-              onClick={handleOpenSeenModal}
-              className="hover:text-blue-500 transition-colors flex items-center gap-1"
-              title={`Seen by ${seenCount}+`}
-              aria-label={`Open seen by (${seenCount})`}
-            >
-              <span>✔</span>
-              <span className="text-[9px] text-gray-400">{seenCount}</span>
-            </button>
-          )}
+        <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500 mt-1">
+          <div className="flex items-center gap-2">
+            <span>
+              {new Date(msg.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            {msg.isEdited && (
+              <span className="text-[10px] italic text-gray-400">
+                {" "}
+                (edited)
+              </span>
+            )}
+            {msg.isDeleted && (
+              <span className="text-[10px] italic text-gray-400">
+                {" "}
+                (deleted)
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+
+            {isOwn && seenCount > 0 && (
+              <button
+                onClick={handleOpenSeenModal}
+                className="hover:text-blue-500 transition-colors flex items-center gap-1"
+                title={`Seen by ${seenCount}+`}
+                aria-label={`Open seen by (${seenCount})`}
+              >
+                <span>✔</span>
+                <span className="text-[9px] text-gray-400">{seenCount}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Seen modal (unchanged) */}
       {isOwn &&
         showSeenModal &&
         canPortal &&
@@ -193,7 +516,9 @@ function ChatMessageInner({
               >
                 ✕
               </button>
-              <h2 className="text-md font-semibold text-gray-800 mb-4">Seen By {seenCount}</h2>
+              <h2 className="text-md font-semibold text-gray-800 mb-4">
+                Seen By {seenCount}
+              </h2>
 
               <div className="space-y-3 max-h-60 overflow-auto">
                 {viewersFromMsg.length > 0 ? (
@@ -214,10 +539,14 @@ function ChatMessageInner({
                         </div>
                       )}
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{viewer.name}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {viewer.name}
+                        </p>
                         <p className="text-xs text-gray-500">
                           {viewer.seenAt
-                            ? `Seen at ${new Date(viewer.seenAt).toLocaleTimeString([], {
+                            ? `Seen at ${new Date(
+                                viewer.seenAt
+                              ).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}`
@@ -232,6 +561,198 @@ function ChatMessageInner({
               </div>
             </div>
           </div>,
+          document.body
+        )}
+
+      {/* Popover (anchored above/below the message bubble) */}
+      {canPortal &&
+        createPortal(
+          <AnimatePresence>
+            {popoverOpen && popoverPos && (
+              <motion.div
+                key={`popover-${msg.id}`}
+                ref={popoverRef}
+                className="fixed z-50 left-0 top-0 pointer-events-auto"
+                style={{ left: 0, top: 0 }}
+                aria-modal="false"
+                role="dialog"
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                variants={popoverVariants}
+                transition={
+                  shouldReduceMotion
+                    ? { duration: 0.08 }
+                    : { type: "spring", stiffness: 600, damping: 30 }
+                }
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  // position relative to page using absolute positioned inner element
+                  style={{
+                    position: "absolute",
+                    left: popoverPos.left,
+                    top: popoverPos.top,
+                    transform: popoverPreferBelow
+                      ? "translate(-50%, 0)"
+                      : "translate(-50%, -100%)",
+                    zIndex: 60,
+                    minWidth: 220,
+                  }}
+                >
+                  <motion.div
+                    className="bg-white rounded-lg shadow-lg max-w-xs p-3 ring-1 ring-black/5"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={
+                      shouldReduceMotion
+                        ? { duration: 0.06 }
+                        : { type: "spring", stiffness: 500, damping: 36 }
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 no-scrollbar">
+                        {DEFAULT_EMOJIS.map((emoji) => (
+                          <motion.button
+                            key={emoji}
+                            onClick={() => {
+                              onToggleReaction?.(msg.id, emoji);
+                              // close so user sees the effect and doesn't accidentally double-tap
+                              setPopoverOpen(false);
+                            }}
+                            type="button"
+                            {...emojiTap}
+                            className="p-2 rounded-md min-w-[38px] min-h-[38px] touch-manipulation select-none text-lg flex items-center justify-center"
+                            aria-label={`React with ${emoji}`}
+                          >
+                            {emoji}
+                          </motion.button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setPopoverOpen(false)}
+                        className="text-gray-500 hover:text-black text-sm"
+                        aria-label="Close"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="my-2 border-t border-gray-100" />
+
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {/* Actions: Edit / Delete / Reply */}
+                      {!msg.isDeleted && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setIsEditing(true);
+                              setPopoverOpen(false);
+                            }}
+                            className="px-2 py-1 rounded-md text-sm hover:bg-gray-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={confirmDelete}
+                            className="px-2 py-1 rounded-md text-sm text-red-500 hover:bg-gray-50"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => {
+                          onReply(msg);
+                          setPopoverOpen(false);
+                        }}
+                        className="px-2 py-1 rounded-md text-sm hover:bg-gray-50"
+                      >
+                        Reply
+                      </button>
+                    </div>
+
+                    <div className="my-1 border-t border-gray-100" />
+
+                    {/* Reaction groups with user avatars + names */}
+                    <div className="space-y-3 max-h-40 overflow-auto">
+                      <AnimatePresence>
+                        {reactionGroups.length > 0 ? (
+                          reactionGroups.map((grp) => (
+                            <motion.div
+                              key={grp.emoji}
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 6 }}
+                              transition={
+                                shouldReduceMotion
+                                  ? { duration: 0.06 }
+                                  : { type: "tween", duration: 0.14 }
+                              }
+                              className="flex items-center gap-3"
+                            >
+                              <div className="text-lg">{grp.emoji}</div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {grp.users.slice(0, 6).map((u) => (
+                                    <div
+                                      key={u.id}
+                                      className="flex items-center gap-2"
+                                    >
+                                      {u.image ? (
+                                        <Image
+                                          src={u.image}
+                                          alt={u.name}
+                                          width={28}
+                                          height={28}
+                                          className="rounded-full object-cover w-7 h-7"
+                                          unoptimized
+                                        />
+                                      ) : (
+                                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs font-bold flex items-center justify-center">
+                                          {u.name?.charAt(0).toUpperCase() ||
+                                            "?"}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {grp.users.length > 6 && (
+                                    <div className="text-xs text-gray-500">
+                                      +{grp.users.length - 6}
+                                    </div>
+                                  )}
+                                  <div className="ml-2 text-xs text-gray-600">
+                                    ({grp.users.length})
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {grp.users
+                                    .slice(0, 3)
+                                    .map((u) => u.name)
+                                    .join(", ")}
+                                  {grp.users.length > 3 ? "…" : ""}
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))
+                        ) : (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="text-sm text-gray-500"
+                          >
+                            No reactions yet
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
           document.body
         )}
     </motion.div>

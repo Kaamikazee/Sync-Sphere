@@ -171,20 +171,124 @@ export const ChatContainer = ({
     },
     [messagesContainerRef, messageRefs, socket] // dependencies
   );
-  
-  const waitForMessageElement = async (
-  id: string,
-  { timeout = 5000, interval = 50 } = {}
-): Promise<HTMLElement | null> => {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    const el = messageRefs.current.get(id) ?? null;
-    if (el) return el;
-    await new Promise((r) => setTimeout(r, interval));
-  }
-  return null;
-};
 
+  // ------------------------- PASTE INTO PARENT CHAT COMPONENT -------------------------
+  // helper: compute reaction summary for UI
+  function computeReactionSummary(
+    reactions: any[] = [],
+    currentUserId?: string
+  ) {
+    const map = new Map<
+      string,
+      {
+        emoji: string;
+        count: number;
+        reactedByMe: boolean;
+        sampleUsers: { id: string; name: string; image?: string | null }[];
+      }
+    >();
+
+    for (const r of reactions) {
+      const e = r.emoji;
+      const entry = map.get(e) || {
+        emoji: e,
+        count: 0,
+        reactedByMe: false,
+        sampleUsers: [] as {
+          id: string;
+          name: string;
+          image?: string | null;
+        }[],
+      };
+      entry.count += 1;
+      if (r.user && r.user.id === currentUserId) entry.reactedByMe = true;
+      if (r.user)
+        entry.sampleUsers.push({
+          id: r.user.id,
+          name: r.user.name ?? "",
+          image: r.user.image ?? null,
+        });
+      map.set(e, entry);
+    }
+
+    return Array.from(map.values()).map((v) => ({
+      emoji: v.emoji,
+      count: v.count,
+      reactedByMe: v.reactedByMe,
+      sampleUsers: v.sampleUsers.slice(0, 3),
+    }));
+  }
+
+  // optimistic toggle + emit
+  const toggleReact = (messageId: string, emoji: string) => {
+    if (!socket) return;
+    // find message
+    const m = history.find((x) => x.id === messageId);
+    if (!m) return;
+
+    // current reaction by me (if any)
+    const myReaction = (m.reactions || []).find(
+      (r: any) => r.user?.id === userId
+    );
+
+    if (myReaction && myReaction.emoji === emoji) {
+      // unreact (optimistic)
+      const newReactions = (m.reactions || []).filter(
+        (r: any) => r.user?.id !== userId
+      );
+      const newSummary = computeReactionSummary(newReactions, userId);
+      setHistory((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, reactions: newReactions, reactionSummary: newSummary }
+            : msg
+        )
+      );
+
+      // emit to server
+      socket.emit("message:unreact", { messageId, userId });
+    } else {
+      // upsert (optimistic)
+      const other = (m.reactions || []).filter(
+        (r: any) => r.user?.id !== userId
+      );
+      // create a temp reaction object for immediate UI feedback
+      const tempReaction = {
+        id: `temp_${userId}_${Date.now()}`,
+        emoji,
+        createdAt: new Date(),
+        user: {
+          id: userId,
+        },
+      };
+      const newReactions = [...other, tempReaction];
+      const newSummary = computeReactionSummary(newReactions, userId);
+      setHistory((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, reactions: newReactions, reactionSummary: newSummary }
+            : msg
+        )
+      );
+
+      // emit to server
+      socket.emit("message:react", { messageId, emoji, userId });
+    }
+  };
+  // -----------------------------------------------------------------------------------
+
+  const waitForMessageElement = async (
+    id: string,
+    { timeout = 5000, interval = 50 } = {}
+  ): Promise<HTMLElement | null> => {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const el = messageRefs.current.get(id) ?? null;
+      if (el) return el;
+      await new Promise((r) => setTimeout(r, interval));
+    }
+    return null;
+  };
 
   const normalizeMessage = useMemo(
     () => createNormalizeMessage(userId),
@@ -380,6 +484,65 @@ export const ChatContainer = ({
       setPendingJumpId(msg.id);
     };
 
+    const handleMessageEdited = (payload: {
+      id: string;
+      content: string;
+      updatedAt?: Date;
+      editorId?: string;
+    }) => {
+      if (!payload || !payload.id) return;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === payload.id
+            ? {
+                ...m,
+                content: payload.content,
+                updatedAt: payload.updatedAt ?? new Date(),
+                isEdited: true,
+                // keep deleted flag if present
+              }
+            : m
+        )
+      );
+    };
+
+    // handle a message deleted by someone (server broadcast)
+    const handleMessageDeleted = (payload: {
+      id: string;
+      isDeleted?: boolean;
+    }) => {
+      if (!payload || !payload.id) return;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === payload.id
+            ? {
+                ...m,
+                content: payload.isDeleted === false ? m.content : "[deleted]",
+                isDeleted: payload.isDeleted ?? true,
+              }
+            : m
+        )
+      );
+    };
+
+    const handleReactionUpdated = (payload: any) => {
+      const { messageId, reactions, summary } = payload;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, reactions, reactionSummary: summary } : m
+        )
+      );
+    };
+
+    const handleReactionRemoved = (payload: any) => {
+      const { messageId, reactions, summary } = payload;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, reactions, reactionSummary: summary } : m
+        )
+      );
+    };
+
     // register named handlers so we can reliably remove them
     socket.on("connect", onConnect);
     socket.on("recentMessages", handleRecentMessages);
@@ -391,6 +554,10 @@ export const ChatContainer = ({
     socket.on("messageViews", handleMessageViews);
     socket.on("messagesSeen", handleMessagesSeen);
     socket.on("messageById", handleMessageById);
+    socket.on("messageEdited", handleMessageEdited);
+    socket.on("messageDeleted", handleMessageDeleted);
+    socket.on("messageReactionUpdated", handleReactionUpdated);
+    socket.on("messageReactionRemoved", handleReactionRemoved);
 
     // if already connected, run onConnect to rejoin
     if (socket.connected) onConnect();
@@ -416,6 +583,10 @@ export const ChatContainer = ({
       socket.off("messagesSeen", handleMessagesSeen);
       socket.off("messageViews", handleMessageViews);
       socket.off("messageById", handleMessageById);
+      socket.off("messageEdited", handleMessageEdited);
+      socket.off("messageDeleted", handleMessageDeleted);
+      socket.off("messageReactionUpdated", handleReactionUpdated);
+      socket.off("messageReactionRemoved", handleReactionRemoved);
 
       // clear per-chat caches to avoid unbounded growth
       emittedIds.clear();
@@ -459,45 +630,62 @@ export const ChatContainer = ({
 
   // This useEffect is for pending jump id
   useEffect(() => {
-  if (!pendingJumpId) return;
-  let mounted = true;
+    if (!pendingJumpId) return;
+    let mounted = true;
 
-  (async () => {
-    const tryWait = async (timeout = 3000) => {
-      // helper that polls messageRefs (you already have waitForMessageElement helper)
-      return await waitForMessageElement(pendingJumpId, { timeout, interval: 50 });
+    (async () => {
+      const tryWait = async (timeout = 3000) => {
+        // helper that polls messageRefs (you already have waitForMessageElement helper)
+        return await waitForMessageElement(pendingJumpId, {
+          timeout,
+          interval: 50,
+        });
+      };
+
+      // 1) try to find the element (short wait)
+      let el = await tryWait(1500);
+
+      // 2) if not found, ask server for nearby messages (so it mounts)
+      if (!el) {
+        console.log(
+          "[pendingJump] element not found — requesting context for",
+          pendingJumpId
+        );
+        socket?.emit("getMessagesAroundId", {
+          messageId: pendingJumpId,
+          before: 10,
+          after: 5,
+        });
+        // give server some time to push messages and React to render
+        el = await tryWait(4000);
+      }
+
+      if (!mounted) return;
+
+      if (el) {
+        // scroll & highlight
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
+        setTimeout(
+          () =>
+            el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50"),
+          2000
+        );
+      } else {
+        console.warn(
+          "[pendingJump] could not find element after fallback:",
+          pendingJumpId
+        );
+        // optional: toast the user or scroll to top/bottom as last resort
+      }
+
+      if (mounted) setPendingJumpId(null);
+    })();
+
+    return () => {
+      mounted = false;
     };
-
-    // 1) try to find the element (short wait)
-    let el = await tryWait(1500);
-
-    // 2) if not found, ask server for nearby messages (so it mounts)
-    if (!el) {
-      console.log("[pendingJump] element not found — requesting context for", pendingJumpId);
-      socket?.emit("getMessagesAroundId", { messageId: pendingJumpId, before: 10, after: 5 });
-      // give server some time to push messages and React to render
-      el = await tryWait(4000);
-    }
-
-    if (!mounted) return;
-
-    if (el) {
-      // scroll & highlight
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
-      setTimeout(() => el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50"), 2000);
-    } else {
-      console.warn("[pendingJump] could not find element after fallback:", pendingJumpId);
-      // optional: toast the user or scroll to top/bottom as last resort
-    }
-
-    if (mounted) setPendingJumpId(null);
-  })();
-
-  return () => {
-    mounted = false;
-  };
-}, [pendingJumpId, messageRefs, socket, history]);
+  }, [pendingJumpId, messageRefs, socket, history]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -689,19 +877,6 @@ export const ChatContainer = ({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [hasMore, loadingMore, history, loadMoreMessages]);
 
-  // useEffect(() => {
-  //   const onViewportResize = () => {
-  //     // keep input visible by scrolling messages to bottom
-  //     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  //   };
-
-  //   const vv = window.visualViewport;
-  //   if (vv) vv.addEventListener("resize", onViewportResize);
-  //   return () => {
-  //     if (vv) vv.removeEventListener("resize", onViewportResize);
-  //   };
-  // }, []);
-
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
@@ -761,6 +936,44 @@ export const ChatContainer = ({
       document.body.style.overflow = "auto";
     };
   }, []);
+
+  // optimistic edit
+  const handleEditMessageEmit = (messageId: string, newContent: string) => {
+    if (!socket) return;
+    // optimistic update locally
+    setHistory((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, content: newContent, isEdited: true, updatedAt: new Date() }
+          : m
+      )
+    );
+
+    try {
+      socket.emit("editMessage", { messageId, newContent, userId, groupId });
+    } catch (err) {
+      console.warn("editMessage emit failed:", err);
+      // optionally rollback (simple approach: refetch message or mark error)
+    }
+  };
+
+  // optimistic delete (soft-delete)
+  const handleDeleteMessageEmit = (messageId: string) => {
+    if (!socket) return;
+    // optimistic: mark as deleted locally
+    setHistory((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, content: "[deleted]", isDeleted: true } : m
+      )
+    );
+
+    try {
+      socket.emit("deleteMessage", { messageId, userId, groupId });
+    } catch (err) {
+      console.warn("deleteMessage emit failed:", err);
+      // optional rollback logic
+    }
+  };
 
   return (
     <div
@@ -844,12 +1057,21 @@ export const ChatContainer = ({
                         setReplyTo(m);
                         setTimeout(() => inputRef.current?.focus(), 0);
                       }}
-                      onJumpToMessage={(id) => jumpToMessage(id)} // new prop for click-to-jump
+                      onJumpToMessage={(id) => jumpToMessage(id)}
+                      onEdit={(id: string, newContent: string) =>
+                        handleEditMessageEmit(id, newContent)
+                      }
+                      onDelete={(id: string) => handleDeleteMessageEmit(id)}
                       openSeenModal={openSeenModal}
                       registerRef={(id, el) => {
                         if (el) messageRefs.current.set(id, el);
                         else messageRefs.current.delete(id);
                       }}
+                      // <-- NEW:
+                      onToggleReaction={toggleReact}
+                      // currentUserImage={
+                      //   typeof userImage !== "undefined" ? userImage : undefined
+                      // }
                     />
                   </div>
                 );

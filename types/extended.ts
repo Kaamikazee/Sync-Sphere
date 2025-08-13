@@ -47,6 +47,14 @@ seenByMe: boolean;
   image: string | null;
   seenAt: string | Date; // match your API return
 }[];
+reactions: {
+    id: string;
+    emoji: string;
+    createdAt: Date;
+    user: {
+        id: string;
+    } | null;
+}[],
 }
 
 export interface ViewsWithUser {

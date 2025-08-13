@@ -34,6 +34,7 @@ model User {
   pomodoroSettings      PomodoroSettings[]
   activities            Activity[]
   message               Message[]
+  
   todos                 Todo[]
   announcements         Announcement[]
   announcementComments  Comment[]
@@ -48,9 +49,10 @@ model User {
 
   createdAt DateTime @default(now())
 
-  dailyTotal    DailyTotal[]
-  focusAreas    FocusArea[]
-  timerSegments TimerSegment[]
+  dailyTotal      DailyTotal[]
+  focusAreas      FocusArea[]
+  timerSegments   TimerSegment[]
+  MessageReaction MessageReaction[]
 }
 
 model Account {
@@ -342,13 +344,15 @@ model Message {
   replyTo   Message? @relation("ReplySelfRelation", fields: [replyToId], references: [id])
   replyToId String?
 
-  replies Message[]     @relation("ReplySelfRelation")
-  views   MessageView[]
+  replies   Message[]         @relation("ReplySelfRelation")
+  views     MessageView[]
+  reactions MessageReaction[]
 
   createdAt DateTime  @default(now())
   // additionalResources additionalResource[]
-  edited    Boolean   @default(false)
+  isEdited  Boolean   @default(false)
   updatedAt DateTime? @updatedAt
+  isDeleted Boolean   @default(false)
 
   @@index([chatId])
   @@index([chatId, createdAt])
@@ -380,6 +384,19 @@ model ChatReadReceipt {
   @@id([userId, chatId]) // unique per user per chat
   @@index([chatId])
   @@index([lastSeenAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
 }
 
 // NOTIFICATION SYSTEM
