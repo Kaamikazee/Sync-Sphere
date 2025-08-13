@@ -14,27 +14,27 @@ datasource db {
 }
 
 model User {
-  id                    String                 @id @default(cuid())
-  name                  String?
-  username              String                 @unique
-  timezone              String                 @default("Asia/Kolkata") // IANA timezone
-  resetHour             Int                    @default(0) // 0 = midnight, 4 = 4 AM reset
-  surname               String?
-  email                 String?                @unique
-  emailVerified         DateTime?
-  hashedPassword        String?
-  image                 String?
-  bio                   String?
-  fcmToken              String?
-  sessions              Session[]
-  accounts              Account[]
-  completedOnboarding   Boolean                @default(false)
-  createdGroups         Group[]                @relation("CreatedBy")
-  subscriptions         Subscription[]
-  pomodoroSettings      PomodoroSettings[]
-  activities            Activity[]
-  message               Message[]
-  
+  id                  String             @id @default(cuid())
+  name                String?
+  username            String             @unique
+  timezone            String             @default("Asia/Kolkata") // IANA timezone
+  resetHour           Int                @default(0) // 0 = midnight, 4 = 4 AM reset
+  surname             String?
+  email               String?            @unique
+  emailVerified       DateTime?
+  hashedPassword      String?
+  image               String?
+  bio                 String?
+  fcmToken            String?
+  sessions            Session[]
+  accounts            Account[]
+  completedOnboarding Boolean            @default(false)
+  createdGroups       Group[]            @relation("CreatedBy")
+  subscriptions       Subscription[]
+  pomodoroSettings    PomodoroSettings[]
+  activities          Activity[]
+  message             Message[]
+
   todos                 Todo[]
   announcements         Announcement[]
   announcementComments  Comment[]
@@ -397,6 +397,20 @@ model MessageReaction {
 
   @@unique([messageId, userId])
   @@index([messageId])
+}
+
+model Mute {
+  id        String    @id @default(cuid())
+  userId    String
+  groupId   String
+  mutedBy   String
+  reason    String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime? // null => indefinite mute
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+  @@index([userId, groupId])
 }
 
 // NOTIFICATION SYSTEM

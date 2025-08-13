@@ -10,6 +10,11 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
 
+interface MutedUser {
+  userId: string;
+  expiresAt?: string | null;
+}
+
 interface ChatMessageProps {
   msg: MessageWithSenderInfo;
   isOwn: boolean;
@@ -22,6 +27,12 @@ interface ChatMessageProps {
   onEdit?: (messageId: string, newContent: string) => void;
   onDelete?: (messageId: string) => void;
   onToggleReaction?: (messageId: string, emoji: string) => void;
+
+  /* NEW */
+  socket?: any; // socket.io client instance
+  groupId?: string;
+  currentUserRole?: string; // "OWNER" | "ADMIN" | "MEMBER"
+  mutedUsers?: MutedUser[]; // list from ChatContainer
 }
 
 function ChatMessageInner({
@@ -36,6 +47,12 @@ function ChatMessageInner({
   onEdit,
   onDelete,
   onToggleReaction,
+
+  /* NEW */
+  socket,
+  groupId,
+  currentUserRole,
+  mutedUsers = [],
 }: ChatMessageProps) {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -56,7 +73,6 @@ function ChatMessageInner({
   const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    // update edit text if msg.content changes (e.g., external edit)
     setEditText(msg.content ?? "");
   }, [msg.content]);
 
@@ -64,6 +80,87 @@ function ChatMessageInner({
     registerRef?.(msg.id, containerRef.current ?? null);
     return () => registerRef?.(msg.id, null);
   }, [msg.id, registerRef]);
+
+  // ----- NEW: muted helpers -----
+  const isSenderMuted = useMemo(() => {
+    return mutedUsers.some((m) => m.userId === msg.senderId);
+  }, [mutedUsers, msg.senderId]);
+
+  const senderMuteInfo = useMemo(
+    () => mutedUsers.find((m) => m.userId === msg.senderId) ?? null,
+    [mutedUsers, msg.senderId]
+  );
+
+  // current user permission to mute/unmute others
+  const canMuteOthers = useMemo(() => {
+    if (!currentUserRole) return false;
+    return currentUserRole === "ADMIN" || currentUserRole === "OWNER";
+  }, [currentUserRole]);
+
+  const isTargetOwner = (msg as any).senderRole === "OWNER"; // optional if you pass senderRole in msg
+  const canActOnTarget = useMemo(() => {
+    // cannot mute/unmute yourself; only admins/owners can mute others
+    if (!canMuteOthers) return false;
+    if (msg.senderId === userId) return false;
+    // optionally protect owner: only owner can act on owner (require actor be OWNER)
+    if (isTargetOwner && currentUserRole !== "OWNER") return false;
+    return true;
+  }, [canMuteOthers, msg.senderId, userId, isTargetOwner, currentUserRole]);
+
+  useEffect(() => {
+    if (!popoverOpen) return;
+
+    const handleClickOutside = (event: Event) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target as Node)
+      ) {
+        setPopoverOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [popoverOpen]);
+
+  // only the message sender may edit
+  const canEdit = isOwn;
+
+  // delete allowed for sender, or admins/owners
+  const canDelete =
+    isOwn || currentUserRole === "ADMIN" || currentUserRole === "OWNER";
+
+  // ----- Mute/unmute handlers -----
+  const handleMute = (durationSeconds?: number) => {
+    if (!socket || !groupId) {
+      window.alert("Unable to mute: missing socket or groupId");
+      return;
+    }
+    socket.emit("muteUser", {
+      targetUserId: msg.senderId,
+      groupId,
+      durationSeconds,
+      reason: "Muted via chat UI",
+    });
+    setPopoverOpen(false);
+  };
+
+  const handleUnmute = () => {
+    if (!socket || !groupId) {
+      window.alert("Unable to unmute: missing socket or groupId");
+      return;
+    }
+    socket.emit("unmuteUser", { targetUserId: msg.senderId, groupId });
+    setPopoverOpen(false);
+  };
+
+  // ... rest of your existing code (viewersFromMsg, reactions, etc.) ...
+  // I'll keep your existing viewers/reactions logic unchanged.
 
   // derive viewers (unchanged)
   const viewersFromMsg = useMemo(() => {
@@ -129,10 +226,7 @@ function ChatMessageInner({
   // Save edited content
   const saveEdit = () => {
     const trimmed = (editText ?? "").trim();
-    if (!trimmed) {
-      // do not allow empty message; you can choose to delete instead
-      return;
-    }
+    if (!trimmed) return;
     onEdit?.(msg.id, trimmed);
     setIsEditing(false);
   };
@@ -146,7 +240,6 @@ function ChatMessageInner({
   };
 
   // ===== Reaction helpers =====
-  // msg.reactions: array of { id, emoji, createdAt, user: { id, name, image } }
   const reactions: any[] = useMemo(
     () => (Array.isArray((msg as any).reactions) ? (msg as any).reactions : []),
     [msg]
@@ -155,7 +248,6 @@ function ChatMessageInner({
     ? (msg as any).reactionSummary
     : undefined;
 
-  // fallback compute summary if server didn't provide it
   const computedSummary = useMemo(() => {
     if (reactionSummary) return reactionSummary;
     const map = new Map<
@@ -186,7 +278,6 @@ function ChatMessageInner({
     }));
   }, [reactions, reactionSummary, userId]);
 
-  // Build full reaction groups for the bottom section (full lists)
   const reactionGroups = useMemo(() => {
     const map = new Map<
       string,
@@ -205,7 +296,6 @@ function ChatMessageInner({
           image: r.user.image ?? null,
         });
       } else {
-        // fallback: some reactions may not have user object
         list.users.push({
           id: r.userId ?? r.id ?? Math.random().toString(36).slice(2),
           name: r.name ?? "Unknown",
@@ -217,13 +307,24 @@ function ChatMessageInner({
     return Array.from(map.values());
   }, [reactions]);
 
-  // emojis to show in picker / top of popover
-  const DEFAULT_EMOJIS = ["👍", "❤️", "😂", "🔥", "😢", "🎉", "✅", "❌", "⚡"];
+  const DEFAULT_EMOJIS = [
+    "👍",
+    "❤️",
+    "🤣",
+    "🔥",
+    "😭",
+    "🎉",
+    "✅",
+    "❌",
+    "⚡",
+    "💯",
+    "😱",
+    "🤯",
+  ];
 
-  // ----- Popover open/close + positioning -----
+  // Popover open/close logic (unchanged)
   const openPopover = (e?: React.MouseEvent) => {
     if (!containerRef.current) return;
-    // guard: if user clicked an interactive element (button/input/textarea/etc) don't open popover
     if (e) {
       const target = e.target as HTMLElement;
       if (
@@ -244,13 +345,12 @@ function ChatMessageInner({
         rect.left + rect.width / 2 + window.scrollX
       )
     );
-    // decide prefer below if not enough room above (mobile-friendly)
     const spaceAbove = rect.top;
     const spaceBelow = window.innerHeight - rect.bottom;
     const preferBelow = spaceBelow > spaceAbove;
     const top = preferBelow
-      ? rect.bottom + window.scrollY + 8 // below
-      : rect.top + window.scrollY - 8; // above
+      ? rect.bottom + window.scrollY + 8
+      : rect.top + window.scrollY - 8;
 
     setPopoverPreferBelow(preferBelow);
     setPopoverPos({ left, top });
@@ -274,7 +374,6 @@ function ChatMessageInner({
 
     const onScroll = (ev: Event) => {
       const target = ev.target as Node | null;
-      // if the scroll happened inside the popover or the message bubble (container), ignore it
       if (
         (popoverRef.current && target && popoverRef.current.contains(target)) ||
         (containerRef.current &&
@@ -283,14 +382,12 @@ function ChatMessageInner({
       ) {
         return;
       }
-      // otherwise close (this closes when user scrolls anywhere else)
       setPopoverOpen(false);
     };
 
     document.addEventListener("mousedown", onDocDown);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
-
     return () => {
       document.removeEventListener("mousedown", onDocDown);
       window.removeEventListener("scroll", onScroll, true);
@@ -298,12 +395,10 @@ function ChatMessageInner({
     };
   }, [popoverOpen]);
 
-  // Close popover when editing begins
   useEffect(() => {
     if (isEditing) setPopoverOpen(false);
   }, [isEditing]);
 
-  // ----- framer-motion variants -----
   const popoverVariants = {
     hidden: { opacity: 0, scale: 0.96, y: popoverPreferBelow ? -6 : 6 },
     visible: { opacity: 1, scale: 1, y: 0 },
@@ -353,7 +448,6 @@ function ChatMessageInner({
       )}
 
       <div
-        // clicking the bubble opens the popover (guarded inside openPopover)
         onClick={(e) => {
           if (msg.isDeleted) return;
           openPopover(e);
@@ -368,7 +462,15 @@ function ChatMessageInner({
         aria-disabled={msg.isDeleted}
       >
         {!isOwn && (
-          <p className="text-xs font-semibold mb-1">{msg.senderName}</p>
+          <p className="text-xs font-semibold mb-1 flex items-center gap-2">
+            <span>{msg.senderName}</span>
+            {/* NEW: show muted badge */}
+            {isSenderMuted && (
+              <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-md">
+                Muted
+              </span>
+            )}
+          </p>
         )}
 
         {msg.replyTo?.id && (
@@ -383,7 +485,6 @@ function ChatMessageInner({
           </button>
         )}
 
-        {/* message content or edit area */}
         {isEditing ? (
           <div className="mt-1">
             <textarea
@@ -417,7 +518,6 @@ function ChatMessageInner({
           <div className="whitespace-pre-wrap">{msg.content}</div>
         )}
 
-        {/* Reaction chips (animated layout) */}
         {!msg.isDeleted && (
           <div
             className={`mt-2 ${
@@ -461,6 +561,7 @@ function ChatMessageInner({
               {new Date(msg.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
+                hour12: true,
               })}
             </span>
             {msg.isEdited && (
@@ -478,7 +579,6 @@ function ChatMessageInner({
           </div>
 
           <div className="flex items-center gap-2">
-
             {isOwn && seenCount > 0 && (
               <button
                 onClick={handleOpenSeenModal}
@@ -519,7 +619,6 @@ function ChatMessageInner({
               <h2 className="text-md font-semibold text-gray-800 mb-4">
                 Seen By {seenCount}
               </h2>
-
               <div className="space-y-3 max-h-60 overflow-auto">
                 {viewersFromMsg.length > 0 ? (
                   viewersFromMsg.map((viewer: any) => (
@@ -549,6 +648,7 @@ function ChatMessageInner({
                               ).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
+                                hour12: true,
                               })}`
                             : "Seen"}
                         </p>
@@ -564,7 +664,7 @@ function ChatMessageInner({
           document.body
         )}
 
-      {/* Popover (anchored above/below the message bubble) */}
+      {/* Popover for actions + mute controls */}
       {canPortal &&
         createPortal(
           <AnimatePresence>
@@ -588,7 +688,6 @@ function ChatMessageInner({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
-                  // position relative to page using absolute positioned inner element
                   style={{
                     position: "absolute",
                     left: popoverPos.left,
@@ -618,7 +717,6 @@ function ChatMessageInner({
                             key={emoji}
                             onClick={() => {
                               onToggleReaction?.(msg.id, emoji);
-                              // close so user sees the effect and doesn't accidentally double-tap
                               setPopoverOpen(false);
                             }}
                             type="button"
@@ -641,27 +739,33 @@ function ChatMessageInner({
 
                     <div className="my-2 border-t border-gray-100" />
 
+                    {/* Actions: Edit / Delete / Reply */}
                     <div className="flex gap-2 mb-2 flex-wrap">
-                      {/* Actions: Edit / Delete / Reply */}
                       {!msg.isDeleted && (
                         <>
-                          <button
-                            onClick={() => {
-                              setIsEditing(true);
-                              setPopoverOpen(false);
-                            }}
-                            className="px-2 py-1 rounded-md text-sm hover:bg-gray-50"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={confirmDelete}
-                            className="px-2 py-1 rounded-md text-sm text-red-500 hover:bg-gray-50"
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                setIsEditing(true);
+                                setPopoverOpen(false);
+                              }}
+                              className="px-2 py-1 rounded-md text-sm hover:bg-gray-50"
+                            >
+                              Edit
+                            </button>
+                          )}
+
+                          {canDelete && (
+                            <button
+                              onClick={confirmDelete}
+                              className="px-2 py-1 rounded-md text-sm text-red-500 hover:bg-gray-50"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </>
                       )}
+
                       <button
                         onClick={() => {
                           onReply(msg);
@@ -675,7 +779,60 @@ function ChatMessageInner({
 
                     <div className="my-1 border-t border-gray-100" />
 
-                    {/* Reaction groups with user avatars + names */}
+                    {/* NEW: Mute controls (visible only to admins/owners and not for self) */}
+                    <div className="mb-2">
+                      {canActOnTarget ? (
+                        <>
+                          {!isSenderMuted ? (
+                            <div className="flex gap-2 flex-wrap mb-2">
+                              <button
+                                onClick={() => handleMute(60 * 60)}
+                                className="px-2 py-1 rounded-md text-sm hover:bg-gray-50"
+                              >
+                                Mute 1h
+                              </button>
+                              <button
+                                onClick={() => handleMute(24 * 60 * 60)}
+                                className="px-2 py-1 rounded-md text-sm hover:bg-gray-50"
+                              >
+                                Mute 24h
+                              </button>
+                              <button
+                                onClick={() => handleMute(undefined)}
+                                className="px-2 py-1 rounded-md text-sm text-red-600 hover:bg-gray-50"
+                              >
+                                Mute forever
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="text-sm text-gray-700">
+                                Muted
+                                {senderMuteInfo?.expiresAt
+                                  ? ` until ${new Date(
+                                      senderMuteInfo.expiresAt
+                                    ).toLocaleString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    })}`
+                                  : ""}
+                              </div>
+                              <button
+                                onClick={handleUnmute}
+                                className="px-2 py-1 rounded-md text-sm text-blue-600 hover:bg-gray-50"
+                              >
+                                Unmute
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : null}
+                    </div>
+
+                    <div className="my-1 border-t border-gray-100" />
+
+                    {/* Reaction groups */}
                     <div className="space-y-3 max-h-40 overflow-auto">
                       <AnimatePresence>
                         {reactionGroups.length > 0 ? (

@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-// import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-// import { Input } from "@/components/ui/input";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { MoveDownIcon, Send } from "lucide-react";
 import Image from "next/image";
-import {
+import React, {
   useState,
   useEffect,
   useRef,
@@ -15,11 +13,11 @@ import {
   useCallback,
   useMemo,
 } from "react";
-// import { io, Socket } from "socket.io-client";
 import { ChatMessage } from "./ChatMessage";
-// import { getSocket } from "@/lib/socket";
 import { useMobile } from "@/hooks/use-mobile";
 import { initSocket } from "@/lib/initSocket";
+import { toast } from "sonner";
+import { UserPermission } from "@prisma/client";
 
 interface Props {
   group_id: string;
@@ -29,10 +27,9 @@ interface Props {
   groupName: string;
   groupImage: string;
   chatId: string | undefined;
+  userRole: UserPermission;
 }
-// const socket = getSocket();
 
-// helper factory (needs userId in closure)
 type NormalizedMessage = MessageWithSenderInfo & {
   seenCount: number;
   seenPreview: { id: string; name: string; image?: string | null }[];
@@ -80,8 +77,8 @@ const createNormalizeMessage =
     }
 
     const seenByMe =
-      typeof msg.seenByMe === "boolean"
-        ? msg.seenByMe
+      typeof (msg as any).seenByMe === "boolean"
+        ? (msg as any).seenByMe
         : Array.isArray(msg.views)
         ? msg.views.some((v: any) => {
             const uid = v.id ?? v.user?.id ?? v.userId;
@@ -104,9 +101,12 @@ export const ChatContainer = ({
   groupName,
   groupImage,
   chatId,
+  userRole,
 }: Props) => {
-  // useSocket();
-  const socket = initSocket();
+  // keep single socket instance in a ref so it doesn't recreate across renders
+  const socketRef = useRef(initSocket());
+  const socket = socketRef.current;
+
   const [history, setHistory] = useState<MessageWithSenderInfo[]>([]);
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -118,16 +118,16 @@ export const ChatContainer = ({
   const [typingUsers, setTypingUsers] = useState<
     { userId: string; userName: string }[]
   >([]);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const isMobile = useMobile();
 
   const TYPING_TIMEOUT = 1500;
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
 
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeoutRef = useRef<number | null>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const emittedMessageIds = useRef<Set<string>>(new Set());
   const initialRecentLoadedRef = useRef(false);
@@ -136,7 +136,140 @@ export const ChatContainer = ({
   const emittedIds = emittedMessageIds.current;
   const messageRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
+  const [mutedUsers, setMutedUsers] = useState<
+    { userId: string; expiresAt?: string | null }[]
+  >([]);
+  const iAmMuted = useMemo(
+    () => mutedUsers.some((m) => m.userId === userId),
+    [mutedUsers, userId]
+  );
 
+  // stable normalize function
+  const normalizeMessage = useMemo(
+    () => createNormalizeMessage(userId),
+    [userId]
+  );
+
+  // ---------------- helper: compute reaction summary ----------------
+  const computeReactionSummary = useCallback(
+    (reactions: any[] = [], currentUserId?: string) => {
+      const map = new Map<
+        string,
+        {
+          emoji: string;
+          count: number;
+          reactedByMe: boolean;
+          sampleUsers: { id: string; name: string; image?: string | null }[];
+        }
+      >();
+
+      for (const r of reactions) {
+        const e = r.emoji;
+        const entry = map.get(e) || {
+          emoji: e,
+          count: 0,
+          reactedByMe: false,
+          sampleUsers: [] as {
+            id: string;
+            name: string;
+            image?: string | null;
+          }[],
+        };
+        entry.count += 1;
+        if (r.user && r.user.id === currentUserId) entry.reactedByMe = true;
+        if (r.user)
+          entry.sampleUsers.push({
+            id: r.user.id,
+            name: r.user.name ?? "",
+            image: r.user.image ?? null,
+          });
+        map.set(e, entry);
+      }
+
+      return Array.from(map.values()).map((v) => ({
+        emoji: v.emoji,
+        count: v.count,
+        reactedByMe: v.reactedByMe,
+        sampleUsers: v.sampleUsers.slice(0, 3),
+      }));
+    },
+    []
+  );
+
+  // ---------------- stable callbacks (prevent re-creation on each render) ----------------
+  const waitForMessageElement = useCallback(
+    async (
+      id: string,
+      { timeout = 5000, interval = 50 } = {}
+    ): Promise<HTMLElement | null> => {
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        const el = (messageRefs.current.get(id) ?? null) as HTMLElement | null;
+        if (el) return el;
+        await new Promise((r) => setTimeout(r, interval));
+      }
+      return null;
+    },
+    []
+  );
+
+  // toggle reaction (optimized: uses functional setHistory to avoid stale closures)
+  const toggleReact = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!socket) return;
+
+      setHistory((prev) => {
+        const m = prev.find((x) => x.id === messageId);
+        if (!m) return prev;
+
+        const myReaction = (m.reactions || []).find(
+          (r: any) => r.user?.id === userId
+        );
+
+        if (myReaction && myReaction.emoji === emoji) {
+          // unreact
+          const newReactions = (m.reactions || []).filter(
+            (r: any) => r.user?.id !== userId
+          );
+          const newSummary = computeReactionSummary(newReactions, userId);
+          // emit outside setState
+          setTimeout(
+            () => socket.emit("message:unreact", { messageId, userId }),
+            0
+          );
+          return prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, reactions: newReactions, reactionSummary: newSummary }
+              : msg
+          );
+        } else {
+          const other = (m.reactions || []).filter(
+            (r: any) => r.user?.id !== userId
+          );
+          const tempReaction = {
+            id: `temp_${userId}_${Date.now()}`,
+            emoji,
+            createdAt: new Date(),
+            user: { id: userId },
+          };
+          const newReactions = [...other, tempReaction];
+          const newSummary = computeReactionSummary(newReactions, userId);
+          setTimeout(
+            () => socket.emit("message:react", { messageId, emoji, userId }),
+            0
+          );
+          return prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, reactions: newReactions, reactionSummary: newSummary }
+              : msg
+          );
+        }
+      });
+    },
+    [socket, userId, computeReactionSummary]
+  );
+
+  // jumpToMessage: stable
   const jumpToMessage = useCallback(
     async (messageId: string) => {
       const container = messagesContainerRef.current;
@@ -144,194 +277,264 @@ export const ChatContainer = ({
 
       const el = messageRefs.current.get(messageId) ?? null;
       if (el) {
-        // scroll into view within the scrollable container
         el.scrollIntoView({
           behavior: "smooth",
           block: "center",
           inline: "nearest",
         });
-
-        // add highlight (tailwind classes or custom CSS)
         el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
-
-        // remove highlight after 2s
-        setTimeout(() => {
-          el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50");
-        }, 2000);
+        setTimeout(
+          () =>
+            el.classList.remove("ring-4", "ring-yellow-300", "bg-yellow-50"),
+          2000
+        );
         return;
       }
 
-      // fallback: message is not present — request from server
       try {
         socket?.emit("getMessageById", { messageId });
-        // handle the server response in the socket "messageById" listener
       } catch (err) {
         console.warn("getMessageById emit failed:", err);
       }
     },
-    [messagesContainerRef, messageRefs, socket] // dependencies
+    [socket]
   );
 
-  // ------------------------- PASTE INTO PARENT CHAT COMPONENT -------------------------
-  // helper: compute reaction summary for UI
-  function computeReactionSummary(
-    reactions: any[] = [],
-    currentUserId?: string
-  ) {
-    const map = new Map<
-      string,
-      {
-        emoji: string;
-        count: number;
-        reactedByMe: boolean;
-        sampleUsers: { id: string; name: string; image?: string | null }[];
+  // load more messages (pagination)
+  const loadMoreMessages = useCallback(() => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const firstMessage = history[0];
+
+    try {
+      socket?.emit("getMessages", {
+        beforeMessageId: firstMessage?.id,
+      });
+    } catch (err) {
+      console.warn("getMessages emit failed:", err);
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, history, socket]);
+
+  // send message (stable)
+  // change send signature to accept optional text
+const send = useCallback(
+  (text?: string) => {
+    const content = text !== undefined ? text : draft;
+    if (!content.trim()) return;
+    if (iAmMuted) {
+      const m = mutedUsers.find((u) => u.userId === userId);
+      toast.error(
+        `You are muted${
+          m?.expiresAt ? ` until ${new Date(m.expiresAt).toLocaleString()}` : ""
+        }`
+      );
+      return;
+    }
+
+    try {
+      socket?.emit("groupMessage", {
+        groupId,
+        fromUserId: userId,
+        text: content,
+        replyToId: replyTo?.id || null,
+      });
+    } catch (err) {
+      console.warn("groupMessage emit failed:", err);
+    }
+
+    // clear UI & timers
+    setDraft("");
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+
+    // ensure server knows we're not typing (keep payload consistent)
+    try {
+      socket?.emit("stopTyping", { groupId, userId });
+    } catch (err) {
+      console.warn("stopTyping emit failed:", err);
+    }
+    if (inputRef.current) inputRef.current.style.height = "auto";
+    setReplyTo(null);
+  },
+  // include dependencies
+  [draft, groupId, userId, replyTo, socket, iAmMuted, mutedUsers]
+);
+
+// handleKeyDown: use the DOM value when Enter is pressed and DO NOT emit "typing" for that event
+const handleKeyDown = useCallback(
+  (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // If user pressed Enter to send (no shift) - grab current DOM value (may contain the latest char)
+    if (e.key === "Enter" && !e.shiftKey && !isMobile) {
+      e.preventDefault();
+
+      const textarea = e.currentTarget as HTMLTextAreaElement;
+      const value = textarea.value; // read the DOM value directly
+
+      // clear any pending typing/debounce timers to avoid re-emitting typing
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
       }
-    >();
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
 
-    for (const r of reactions) {
-      const e = r.emoji;
-      const entry = map.get(e) || {
-        emoji: e,
-        count: 0,
-        reactedByMe: false,
-        sampleUsers: [] as {
-          id: string;
-          name: string;
-          image?: string | null;
-        }[],
-      };
-      entry.count += 1;
-      if (r.user && r.user.id === currentUserId) entry.reactedByMe = true;
-      if (r.user)
-        entry.sampleUsers.push({
-          id: r.user.id,
-          name: r.user.name ?? "",
-          image: r.user.image ?? null,
-        });
-      map.set(e, entry);
+      // send using the DOM value
+      send(value);
+      return;
     }
 
-    return Array.from(map.values()).map((v) => ({
-      emoji: v.emoji,
-      count: v.count,
-      reactedByMe: v.reactedByMe,
-      sampleUsers: v.sampleUsers.slice(0, 3),
-    }));
-  }
-
-  // optimistic toggle + emit
-  const toggleReact = (messageId: string, emoji: string) => {
-    if (!socket) return;
-    // find message
-    const m = history.find((x) => x.id === messageId);
-    if (!m) return;
-
-    // current reaction by me (if any)
-    const myReaction = (m.reactions || []).find(
-      (r: any) => r.user?.id === userId
-    );
-
-    if (myReaction && myReaction.emoji === emoji) {
-      // unreact (optimistic)
-      const newReactions = (m.reactions || []).filter(
-        (r: any) => r.user?.id !== userId
-      );
-      const newSummary = computeReactionSummary(newReactions, userId);
-      setHistory((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, reactions: newReactions, reactionSummary: newSummary }
-            : msg
-        )
-      );
-
-      // emit to server
-      socket.emit("message:unreact", { messageId, userId });
-    } else {
-      // upsert (optimistic)
-      const other = (m.reactions || []).filter(
-        (r: any) => r.user?.id !== userId
-      );
-      // create a temp reaction object for immediate UI feedback
-      const tempReaction = {
-        id: `temp_${userId}_${Date.now()}`,
-        emoji,
-        createdAt: new Date(),
-        user: {
-          id: userId,
-        },
-      };
-      const newReactions = [...other, tempReaction];
-      const newSummary = computeReactionSummary(newReactions, userId);
-      setHistory((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, reactions: newReactions, reactionSummary: newSummary }
-            : msg
-        )
-      );
-
-      // emit to server
-      socket.emit("message:react", { messageId, emoji, userId });
+    // normal keydown: indicate typing (for all other keys)
+    try {
+      if (socket?.connected) socket.emit("typing", { groupId, userId, userName });
+      else socket?.connect();
+    } catch (err) {
+      console.warn("typing emit failed:", err);
     }
-  };
-  // -----------------------------------------------------------------------------------
 
-  const waitForMessageElement = async (
-    id: string,
-    { timeout = 5000, interval = 50 } = {}
-  ): Promise<HTMLElement | null> => {
-    const start = Date.now();
-    while (Date.now() - start < timeout) {
-      const el = messageRefs.current.get(id) ?? null;
-      if (el) return el;
-      await new Promise((r) => setTimeout(r, interval));
-    }
-    return null;
-  };
+    if (typingTimeoutRef.current)
+      window.clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = window.setTimeout(() => {
+      try {
+        socket?.emit("stopTyping", { groupId, userId });
+      } catch (err) {
+        console.warn("stopTyping emit failed:", err);
+      }
+      typingTimeoutRef.current = null;
+    }, TYPING_TIMEOUT);
+  },
+  [socket, userId, userName, isMobile, send, groupId]
+);
 
-  const normalizeMessage = useMemo(
-    () => createNormalizeMessage(userId),
-    [userId]
+// handleChange: keep debounce but include groupId and keep the typing/stopTyping flow consistent
+const handleChange = useCallback(
+  (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setDraft(value);
+
+    // autosize
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
+
+    if (debounceTimeoutRef.current)
+      window.clearTimeout(debounceTimeoutRef.current);
+    debounceTimeoutRef.current = window.setTimeout(() => {
+      try {
+        if (socket?.connected) socket.emit("typing", { groupId, userId, userName });
+        else socket?.connect();
+      } catch (err) {
+        console.warn("typing emit failed:", err);
+      }
+
+      if (typingTimeoutRef.current)
+        window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = window.setTimeout(() => {
+        try {
+          socket?.emit("stopTyping", { groupId, userId });
+        } catch (err) {
+          console.warn("stopTyping emit failed:", err);
+        }
+        typingTimeoutRef.current = null;
+      }, TYPING_TIMEOUT);
+    }, 300) as unknown as number;
+  },
+  [socket, userId, userName, groupId]
+);
+
+
+  const openSeenModal = useCallback(
+    (messageId: string) => {
+      if (!socket) return;
+      if (socket.connected) socket.emit("getMessageViews", { messageId });
+      else {
+        const once = () => {
+          socket.emit("getMessageViews", { messageId });
+          socket.off("connect", once);
+        };
+        socket.on("connect", once);
+        socket.connect();
+      }
+    },
+    [socket]
   );
 
-  // subscribe to per-user chat room for unread counts
+  const handleEditMessageEmit = useCallback(
+    (messageId: string, newContent: string) => {
+      if (!socket) return;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                content: newContent,
+                isEdited: true,
+                updatedAt: new Date(),
+              }
+            : m
+        )
+      );
+      try {
+        socket.emit("editMessage", { messageId, newContent, userId, groupId });
+      } catch (err) {
+        console.warn("editMessage emit failed:", err);
+      }
+    },
+    [socket, userId, groupId]
+  );
+
+  const handleDeleteMessageEmit = useCallback(
+    (messageId: string) => {
+      if (!socket) return;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "[deleted]", isDeleted: true }
+            : m
+        )
+      );
+      try {
+        socket.emit("deleteMessage", { messageId, userId, groupId });
+      } catch (err) {
+        console.warn("deleteMessage emit failed:", err);
+      }
+    },
+    [socket, userId, groupId]
+  );
+
+  // ---------------- socket event wiring (single effect) ----------------
   useEffect(() => {
     if (!socket) return;
 
-    // ensure connection
+    // ensure connected only once
     if (!socket.connected) socket.connect();
 
+    // handlers (wrap small adapter functions to avoid redeclaring too often)
     const onConnect = () => {
-      console.log("[chat] socket connected -> rejoin rooms", socket.id);
-      // join the group room
       socket.emit("joinGroup", { groupId, userId });
-      // subscribe to per-chat unread room
       if (chatId) socket.emit("chat:subscribe", { chatId, userId });
-      // request online users list
       socket.emit("getOnlineUsers", { groupId });
     };
 
     const handleRecentMessages = (msgs: MessageWithSenderInfo[]) => {
-      // Normalize and mark these initial recent messages as seen locally (server pointer already marked them)
-      const enriched = msgs.map(normalizeMessage).map((m) => ({
-        ...m,
-        // treat initial recent messages as already 'seen by me' (server set the pointer)
-        seenByMe: true,
-      }));
+      const enriched = msgs
+        .map(normalizeMessage)
+        .map((m) => ({ ...m, seenByMe: true }));
       setHistory(enriched);
-
-      // record initial message IDs so we don't emit markMessagesAsSeen for them
       initialRecentLoadedRef.current = true;
       initialMessageIdsRef.current = new Set(msgs.map((m) => m.id));
-
-      // store latest message createdAt for potential client-side checks (optional)
       if (msgs.length > 0) {
-        // msgs may be in any order; pick the max createdAt
-        const maxTs = msgs.reduce((max, m) => {
-          const t = new Date(m.createdAt).getTime();
-          return Math.max(max, t);
-        }, 0);
+        const maxTs = msgs.reduce(
+          (max, m) => Math.max(max, new Date(m.createdAt).getTime()),
+          0
+        );
         joinLatestCreatedAtRef.current = new Date(maxTs);
       } else {
         joinLatestCreatedAtRef.current = null;
@@ -344,15 +547,12 @@ export const ChatContainer = ({
         setLoadingMore(false);
         return;
       }
-
       const container = messagesContainerRef.current;
-      // capture current scroll metrics
       const prevScrollHeight = container?.scrollHeight ?? 0;
       const prevScrollTop = container?.scrollTop ?? 0;
 
       setHistory((prev) => {
         const enriched = msgs.map(normalizeMessage);
-        // merge while deduping (keep older msgs earlier)
         const combined = [...enriched, ...prev];
         const seen = new Set<string>();
         return combined.filter((m) => {
@@ -362,15 +562,13 @@ export const ChatContainer = ({
         });
       });
 
-      // wait for next paint/layout, then restore scroll so view stays stable
+      // restore scroll to avoid jump
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const newScrollHeight = container?.scrollHeight ?? 0;
-          if (container) {
-            // set scrollTop so that the viewport remains at same message
+          if (container)
             container.scrollTop =
               newScrollHeight - prevScrollHeight + prevScrollTop;
-          }
           setLoadingMore(false);
         });
       });
@@ -395,11 +593,10 @@ export const ChatContainer = ({
     };
 
     const handleUserTyping = (u: { userId: string; userName: string }) => {
-      const { userId: incomingId, userName: incomingName } = u;
       setTypingUsers((curr) =>
-        curr.some((x) => x.userId === incomingId)
+        curr.some((x) => x.userId === u.userId)
           ? curr
-          : [...curr, { userId: incomingId, userName: incomingName }]
+          : [...curr, { userId: u.userId, userName: u.userName }]
       );
     };
 
@@ -418,7 +615,6 @@ export const ChatContainer = ({
           m.id === payload.messageId
             ? {
                 ...m,
-                // store raw views or transform into seenPreview/viewers
                 views: payload.views,
                 seenPreview: (payload.views || [])
                   .filter((v: any) => v.user && v.user.id !== userId)
@@ -436,12 +632,10 @@ export const ChatContainer = ({
 
     const handleMessagesSeen = ({ seenByUser, messageIds }: any) => {
       if (!seenByUser || !messageIds || messageIds.length === 0) return;
-
       setHistory((prev) =>
         prev.map((msg) => {
           if (!messageIds.includes(msg.id)) return msg;
-          if (seenByUser.id === userId) return msg; // already marked optimistically
-
+          if (seenByUser.id === userId) return msg;
           const already = (msg.seenPreview || []).some(
             (v) => v.id === seenByUser.id
           );
@@ -455,7 +649,6 @@ export const ChatContainer = ({
                   image: seenByUser.image ?? null,
                 },
               ].slice(0, 3);
-
           return {
             ...msg,
             seenCount: msg.seenCount ? msg.seenCount + (already ? 0 : 1) : 1,
@@ -465,11 +658,8 @@ export const ChatContainer = ({
       );
     };
 
-    // handle when server returns a specific message (or a small page around it)
     const handleMessageById = (msg: MessageWithSenderInfo | null) => {
       if (!msg) return;
-
-      // quickly insert if not present
       setHistory((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         const combined = [...prev, normalizeMessage(msg)];
@@ -479,8 +669,6 @@ export const ChatContainer = ({
         );
         return combined;
       });
-
-      // mark pending jump; the pendingJump effect will await the element or request more context
       setPendingJumpId(msg.id);
     };
 
@@ -499,14 +687,12 @@ export const ChatContainer = ({
                 content: payload.content,
                 updatedAt: payload.updatedAt ?? new Date(),
                 isEdited: true,
-                // keep deleted flag if present
               }
             : m
         )
       );
     };
 
-    // handle a message deleted by someone (server broadcast)
     const handleMessageDeleted = (payload: {
       id: string;
       isDeleted?: boolean;
@@ -543,7 +729,22 @@ export const ChatContainer = ({
       );
     };
 
-    // register named handlers so we can reliably remove them
+    socket.emit("getMutedUsers", { groupId });
+
+    const onMutedUsers = ({ users }: { users: any[] }) => {
+      setMutedUsers(users || []);
+    };
+    const onUserMuted = (payload: any) => {
+      setMutedUsers((prev) => [
+        ...prev.filter((u) => u.userId !== payload.userId),
+        { userId: payload.userId, expiresAt: payload.expiresAt },
+      ]);
+    };
+    const onUserUnmuted = ({ userId }: { userId: string }) => {
+      setMutedUsers((prev) => prev.filter((u) => u.userId !== userId));
+    };
+
+    // register handlers
     socket.on("connect", onConnect);
     socket.on("recentMessages", handleRecentMessages);
     socket.on("olderMessages", handleOlderMessages);
@@ -558,12 +759,14 @@ export const ChatContainer = ({
     socket.on("messageDeleted", handleMessageDeleted);
     socket.on("messageReactionUpdated", handleReactionUpdated);
     socket.on("messageReactionRemoved", handleReactionRemoved);
+    socket.on("mutedUsers", onMutedUsers);
+    socket.on("userMuted", onUserMuted);
+    socket.on("userUnmuted", onUserUnmuted);
 
-    // if already connected, run onConnect to rejoin
+    // if currently connected, call onConnect to rejoin rooms immediately
     if (socket.connected) onConnect();
 
     return () => {
-      // gracefully leave rooms and cleanup handlers
       try {
         if (socket.connected) {
           socket.emit("leaveGroup", { groupId, userId });
@@ -573,6 +776,7 @@ export const ChatContainer = ({
         console.warn("Error emitting leave/unsubscribe:", err);
       }
 
+      // remove handlers
       socket.off("connect", onConnect);
       socket.off("recentMessages", handleRecentMessages);
       socket.off("olderMessages", handleOlderMessages);
@@ -580,37 +784,26 @@ export const ChatContainer = ({
       socket.off("userTyping", handleUserTyping);
       socket.off("userStopTyping", handleUserStopTyping);
       socket.off("online-users", handleOnlineUsers);
-      socket.off("messagesSeen", handleMessagesSeen);
       socket.off("messageViews", handleMessageViews);
+      socket.off("messagesSeen", handleMessagesSeen);
       socket.off("messageById", handleMessageById);
       socket.off("messageEdited", handleMessageEdited);
       socket.off("messageDeleted", handleMessageDeleted);
       socket.off("messageReactionUpdated", handleReactionUpdated);
       socket.off("messageReactionRemoved", handleReactionRemoved);
+      socket.off("mutedUsers", onMutedUsers);
+      socket.off("userMuted", onUserMuted);
+      socket.off("userUnmuted", onUserUnmuted);
 
       // clear per-chat caches to avoid unbounded growth
       emittedIds.clear();
     };
-  }, [
-    socket,
-    groupId,
-    userId,
-    chatId,
-    normalizeMessage,
-    emittedIds,
-    jumpToMessage,
-  ]);
+  }, [socket, groupId, userId, chatId, normalizeMessage, emittedIds]);
 
-  // inside the consolidated effect (or in a small dedicated effect)
+  // rejoin rooms on reconnect/connect events (keeps a light handler)
   useEffect(() => {
     if (!socket) return;
-
     const rejoinRooms = () => {
-      console.log("[chat] rejoinRooms", {
-        socketId: socket.id,
-        groupId,
-        chatId,
-      });
       socket.emit("joinGroup", { groupId, userId });
       if (chatId) socket.emit("chat:subscribe", { chatId, userId });
       socket.emit("getOnlineUsers", { groupId });
@@ -618,52 +811,39 @@ export const ChatContainer = ({
 
     socket.on("connect", rejoinRooms);
     socket.on("reconnect", rejoinRooms);
-
-    // if already connected when mounting, call immediately
     if (socket.connected) rejoinRooms();
-
     return () => {
       socket.off("connect", rejoinRooms);
       socket.off("reconnect", rejoinRooms);
     };
   }, [socket, groupId, userId, chatId]);
 
-  // This useEffect is for pending jump id
+  // pending jump effect — uses stable waitForMessageElement
   useEffect(() => {
     if (!pendingJumpId) return;
     let mounted = true;
 
     (async () => {
       const tryWait = async (timeout = 3000) => {
-        // helper that polls messageRefs (you already have waitForMessageElement helper)
         return await waitForMessageElement(pendingJumpId, {
           timeout,
           interval: 50,
         });
       };
 
-      // 1) try to find the element (short wait)
       let el = await tryWait(1500);
-
-      // 2) if not found, ask server for nearby messages (so it mounts)
       if (!el) {
-        console.log(
-          "[pendingJump] element not found — requesting context for",
-          pendingJumpId
-        );
         socket?.emit("getMessagesAroundId", {
           messageId: pendingJumpId,
           before: 10,
           after: 5,
         });
-        // give server some time to push messages and React to render
         el = await tryWait(4000);
       }
 
       if (!mounted) return;
 
       if (el) {
-        // scroll & highlight
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.classList.add("ring-4", "ring-yellow-300", "bg-yellow-50");
         setTimeout(
@@ -676,7 +856,6 @@ export const ChatContainer = ({
           "[pendingJump] could not find element after fallback:",
           pendingJumpId
         );
-        // optional: toast the user or scroll to top/bottom as last resort
       }
 
       if (mounted) setPendingJumpId(null);
@@ -685,25 +864,23 @@ export const ChatContainer = ({
     return () => {
       mounted = false;
     };
-  }, [pendingJumpId, messageRefs, socket, history]);
+  }, [pendingJumpId, waitForMessageElement, socket]);
 
+  // visibility handler to reconnect
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         if (!socket.connected) socket.connect();
-        // ensure rejoinRooms handler on connect will do the join
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [socket]);
 
-  // --- mark messages as seen when history updates (optimistic + reliable emit) ---
-  // --- mark messages as seen when history updates (optimistic + reliable emit) ---
+  // mark messages as seen when history updates (optimistic + reliable emit)
   useEffect(() => {
     if (!socket) return;
 
-    // find unseen messages according to UI state, sender filter and local emitted cache
     const unseenMessages = history.filter(
       (m) =>
         !m.seenByMe &&
@@ -712,29 +889,19 @@ export const ChatContainer = ({
     );
     if (unseenMessages.length === 0) return;
 
-    // Only emit for messages that were NOT part of the initial recentMessages load.
-    // That prevents emitting all historical ids on join (server pointer already handled those).
     const toEmit = unseenMessages.filter((m) => {
-      // if initial recent not yet loaded, allow emit (we might be restoring state or reconnecting)
       if (!initialRecentLoadedRef.current) return true;
-      // otherwise, skip ids that were part of the initial recent batch
       return !initialMessageIdsRef.current.has(m.id);
     });
-
     if (toEmit.length === 0) return;
 
     const messageIds = toEmit.map((m) => m.id);
 
-    // mark locally as seen (optimistic)
+    // mark locally as seen
     messageIds.forEach((id) => emittedMessageIds.current.add(id));
     setHistory((prev) =>
       prev.map((msg) =>
-        messageIds.includes(msg.id)
-          ? {
-              ...msg,
-              seenByMe: true,
-            }
-          : msg
+        messageIds.includes(msg.id) ? { ...msg, seenByMe: true } : msg
       )
     );
 
@@ -743,114 +910,62 @@ export const ChatContainer = ({
         socket.emit("markMessagesAsSeen", { messageIds });
       } catch (err) {
         console.warn("Failed to emit markMessagesAsSeen:", err);
-        // rollback optimistic flags? usually not necessary: we'll re-sync on next server event.
       }
     };
 
     if (socket.connected) {
       emitMarkSeen();
     } else {
-      // ensure we emit after connect
       const handle = () => {
         emitMarkSeen();
         socket.off("connect", handle);
       };
       socket.on("connect", handle);
-
-      // cleanup this temporary handler if effect re-runs or unmounts before connecting
       return () => {
-        socket.off("connect", handle);
+        socket.off("connect", handle); // wrapped in block so cleanup returns void
       };
     }
   }, [history, userId, socket]);
 
-  // --- key handlers ---
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const key = e.key;
+  // set up scroll listener (rAF throttled)
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    let ticking = false;
 
-    // fire typing; be defensive
-    try {
-      if (socket?.connected) socket.emit("typing", { userId, userName });
-      else socket?.connect();
-    } catch (err) {
-      console.warn("typing emit failed:", err);
-    }
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const distanceFromBottom =
+            container.scrollHeight -
+            container.scrollTop -
+            container.clientHeight;
+          setIsAutoScroll(distanceFromBottom < 250);
 
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      try {
-        socket?.emit("stopTyping", { userId });
-      } catch (err) {
-        console.warn("stopTyping emit failed:", err);
+          if (container.scrollTop < 100 && hasMore && !loadingMore) {
+            loadMoreMessages();
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
-      typingTimeoutRef.current = null;
-    }, TYPING_TIMEOUT);
+    };
 
-    if (key === "Enter" && !e.shiftKey && !isMobile) {
-      e.preventDefault();
-      send();
-    }
-  };
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loadingMore, loadMoreMessages]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setDraft(value);
+  // small cleanup for timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current)
+        window.clearTimeout(debounceTimeoutRef.current);
+      if (typingTimeoutRef.current)
+        window.clearTimeout(typingTimeoutRef.current);
+    };
+  }, []);
 
-    // simple autosize
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
-
-    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = setTimeout(() => {
-      try {
-        if (socket?.connected) socket.emit("typing", { userId, userName });
-        else socket?.connect();
-      } catch (err) {
-        console.warn("typing emit failed:", err);
-      }
-
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        try {
-          socket?.emit("stopTyping", { userId });
-        } catch (err) {
-          console.warn("stopTyping emit failed:", err);
-        }
-        typingTimeoutRef.current = null;
-      }, TYPING_TIMEOUT);
-    }, 300);
-  };
-
-  const openSeenModal = (messageId: string) => {
-    // emit getMessageViews for this messageId and container's single messageViews handler
-    if (!socket) return;
-    if (socket.connected) socket.emit("getMessageViews", { messageId });
-    else {
-      const once = () => {
-        socket.emit("getMessageViews", { messageId });
-        socket.off("connect", once);
-      };
-      socket.on("connect", once);
-      socket.connect();
-    }
-  };
-
-  // --- pagination helper ---
-  const loadMoreMessages = useCallback(() => {
-    if (!hasMore || loadingMore) return;
-    setLoadingMore(true);
-    const firstMessage = history[0];
-
-    try {
-      socket?.emit("getMessages", {
-        beforeMessageId: firstMessage?.id,
-      });
-    } catch (err) {
-      console.warn("getMessages emit failed:", err);
-      setLoadingMore(false);
-    }
-  }, [hasMore, loadingMore, history, socket]);
-
+  // initial scroll-to-bottom on first load
   useLayoutEffect(() => {
     if (isFirstLoad.current && history.length > 0) {
       bottomRef.current?.scrollIntoView({ behavior: "auto" });
@@ -858,78 +973,14 @@ export const ChatContainer = ({
     }
   }, [history]);
 
-  // --- scroll listeners (single place) ---
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const distanceFromBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight;
-      setIsAutoScroll(distanceFromBottom < 250);
-
-      if (container.scrollTop < 100 && hasMore && !loadingMore) {
-        loadMoreMessages();
-      }
-    };
-
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [hasMore, loadingMore, history, loadMoreMessages]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    };
-  }, []);
-
+  // auto scroll on new messages if user hasn't scrolled away
   useEffect(() => {
     if (!isFirstLoad.current && isAutoScroll) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [history, isAutoScroll]);
 
-  const send = () => {
-    if (!draft.trim()) return;
-
-    // optional: optimistic append could be added here (not implemented)
-    try {
-      socket?.emit("groupMessage", {
-        groupId,
-        fromUserId: userId,
-        text: draft,
-        replyToId: replyTo?.id || null,
-      });
-    } catch (err) {
-      console.warn("groupMessage emit failed:", err);
-    }
-
-    setDraft("");
-
-    // cancel typing indicators
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = null;
-    }
-
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-      debounceTimeoutRef.current = null;
-    }
-
-    try {
-      socket?.emit("stopTyping", { groupId, userId });
-    } catch (err) {
-      console.warn("stopTyping emit failed:", err);
-    }
-
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
-    setReplyTo(null);
-  };
-
+  // keep body overflow while modal is open
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -937,43 +988,41 @@ export const ChatContainer = ({
     };
   }, []);
 
-  // optimistic edit
-  const handleEditMessageEmit = (messageId: string, newContent: string) => {
-    if (!socket) return;
-    // optimistic update locally
-    setHistory((prev) =>
-      prev.map((m) =>
-        m.id === messageId
-          ? { ...m, content: newContent, isEdited: true, updatedAt: new Date() }
-          : m
-      )
-    );
+  // memoize typing string (cheap but avoids recalculating on each render)
+  const typingDisplay = useMemo(() => {
+    if (typingUsers.length === 1)
+      return `${typingUsers[0].userName} is typing…`;
+    if (typingUsers.length > 1)
+      return `${typingUsers.map((u) => u.userName).join(", ")} are typing…`;
+    return "";
+  }, [typingUsers]);
 
-    try {
-      socket.emit("editMessage", { messageId, newContent, userId, groupId });
-    } catch (err) {
-      console.warn("editMessage emit failed:", err);
-      // optionally rollback (simple approach: refetch message or mark error)
-    }
-  };
-
-  // optimistic delete (soft-delete)
-  const handleDeleteMessageEmit = (messageId: string) => {
-    if (!socket) return;
-    // optimistic: mark as deleted locally
-    setHistory((prev) =>
-      prev.map((m) =>
-        m.id === messageId ? { ...m, content: "[deleted]", isDeleted: true } : m
-      )
-    );
-
-    try {
-      socket.emit("deleteMessage", { messageId, userId, groupId });
-    } catch (err) {
-      console.warn("deleteMessage emit failed:", err);
-      // optional rollback logic
-    }
-  };
+  // stable handlers passed to ChatMessage to allow memoization inside ChatMessage
+  const messageCallbacks = useMemo(
+    () => ({
+      onReply: (m: MessageWithSenderInfo) => {
+        setReplyTo(m);
+        setTimeout(() => inputRef.current?.focus(), 0);
+      },
+      onJumpToMessage: (id: string) => jumpToMessage(id),
+      onEdit: (id: string, newContent: string) =>
+        handleEditMessageEmit(id, newContent),
+      onDelete: (id: string) => handleDeleteMessageEmit(id),
+      openSeenModal,
+      registerRef: (id: string, el: HTMLDivElement | null) => {
+        if (el) messageRefs.current.set(id, el);
+        else messageRefs.current.delete(id);
+      },
+      onToggleReaction: toggleReact,
+    }),
+    [
+      jumpToMessage,
+      handleEditMessageEmit,
+      handleDeleteMessageEmit,
+      openSeenModal,
+      toggleReact,
+    ]
+  );
 
   return (
     <div
@@ -981,9 +1030,7 @@ export const ChatContainer = ({
       style={{ WebkitOverflowScrolling: "touch" }}
     >
       <div className="flex flex-col w-full items-center h-full">
-        {/* Panel wrapper: controls total height for header + card */}
         <div className="w-full max-w-3xl h-[calc(100dvh-4rem)] sm:h-[90vh] flex flex-col relative">
-          {/* Header (fixed inside the panel) */}
           <div className="absolute top-0 left-0 right-0 z-30 h-16 sm:h-20 bg-white/20 backdrop-blur-lg border-b border-white/10 py-2 px-3 flex flex-col sm:flex-row sm:items-center sm:justify-between transition-colors duration-200 hover:bg-white/20 shadow-[0_4px_6px_rgba(0,0,0,0.08)]">
             <div className="text-lg sm:text-2xl font-bold flex items-center bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent tracking-wide">
               <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden mr-2 shrink-0 bg-white/10">
@@ -1004,23 +1051,14 @@ export const ChatContainer = ({
               {groupName}
             </div>
 
-            {/* bigger, pill-like typing indicator so it's readable on phone */}
             <div className="sm:mt-0">
               <div className="inline-flex items-center gap-2 px-3 py-1 mb-1 sm:mb-0 rounded-md bg-white/12 text-white/90 text-sm italic min-w-[8rem] max-w-[18rem] truncate">
-                {typingUsers.length === 1
-                  ? `${typingUsers[0].userName} is typing…`
-                  : typingUsers.length > 1
-                  ? `${typingUsers
-                      .map((u) => u.userName)
-                      .join(", ")} are typing…`
-                  : ""}
+                {typingDisplay}
               </div>
             </div>
           </div>
 
-          {/* Chat Card: push down by header height using mt-{headerHeight} so header doesn't overlap */}
           <Card className="mt-16 sm:mt-20 w-full h-full flex flex-col backdrop-blur-lg bg-white/20 border border-white/20 border-t-0 shadow-2xl rounded-xl rounded-t-none overflow-hidden transition-all duration-300 hover:shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
-            {/* Messages */}
             <CardContent
               ref={messagesContainerRef}
               className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-1 px-2 pb-1 space-y-1 overscroll-behavior-contain"
@@ -1042,7 +1080,6 @@ export const ChatContainer = ({
                     key={msg.id}
                     id={`message-${msg.id}`}
                     ref={(el) => {
-                      // keep the reference in the map — remove if el is null on unmount
                       if (el) messageRefs.current.set(msg.id, el);
                       else messageRefs.current.delete(msg.id);
                     }}
@@ -1053,34 +1090,24 @@ export const ChatContainer = ({
                       msg={msg}
                       isOwn={isOwn}
                       isOnline={onlineUserIds.includes(msg.senderId)}
-                      onReply={(m) => {
-                        setReplyTo(m);
-                        setTimeout(() => inputRef.current?.focus(), 0);
-                      }}
-                      onJumpToMessage={(id) => jumpToMessage(id)}
-                      onEdit={(id: string, newContent: string) =>
-                        handleEditMessageEmit(id, newContent)
-                      }
-                      onDelete={(id: string) => handleDeleteMessageEmit(id)}
-                      openSeenModal={openSeenModal}
-                      registerRef={(id, el) => {
-                        if (el) messageRefs.current.set(id, el);
-                        else messageRefs.current.delete(id);
-                      }}
-                      // <-- NEW:
-                      onToggleReaction={toggleReact}
-                      // currentUserImage={
-                      //   typeof userImage !== "undefined" ? userImage : undefined
-                      // }
+                      onReply={messageCallbacks.onReply}
+                      onJumpToMessage={messageCallbacks.onJumpToMessage}
+                      onEdit={messageCallbacks.onEdit}
+                      onDelete={messageCallbacks.onDelete}
+                      openSeenModal={messageCallbacks.openSeenModal}
+                      registerRef={messageCallbacks.registerRef}
+                      onToggleReaction={messageCallbacks.onToggleReaction}
+                      socket={socket}
+                      groupId={groupId}
+                      currentUserRole={userRole} // e.g. "OWNER" | "ADMIN" | "MEMBER"
+                      mutedUsers={mutedUsers}
                     />
                   </div>
                 );
               })}
-
               <div ref={bottomRef} />
             </CardContent>
 
-            {/* Footer */}
             <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2 relative">
               {replyTo && (
                 <div className="w-full bg-white/20 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
@@ -1103,12 +1130,10 @@ export const ChatContainer = ({
                   value={draft}
                   onChange={(e) => {
                     handleChange(e);
-                    e.target.style.height = "auto"; // Reset height
-                    e.target.style.height = `${e.target.scrollHeight}px`; // Grow with content
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
                   }}
-                  onKeyDown={(e) => {
-                    handleKeyDown(e);
-                  }}
+                  onKeyDown={handleKeyDown}
                   rows={1}
                   placeholder="Type a message…"
                   style={{ maxHeight: "160px" }}
@@ -1119,7 +1144,7 @@ export const ChatContainer = ({
                   data-ripple
                   onMouseDown={(e) => e.preventDefault()}
                   type="button"
-                  onClick={send}
+                  onClick={() => send()}
                   className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200"
                   aria-label="Send message"
                 >
@@ -1127,7 +1152,7 @@ export const ChatContainer = ({
                 </button>
               </div>
             </CardFooter>
-            {/* Floating "scroll to bottom" button — floats above the footer so it never overlaps the send button */}
+
             {!isAutoScroll && (
               <button
                 onClick={() => {
@@ -1136,7 +1161,6 @@ export const ChatContainer = ({
                 }}
                 className="fixed right-4 bottom-3 sm:bottom-6 z-50 bg-white/20 backdrop-blur-sm p-2 rounded-full shadow hover:bg-white/30 transition-transform duration-200 hover:scale-105"
                 aria-label="Scroll to bottom"
-                // avoid stealing focus / closing keyboard on mobile accidentally
                 onMouseDown={(e) => e.preventDefault()}
                 type="button"
               >

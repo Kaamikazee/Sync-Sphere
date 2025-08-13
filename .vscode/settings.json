@@ -1,5 +1,8 @@
 {
-  "cSpell.words": ["Notif"],
+  "cSpell.words": [
+    "Notif",
+    "unreact"
+  ],
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },

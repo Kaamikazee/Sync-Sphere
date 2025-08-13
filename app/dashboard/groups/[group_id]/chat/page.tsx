@@ -1,5 +1,5 @@
 import { ChatContainer } from "@/components/chat/ChatContainer";
-import { getGroupWithSubscribers } from "@/lib/api";
+import { getGroupWithSubscribers, getUserGroupRole } from "@/lib/api";
 import { checkIfUserCompleteOnboarding } from "@/lib/CheckCompOnb";
 
 interface Params {
@@ -18,10 +18,11 @@ const Chat = async ({ params: { group_id } }: Params) => {
   const groupName = group?.name
   const groupImage = group?.image
   const chatId = group?.chat[0].id
+  const userRole = await getUserGroupRole(group_id, session.user.id)
 
   return (
     <main className="w-full h-screen">
-    <ChatContainer group_id={group_id} groupName={groupName!} groupImage={groupImage!} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!} chatId={chatId}/>
+    <ChatContainer group_id={group_id} groupName={groupName!} groupImage={groupImage!} userId={session.user.id} userName={session.user.name!} userImage={session.user.image!} chatId={chatId} userRole={userRole!}/>
     </main>
   )
 };
