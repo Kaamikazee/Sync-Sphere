@@ -11,6 +11,10 @@ export const POST = async (req: Request) => {
     return NextResponse.json("Invalid request", { status: 400 });
   }
 
+  if (senderId === targetUserId) {
+    return NextResponse.json("You cannot wake yourself up", { status: 400, statusText: "Why would you wake yourself up?" });
+  }
+
   const lastWake = await db.notification.findFirst({
     where: {
       userId: targetUserId,
@@ -25,6 +29,7 @@ export const POST = async (req: Request) => {
   if (lastWake) {
     return NextResponse.json("Cooldown active", { status: 429, statusText: "You can only wake up a user once every 2 hours." });
   }
+
 
   await db.notification.create({
     data: {

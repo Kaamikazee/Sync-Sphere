@@ -6,13 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { UserPermission } from "@prisma/client";
 import { getSocket } from "@/lib/socket";
-// import { initSocket } from "@/lib/initSocket";
 
 export interface MemberWithTimer {
   id: string;
   name: string | null;
   image: string | null;
-  totalSeconds: number;
+  totalSeconds: number; // base stored seconds (not including elapsed)
   isRunning: boolean;
   startTimestamp: Date | null | string;
   warningMessage: string | null;
@@ -33,7 +32,7 @@ export const NewLeaderboard = ({
   groupId,
   uuserName,
   groupName,
-  sessionUserRole = "READ_ONLY", // Default to READ_ONLY if not provided
+  sessionUserRole = "READ_ONLY",
 }: Props) => {
   const [members, setMembers] = useState<MemberWithTimer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,16 +40,17 @@ export const NewLeaderboard = ({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const socket = getSocket();
 
+  const normalizedUserId = String(uuserId).trim();
+  const normalizedGroupId = String(groupId).trim();
+
   const fetchMembers = async () => {
-    const res = await fetch(`/api/simple_timer/get?groupId=${groupId}`);
+    const res = await fetch(`/api/simple_timer/get?groupId=${encodeURIComponent(groupId)}`);
     const data = await res.json();
     return data.map((m: { user: MemberWithTimer }) => {
       const user = m.user;
       return {
         ...user,
-        startTimestamp: user.startTimestamp
-          ? new Date(user.startTimestamp)
-          : null,
+        startTimestamp: user.startTimestamp ? new Date(user.startTimestamp) : null,
       };
     });
   };
@@ -66,18 +66,26 @@ export const NewLeaderboard = ({
     setLoading(isLoading);
   }, [membersData, isLoading]);
 
-  // 🔌 Join and leave socket group correctly
+  // Join and socket handlers
   useEffect(() => {
+    if (!socket) return;
+
     const join = () => {
-      socket.emit("joinGroup", { groupId, userId: uuserId });
+      socket.emit("joinGroup", { groupId: normalizedGroupId, userId: normalizedUserId });
+      // immediately ask server for current online users for fast UI
+      socket.emit("get-online-users", { groupId: normalizedGroupId });
+      console.log("joinGroup emitted", normalizedGroupId, normalizedUserId);
     };
+
+    const onConnect = () => join();
 
     if (socket.connected) {
       join();
     } else {
-      socket.once("connect", join);
+      socket.once("connect", onConnect);
     }
 
+    // Handlers
     const handleStart = ({
       userId,
       startTime,
@@ -85,10 +93,11 @@ export const NewLeaderboard = ({
       userId: string;
       startTime: string | number | Date;
     }) => {
+      const uid = String(userId).trim();
       setMembers((prev) =>
         prev.map((m) =>
-          m.id === userId
-            ? { ...m, isRunning: true, startTimestamp: new Date(startTime) }
+          m.id === uid
+            ? { ...m, isRunning: true, startTimestamp: startTime ? new Date(startTime) : null }
             : m
         )
       );
@@ -101,9 +110,10 @@ export const NewLeaderboard = ({
       userId: string;
       totalSeconds: number;
     }) => {
+      const uid = String(userId).trim();
       setMembers((prev) =>
         prev.map((m) =>
-          m.id === userId
+          m.id === uid
             ? {
                 ...m,
                 isRunning: false,
@@ -115,23 +125,89 @@ export const NewLeaderboard = ({
       );
     };
 
-    const handleOnlineUsers = (ids: string[]) => setOnlineUserIds(ids);
+    const handleOnlineUsers = (ids: string[]) => {
+      setOnlineUserIds(ids.map((id) => String(id).trim()));
+    };
 
+    // Lightweight per-second server-provided tick (authoritative per-second)
+    const handleTick = ({
+      userId,
+      currentTotalSeconds,
+    }: {
+      userId: string;
+      currentTotalSeconds: number;
+      activeFocusAreaId?: string | null;
+    }) => {
+      const uid = String(userId).trim();
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === uid
+            ? {
+                ...m,
+                // keep isRunning/startTimestamp as-is (server tick is just an update to base)
+                totalSeconds: currentTotalSeconds,
+              }
+            : m
+        )
+      );
+    };
+
+    // Authoritative update from DB/routes (replace base + running state)
+    const handleUpdated = (payload: {
+      userId: string;
+      isRunning: boolean;
+      totalSeconds: number;
+      startTime?: string | number | null;
+      activeFocusAreaId?: string | null;
+    }) => {
+      const uid = String(payload.userId).trim();
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === uid
+            ? {
+                ...m,
+                isRunning: !!payload.isRunning,
+                totalSeconds: payload.totalSeconds,
+                startTimestamp: payload.startTime ? new Date(payload.startTime) : null,
+              }
+            : m
+        )
+      );
+    };
+
+    // Register listeners
     socket.on("timer-started", handleStart);
     socket.on("timer-stopped", handleStop);
     socket.on("online-users", handleOnlineUsers);
+    socket.on("timer-tick", handleTick);
+    socket.on("timer:updated", handleUpdated);
 
+    // cleanup
     return () => {
-      socket.emit("leaveGroup", { groupId, userId: uuserId });
+      try {
+        socket.emit("leaveGroup", { groupId: normalizedGroupId, userId: normalizedUserId });
+      } catch {
+        // ignore if socket is disconnected
+      }
       socket.off("timer-started", handleStart);
       socket.off("timer-stopped", handleStop);
       socket.off("online-users", handleOnlineUsers);
+      socket.off("timer-tick", handleTick);
+      socket.off("timer:updated", handleUpdated);
+      socket.off("connect", onConnect);
     };
-  }, [groupId, uuserId, socket]);
+  }, [groupId, uuserId, socket, normalizedGroupId, normalizedUserId]);
 
-  // ⏱ Trigger re-render every second
+  // Efficient per-second re-render: only recreate objects for running members so getLiveTotalSeconds updates
   useEffect(() => {
-    const tick = () => setMembers((prev) => [...prev]);
+    const tick = () =>
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (!m.isRunning || !m.startTimestamp) return m; // keep identity if unchanged
+          return { ...m }; // shallow copy to trigger re-render and let getLiveTotalSeconds compute elapsed
+        })
+      );
+
     intervalRef.current = setInterval(tick, 1000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -211,10 +287,9 @@ export const NewLeaderboard = ({
         backdrop-blur-none sm:backdrop-blur-md"
         >
           {sorted.map((member, index) => {
-            const isMe = member.id === uuserId;
+            const isMe = member.id === normalizedUserId;
             const base = formatHMS(getLiveTotalSeconds(member));
-            const isOnline = onlineUserIds.includes(member.id);
-            // const isAdminOrOwner = member.
+            const isOnline = onlineUserIds.includes(String(member.id).trim());
             return (
               <li key={member.id}>
                 <MemberComponent

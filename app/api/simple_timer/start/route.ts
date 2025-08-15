@@ -19,10 +19,7 @@ export const POST = async (request: Request) => {
   const resetHour = user.resetHour ?? 0;
 
   // Get user's day range in UTC
-  const { startUtc } = getUserDayRange(
-    { timezone, resetHour },
-    new Date()
-  );
+  const { startUtc } = getUserDayRange({ timezone, resetHour }, new Date());
 
   // `today` should match your dailyTotal.date (start of user’s day in UTC)
   const today = startUtc;
@@ -54,7 +51,9 @@ export const POST = async (request: Request) => {
   });
 
   if (lastSegment) {
-    const duration = Math.floor((now.getTime() - lastSegment.start.getTime()) / 1000);
+    const duration = Math.floor(
+      (now.getTime() - lastSegment.start.getTime()) / 1000
+    );
 
     // If break lasted 5 hours or more, discard it (delete the DB record)
     if (duration >= 5 * 3600) {
@@ -76,6 +75,27 @@ export const POST = async (request: Request) => {
     }
   }
 
+  // Check if there is already a running focus segment for this user
+  const existingFocus = await db.timerSegment.findFirst({
+    where: { userId, end: null, type: "FOCUS" },
+    orderBy: { start: "desc" },
+  });
+
+  if (existingFocus) {
+    // Close the existing focus segment before starting a new one
+    const focusDuration = Math.floor(
+      (now.getTime() - existingFocus.start.getTime()) / 1000
+    );
+
+    await db.timerSegment.update({
+      where: { id: existingFocus.id },
+      data: {
+        end: now,
+        duration: focusDuration,
+      },
+    });
+  }
+
   // Create new focus segment
   const segment = await db.timerSegment.create({
     data: {
@@ -88,26 +108,28 @@ export const POST = async (request: Request) => {
 
   try {
     await db.dailyTotal.upsert({
-      where: { userId_date: { userId: userId!, date: today } },
-      update: { isRunning: true, startTimestamp: now },
-      create: {
-        userId: userId!,
-        date: today,
-        totalSeconds: 0,
-        isRunning: true,
-        startTimestamp: now,
-      },
-    });
+  where: { userId_date: { userId: userId!, date: today } },
+  update: { isRunning: true, startTimestamp: now },
+  create: {
+    userId: userId!,
+    date: today,
+    totalSeconds: 0,
+    isRunning: true,
+    startTimestamp: now,
+  },
+  select: { totalSeconds: true, startTimestamp: true },
+});
 
-    return NextResponse.json(
-      {
-        segmentId: segment.id,
-        start: segment.start,
-        ...(lastBreakStart && { lastBreakStart }),
-        ...(lastBreakEnd && { lastBreakEnd }),
-      },
-      { status: 200 }
-    );
+
+return NextResponse.json(
+  {
+    segmentId: segment.id,
+    start: segment.start,
+    ...(lastBreakStart && { lastBreakStart }),
+    ...(lastBreakEnd && { lastBreakEnd }),
+  },
+  { status: 200 }
+);
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }

@@ -35,7 +35,7 @@ interface Props {
   timeSpent: number;
   isRunning: boolean;
   isToday: boolean;
-  handleStart: () => void;
+  handleStart: (a: string) => void;
   handleStop: () => void;
   setStartTime: (arg: number) => void;
   setIsRunning: (arg: boolean) => void;
@@ -48,7 +48,7 @@ interface Props {
 export function FocusAreaComp({
   focusArea: { name, id: focusAreaId },
   timeSpent,
-  isRunning,
+  // isRunning,
   todos,
   handleStart,
   handleStop,
@@ -62,13 +62,16 @@ export function FocusAreaComp({
   // const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
   const running = useRunningStore((s) => s.running);
-  const setRunning = useRunningStore((s) => s.setRunning);
+  const activeFocusId = useRunningStore((s) => s.activeFocusAreaId);
+  const isThisFocusActive = running && activeFocusId === focusAreaId;
+
+  // const setRunning = useRunningStore((s) => s.setRunning);
   const [IsFocusRunning, setIsFocusRunning] = useState(false);
   const [displayTime, setDisplayTime] = useState(timeSpent);
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const queryClient = useQueryClient();
-  const router = useRouter(); 
+  const router = useRouter();
 
   const breakReason = useBreakStore((s) => s.breakReason);
 
@@ -82,10 +85,6 @@ export function FocusAreaComp({
       setDisplayTime(timeSpent);
     }
   }, [timeSpent, IsFocusRunning]);
-
-  useEffect(() => {
-    setRunning(isRunning);
-  }, [isRunning, setRunning]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -172,15 +171,21 @@ export function FocusAreaComp({
   });
 
   const onStart = () => {
-    setRunning(true);
-    handleStart();
-    start();
-    onActivate();
-    localStorage.setItem("activeFocusAreaId", focusAreaId);
-    setIsFocusRunning(isActive);
-    breakTimer.stop(); // Stop break
-    breakTimer.reset(); // Reset for next time
-  };
+  // optimistic local + global
+  setIsFocusRunning(true);
+  useRunningStore.getState().setRunning(true, true);
+  useRunningStore.getState().setActiveFocusAreaId(focusAreaId);
+
+  // call parent
+  handleStart(focusAreaId);
+  start();
+  onActivate();
+
+  localStorage.setItem("activeFocusAreaId", focusAreaId);
+  breakTimer.stop();
+  breakTimer.reset();
+};
+
 
   const { mutate: stop } = useMutation({
     mutationFn: async () => {
@@ -193,8 +198,8 @@ export function FocusAreaComp({
     onSuccess: (data) => {
       toast.success(`${name} logged ${formatHMS(data.duration)} seconds`);
       queryClient.invalidateQueries({
-      queryKey: ["focusAreaTotals"],
-    });
+        queryKey: ["focusAreaTotals"],
+      });
       router.refresh();
     },
   });
@@ -214,19 +219,21 @@ export function FocusAreaComp({
   });
 
   const onStop = useCallback(() => {
-    setRunning(false);
-    handleStop();
-    stop();
-    setIsFocusRunning(false);
-    // setIsRunning(false)
-    breakTimer.start();
+  setIsFocusRunning(false);
 
-    localStorage.removeItem("activeSegmentId");
-    localStorage.removeItem("activeStartTime");
-    localStorage.removeItem("activeSegmentId");
-    localStorage.removeItem("activeDisplayTime");
-    localStorage.removeItem("activeFocusAreaId");
-  }, [setRunning, handleStop, stop, setIsFocusRunning, breakTimer]);
+  useRunningStore.getState().setRunning(false);
+  useRunningStore.getState().setActiveFocusAreaId(null);
+
+  handleStop();
+  stop();
+  breakTimer.start();
+
+  localStorage.removeItem("activeSegmentId");
+  localStorage.removeItem("activeStartTime");
+  localStorage.removeItem("activeDisplayTime");
+  localStorage.removeItem("activeFocusAreaId");
+}, [handleStop, stop, breakTimer]);
+
 
   useEffect(() => {
     if (stopRequested) {
@@ -250,14 +257,14 @@ export function FocusAreaComp({
         <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
           {/* Play / Pause Button */}
           <motion.div
-          data-ripple
+            data-ripple
             className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 text-white shadow-md sm:shadow-lg rounded-full p-1"
             whileHover="hover"
             whileTap="tap"
             variants={iconVariants}
           >
             <AnimatePresence mode="wait">
-              {!running && isToday && (
+              {!isThisFocusActive && isToday && (
                 <motion.div
                   key={IsFocusRunning ? "pause" : "play"}
                   initial={{ opacity: 0, scale: 0.8, y: 10 }}
@@ -281,7 +288,7 @@ export function FocusAreaComp({
 
           {/* Clickable Header */}
           <div
-          data-ripple
+            data-ripple
             onClick={() => setOpen((prev) => !prev)}
             className="cursor-pointer flex-1 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 text-white shadow-md sm:shadow-lg rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-5 hover:shadow-lg sm:hover:shadow-2xl hover:scale-[1.01] transition-transform duration-300 flex justify-between items-center text-base sm:text-lg font-semibold sm:font-bold min-h-[64px]"
           >
@@ -319,15 +326,15 @@ export function FocusAreaComp({
               Are you sure you want to delete this focus area? Previously logged
               time will not be affected.
               <DialogFooter>
-              <Button
-                onClick={() => {
-                  deleteFA();
-                }}
-                variant={"destructive"}
-              >
-                Delete
-              </Button>
-            </DialogFooter>
+                <Button
+                  onClick={() => {
+                    deleteFA();
+                  }}
+                  variant={"destructive"}
+                >
+                  Delete
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

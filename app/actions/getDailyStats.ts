@@ -92,6 +92,7 @@ export async function getDailyStats(
       productiveSegments[0]
     );
     started = formatTimeLocal(earliest.start, timezone);
+    
 
     // pick the segment with the latest timestamp using end when available, otherwise start
     const latest = productiveSegments.reduce((latestSoFar, s) => {

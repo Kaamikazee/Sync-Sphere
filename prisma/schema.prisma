@@ -34,6 +34,7 @@ model User {
   pomodoroSettings    PomodoroSettings[]
   activities          Activity[]
   message             Message[]
+  joinRequests        JoinRequest[]
 
   todos                 Todo[]
   announcements         Announcement[]
@@ -92,6 +93,17 @@ enum UserPermission {
   OWNER
 }
 
+enum JoinType {
+  OPEN
+  APPROVAL
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Group {
   id            String         @id @default(cuid())
   name          String
@@ -102,6 +114,8 @@ model Group {
   image         String?
   description   String?
   isPrivate     Boolean        @default(false)
+  joinType     JoinType       @default(OPEN)
+  joinRequests JoinRequest[]
   password      String?
   color         GroupIconColor @default(BLUE)
   inviteCode    String         @unique
@@ -129,6 +143,20 @@ enum GroupIconColor {
   FUCHSIA
   ORANGE
   CYAN
+}
+
+model JoinRequest {
+  id          String             @id @default(cuid())
+  groupId     String
+  userId      String
+  message     String?            // optional note by requester
+  status      JoinRequestStatus  @default(PENDING)
+  createdAt   DateTime           @default(now())
+  processedBy String?            // owner/admin id
+  processedAt DateTime?
+
+  group Group @relation(fields: [groupId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
 }
 
 model Subscription {
@@ -350,7 +378,7 @@ model Message {
   reactions MessageReaction[]
 
   createdAt DateTime  @default(now())
-  
+
   isEdited  Boolean   @default(false)
   updatedAt DateTime? @updatedAt
   isDeleted Boolean   @default(false)

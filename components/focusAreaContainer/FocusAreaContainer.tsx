@@ -8,7 +8,7 @@ interface Props {
   focusAreas: FocusArea[];
   todos: Todo[];
   timeSpent: FocusAreTotalsById[];
-  handleStart: () => void;
+  handleStart: (a: string) => void;
   handleStop: () => void;
   setStartTime: (arg: number) => void;
   setIsRunning: (arg: boolean) => void;
@@ -54,7 +54,7 @@ export default function FocusAreaContainer({
               focusArea={focusArea}
               todos={focusAreaTodos}
               timeSpent={duration}
-              handleStart={handleStart}
+              handleStart={(id) => handleStart(id)}
               handleStop={handleStop}
               setIsRunning={setIsRunning}
               setStartTime={setStartTime}

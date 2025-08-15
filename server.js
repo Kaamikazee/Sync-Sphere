@@ -27,6 +27,7 @@ app.prepare().then(() => {
   const io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] },
   });
+  global.__io = io;
 
   const userTimers = new Map(); // key: userId, value: { startTime, totalSeconds }
   // const onlineUsers = new Map(); // userId -> socket.id
@@ -34,8 +35,6 @@ app.prepare().then(() => {
   // --- ONLINE USERS TRACKING ---
   const groupOnlineUsers = new Map(); // groupId -> Set of userIds
   const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
-
-  
 
   async function emitUnreadCount(chatId, userId) {
     try {
@@ -172,35 +171,37 @@ app.prepare().then(() => {
           mime: true,
         },
       });
-      if (!att){
-         console.warn(`[THUMB ${new Date().toISOString()}] attachment not found id=${attachmentId}`); 
-        return null;}
+      if (!att) {
+        console.warn(
+          `[THUMB ${new Date().toISOString()}] attachment not found id=${attachmentId}`
+        );
+        return null;
+      }
       if (!att.storagePath) return null;
       // only handle images (skip otherwise)
       if (!att.mime?.startsWith?.("image/")) return null;
 
       // download original file from Supabase
       // download original file from Supabase
-const { data: downloadData, error: downloadErr } =
-  await supabaseAdmin.storage
-    .from(ATTACHMENT_BUCKET)
-    .download(att.storagePath);
+      const { data: downloadData, error: downloadErr } =
+        await supabaseAdmin.storage
+          .from(ATTACHMENT_BUCKET)
+          .download(att.storagePath);
 
-if (downloadErr || !downloadData) {
-  console.error("thumbnail: download error", downloadErr);
-  return null;
-}
+      if (downloadErr || !downloadData) {
+        console.error("thumbnail: download error", downloadErr);
+        return null;
+      }
 
-// read file into Buffer (Node)
-const arrayBuffer = await downloadData.arrayBuffer();
-const origBuffer = Buffer.from(arrayBuffer);
-      
+      // read file into Buffer (Node)
+      const arrayBuffer = await downloadData.arrayBuffer();
+      const origBuffer = Buffer.from(arrayBuffer);
+
       // create thumbnail using sharp (adjust size/quality as you like)
       const thumbBuffer = await sharp(origBuffer)
-      .resize({ width: 800, withoutEnlargement: true }) // pick width comfortable for your UI
-      .jpeg({ quality: 75 })
-      .toBuffer();
-
+        .resize({ width: 800, withoutEnlargement: true }) // pick width comfortable for your UI
+        .jpeg({ quality: 75 })
+        .toBuffer();
 
       // decide thumb path: original: {groupId}/{id}.ext -> thumb: {groupId}/{id}_thumb.jpg
       // baby-proof: ensure extension .jpg
@@ -216,7 +217,12 @@ const origBuffer = Buffer.from(arrayBuffer);
         });
 
       if (uploadErr) {
-        console.error(`[THUMB ${new Date().toISOString()}] thumbnail upload failed for att=${att.id}`, uploadErr);
+        console.error(
+          `[THUMB ${new Date().toISOString()}] thumbnail upload failed for att=${
+            att.id
+          }`,
+          uploadErr
+        );
         return null;
       }
 
@@ -272,8 +278,8 @@ const origBuffer = Buffer.from(arrayBuffer);
               select: { chatId: true },
             })
           ).chatId;
-          
-          if (chatId) {
+
+        if (chatId) {
           io.to(`chat_${chatId}`).emit("messageAttachmentUpdated", {
             messageId: att.messageId,
             attachments: [payloadAtt],
@@ -314,14 +320,14 @@ const origBuffer = Buffer.from(arrayBuffer);
     // Collect unique paths
     const thumbPaths = new Set();
     const filePaths = new Set();
-    
+
     for (const m of messages) {
       if (!m.attachments || m.attachments.length === 0) continue;
       for (const a of m.attachments) {
-        if (a.thumbPath){ 
+        if (a.thumbPath) {
           thumbPaths.add(a.thumbPath);
         }
-        if (a.storagePath){
+        if (a.storagePath) {
           filePaths.add(a.storagePath);
         }
       }
@@ -335,7 +341,10 @@ const origBuffer = Buffer.from(arrayBuffer);
         try {
           thumbUrlMap[p] = await makeSignedUrl(p, opts.thumbExpires);
         } catch (err) {
-          console.error(`[ATTACH-SIGNED ${new Date().toISOString()}] failed to create signed url for thumbPath=${p}`, err);
+          console.error(
+            `[ATTACH-SIGNED ${new Date().toISOString()}] failed to create signed url for thumbPath=${p}`,
+            err
+          );
           thumbUrlMap[p] = null;
         }
       })
@@ -1084,16 +1093,140 @@ const origBuffer = Buffer.from(arrayBuffer);
     });
 
     // --- activity / timer handlers ---
-    socket.on("startActivity", async ({ activityId, startTime }) => {
-      console.log("Activity started:", activityId);
+    socket.on("joinUserRoom", ({ userId }) => {
+      if (!userId) return;
+      socket.join(`user:${userId}`);
+    });
+
+    // start-timer: optimistic fast-notify.
+    // Client should send: { userId, startTime, focusAreaId? }
+    socket.on(
+      "start-timer",
+      ({ userId: payloadUserId, startTime, focusAreaId }) => {
+        try {
+          const userId = getAuthUserId(socket, payloadUserId);
+          if (!userId) return;
+
+          // Remember which focus is running on this socket (optional convenience)
+          if (focusAreaId) socket.data.activeFocusAreaId = focusAreaId;
+
+          console.log("TIMER-STARTED (socket)", {
+            userId,
+            startTime,
+            focusAreaId,
+          });
+
+          // Short, compatibility event for listeners that expect it
+          io.to(`user:${userId}`).emit("timer-started", {
+            userId,
+            startTime,
+            focusAreaId,
+          });
+
+          // Canonical optimistic update payload (clients should reconcile with DB-driven emits)
+          io.to(`user:${userId}`).emit("timer:updated", {
+            isRunning: true,
+            activeFocusAreaId: focusAreaId ?? null,
+            totalSeconds: 0, // optimistic; server-side DB upsert will emit authoritative value
+            startTime: typeof startTime === "number" ? startTime : Date.now(),
+          });
+        } catch (err) {
+          console.error("start-timer handler error:", err);
+        }
+      }
+    );
+
+    // stop-timer: optimistic fast-notify.
+    // Client should send: { userId, totalSeconds?, segmentId? }
+    socket.on(
+      "stop-timer",
+      ({ userId: payloadUserId, totalSeconds, segmentId }) => {
+        try {
+          const userId = getAuthUserId(socket, payloadUserId);
+          if (!userId) return;
+
+          // clear socket-level focus marker
+          socket.data.activeFocusAreaId = null;
+
+          console.log("TIMER-STOPPED (socket)", {
+            userId,
+            totalSeconds,
+            segmentId,
+          });
+
+          // Compatibility short event
+          io.to(`user:${userId}`).emit("timer-stopped", {
+            userId,
+            totalSeconds,
+            segmentId,
+          });
+
+          // Canonical optimistic update — serverside DB route should still emit final `timer:updated`.
+          io.to(`user:${userId}`).emit("timer:updated", {
+            isRunning: false,
+            activeFocusAreaId: null,
+            totalSeconds:
+              typeof totalSeconds === "number" ? totalSeconds : null,
+            startTime: null,
+          });
+        } catch (err) {
+          console.error("stop-timer handler error:", err);
+        }
+      }
+    );
+
+    // tick: receive periodic tick from client and forward to the user's room.
+    // Client should send: { userId, currentTotalSeconds }
+    socket.on("tick", ({ userId: payloadUserId, currentTotalSeconds }) => {
       try {
+        const userId = getAuthUserId(socket, payloadUserId);
+        if (!userId) return;
+
+        const activeFocusAreaId = socket.data.activeFocusAreaId ?? null;
+
+        // forward tick only to that user's rooms (not everyone)
+        io.to(`user:${userId}`).emit("timer-tick", {
+          userId,
+          currentTotalSeconds,
+          activeFocusAreaId,
+          // don't try to be authoritative here — these are just ticks
+        });
+
+        // Optional: also emit a canonical "timer:updated" with the tick value if you want clients to
+        // treat ticks as authoritative for display. If you do, include the same payload shape:
+        // io.to(`user:${userId}`).emit("timer:updated", {
+        //   isRunning: true,
+        //   activeFocusAreaId,
+        //   totalSeconds: currentTotalSeconds,
+        //   startTime: null,
+        // });
+      } catch (err) {
+        console.error("tick handler error:", err);
+      }
+    });
+
+    //
+    // Activity events (use activity rooms so only clients that care receive updates)
+    //
+    socket.on("startActivity", async ({ activityId, startTime }) => {
+      try {
+        console.log("Activity started:", activityId);
         const activity = await prisma.activity.findUnique({
           where: { id: activityId },
         });
         const baseline = activity?.timeSpent ?? 0;
-        io.emit("activityStarted", { activityId, startTime, baseline });
+
+        // Join activity room for subscribers (optional)
+        socket.join(`activity:${activityId}`);
+
+        // Emit to activity room
+        io.to(`activity:${activityId}`).emit("activityStarted", {
+          activityId,
+          startTime,
+          baseline,
+        });
       } catch (error) {
-        console.log("Error starting activity:", error);
+        console.error("Error starting activity:", error);
       }
     });
 
@@ -1103,7 +1236,10 @@ const origBuffer = Buffer.from(arrayBuffer);
           where: { id: activityId },
           data: { timeSpent: elapsedTime },
         });
-        io.emit("timerUpdated", { activityId, elapsedTime });
+        io.to(`activity:${activityId}`).emit("timerUpdated", {
+          activityId,
+          elapsedTime,
+        });
       } catch (error) {
         console.error("Error updating timer:", error);
       }
@@ -1115,11 +1251,20 @@ const origBuffer = Buffer.from(arrayBuffer);
           where: { id: activityId },
           data: { timeSpent: elapsedTime },
         });
-        io.emit("activityStopped", { activityId, elapsedTime });
+        io.to(`activity:${activityId}`).emit("activityStopped", {
+          activityId,
+          elapsedTime,
+        });
       } catch (error) {
         console.error("Error stopping activity:", error);
       }
     });
+
+    socket.on("timer:updated", (payload) => {
+   const { userId } = payload;
+   io.to(`user:${userId}`).emit("timer:updated", payload);
+});
+
 
     // -------- CHAT PAGINATION -------------
     socket.on("getMessages", async ({ beforeMessageId }) => {
@@ -1534,24 +1679,6 @@ const origBuffer = Buffer.from(arrayBuffer);
       }
     });
 
-    // --- activity / timer quick events to broadcast ---
-    socket.on("start-timer", ({ userId: payloadUserId, startTime }) => {
-      const userId = getAuthUserId(socket, payloadUserId);
-      console.log("TIMER-STARTED");
-      io.emit("timer-started", { userId, startTime });
-    });
-
-    socket.on("stop-timer", ({ userId: payloadUserId, totalSeconds }) => {
-      const userId = getAuthUserId(socket, payloadUserId);
-      console.log("TIMER-STOPPED");
-      io.emit("timer-stopped", { userId, totalSeconds });
-    });
-
-    socket.on("tick", ({ userId: payloadUserId, currentTotalSeconds }) => {
-      const userId = getAuthUserId(socket, payloadUserId);
-      io.emit("timer-tick", { userId, currentTotalSeconds });
-    });
-
     // typing indicators
     socket.on("typing", async ({ userId: payloadUserId, userName }) => {
       const actorId = getAuthUserId(socket, payloadUserId);
@@ -1813,6 +1940,6 @@ const origBuffer = Buffer.from(arrayBuffer);
 
   httpServer.listen(port, (err) => {
     if (err) throw err;
-     console.log(`Server running at http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}`);
   });
 });

@@ -1,8 +1,7 @@
+// app/api/simple_timer/stop/route.ts
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserDayRange } from "@/utils/IsToday";
-// import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -108,10 +107,11 @@ export const POST = async (request: Request) => {
       }),
     ]);
 
-    return NextResponse.json(
-      { status: "OK", breakSegmentId: breakSegment.id, duration },
-      { status: 200 }
-    );
+return NextResponse.json(
+  { status: "OK", breakSegmentId: breakSegment.id, duration },
+  { status: 200 }
+);
+
   } catch (err) {
     console.error("Timer stop error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });

@@ -47,7 +47,6 @@ export const SimpleTimerContainer = ({
 }: Props) => {
   const socket = getSocket();
   const today = normalizeToStartOfDay(new Date());
-
   const [date, setDate] = useState<Date>(today);
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -102,14 +101,19 @@ export const SimpleTimerContainer = ({
   });
 
   const [timeSpent, setTimeSpent] = useState(totalSeconds);
-  const [time, setTime] = useState(timeSpent);
   const running = useRunningStore((s) => s.running);
+  const setActiveFocusAreaId = useRunningStore((s) => s.setActiveFocusAreaId);
   const setRunning = useRunningStore((s) => s.setRunning);
   const [startTime, setStartTime] = useState<number | null>(
     isRunning && startTimeStamp ? new Date(startTimeStamp).getTime() : null
   );
   const baselineRef = useRef<number>(timeSpent);
-  // const [currentSessionTime, setCurrentSessionTime] = useState<number>(0);
+  const [time, setTime] = useState(timeSpent);
+  const timeRef = useRef<number>(time);
+  useEffect(() => {
+    timeRef.current = time;
+  }, [time]);
+
   const [isPomodoro] = useState(false);
 
   const triggerStop = useRunningStore((state) => state.triggerStop);
@@ -131,31 +135,6 @@ export const SimpleTimerContainer = ({
       return normalized > today ? today : normalized;
     });
   };
-
-  useEffect(() => {
-    if (totalSeconds && typeof totalSeconds === "number") {
-      setTime(totalSeconds);
-      baselineRef.current = totalSeconds;
-    }
-  }, [totalSeconds]);
-
-  useEffect(() => {
-    setRunning(isRunning);
-  }, [isRunning, setRunning]);
-
-  useEffect(() => {
-    if (!running || startTime === null) return;
-
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const newTime = baselineRef.current + elapsed;
-      if (newTime > time) {
-        setTime(newTime);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [running, startTime, time]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -183,6 +162,32 @@ export const SimpleTimerContainer = ({
   }, []);
 
   useEffect(() => {
+    if (totalSeconds && typeof totalSeconds === "number") {
+      setTime(totalSeconds);
+      baselineRef.current = totalSeconds;
+    }
+  }, [totalSeconds]);
+
+  useEffect(() => {
+    setRunning(isRunning);
+  }, [isRunning, setRunning]);
+
+  useEffect(() => {
+  if (!running || startTime === null) return;
+
+  const updateTime = () => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    setTime(baselineRef.current + elapsed);
+  };
+
+  updateTime(); // 🔹 update immediately on start
+  const interval = setInterval(updateTime, 1000);
+
+  return () => clearInterval(interval);
+}, [running, startTime]);
+
+
+  useEffect(() => {
     if (isRunning) {
       baselineRef.current = totalSeconds;
       const elapsed = Math.floor(
@@ -195,6 +200,37 @@ export const SimpleTimerContainer = ({
     }
   }, [isRunning, totalSeconds, startTimeStamp]);
 
+  // Join room and reconcile updates from server
+useEffect(() => {
+  if (!socket || !userId) return;
+
+  // join the user room
+  socket.emit("joinUserRoom", { userId });
+
+  const onUpdate = (payload: {
+    isRunning: boolean;
+    activeFocusAreaId: string | null;
+    totalSeconds: number;
+    startTime: number | null;
+  }) => {
+    useRunningStore.getState().setRunning(payload.isRunning);
+    useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId);
+
+    setTime(payload.totalSeconds);
+    if (payload.startTime) {
+      setStartTime(payload.startTime);
+    } else {
+      setStartTime(null);
+    }
+  };
+
+  socket.on("timer:updated", onUpdate);
+  return () => {
+    socket.off("timer:updated", onUpdate);
+  };
+}, [socket, userId]);
+
+
   useEffect(() => {
     if (running) {
       const tickInterval = setInterval(() => {
@@ -203,18 +239,29 @@ export const SimpleTimerContainer = ({
       return () => clearInterval(tickInterval);
     }
   }, [running, time, userId, socket]);
+  
 
-  const handleStart = () => {
-    // capture wherever we’re at as the new baseline
+  const handleStart = (focusId?: string) => {
     const now = Date.now();
-    baselineRef.current = time;
-    // reset the startTime to now
+    baselineRef.current = timeRef.current;
     setStartTime(now);
+    setTime(baselineRef.current);
     setRunning(true);
-    socket?.emit("start-timer", { userId, startTime: now });
-    
-    // setCurrentSessionTime(0);
-    useRunningStore.getState().setRunning(true, true); // ✅ resets timer
+    setActiveFocusAreaId(focusId ?? null);
+    setTime(baselineRef.current + Math.floor((Date.now() - now) / 1000));
+
+
+    // emit focusId to socket
+    socket?.emit("start-timer", {
+      userId,
+      startTime: now,
+      focusAreaId: focusId,
+    });
+
+    // optimistic store update
+    useRunningStore.getState().setRunning(true, true);
+    useRunningStore.getState().setActiveFocusAreaId(focusId ?? null);
+
     queryClient.invalidateQueries({ queryKey: ["totalSeconds", userId, date] });
     queryClient.invalidateQueries({
       queryKey: ["focusAreaTotals", userId, date],
@@ -223,11 +270,16 @@ export const SimpleTimerContainer = ({
 
   const handleStop = () => {
     setRunning(false);
-    setTimeSpent(time);
-    baselineRef.current = time;
-    // mutate();
-    socket?.emit("stop-timer", { userId, totalSeconds: time });
-    stop();
+    setActiveFocusAreaId(null);
+    setTimeSpent(timeRef.current);
+    baselineRef.current = timeRef.current;
+
+    socket?.emit("stop-timer", { userId, totalSeconds: timeRef.current });
+
+    // optimistic store update
+    useRunningStore.getState().setRunning(false);
+    useRunningStore.getState().setActiveFocusAreaId(null);
+
     queryClient.invalidateQueries({ queryKey: ["totalSeconds", userId, date] });
     queryClient.invalidateQueries({
       queryKey: ["focusAreaTotals", userId, date],
@@ -249,7 +301,11 @@ export const SimpleTimerContainer = ({
                   transition={{ duration: 0.3 }}
                 >
                   <div className="flex items-center gap-4 mb-6">
-                    <Button data-ripple variant="ghost" onClick={() => changeDateBy(-1)}>
+                    <Button
+                      data-ripple
+                      variant="ghost"
+                      onClick={() => changeDateBy(-1)}
+                    >
                       <ChevronLeft className="w-6 h-6 text-white/70" />
                     </Button>
                     <Popover open={open} onOpenChange={setOpen}>
@@ -272,7 +328,11 @@ export const SimpleTimerContainer = ({
                         />
                       </PopoverContent>
                     </Popover>
-                    <Button data-ripple variant="ghost" onClick={() => changeDateBy(1)}>
+                    <Button
+                      data-ripple
+                      variant="ghost"
+                      onClick={() => changeDateBy(1)}
+                    >
                       <ChevronRight className="w-6 h-6 text-white/70" />
                     </Button>
                   </div>
@@ -333,7 +393,7 @@ export const SimpleTimerContainer = ({
                             transition={{ duration: 0.2 }}
                           >
                             <Button
-                            data-ripple
+                              data-ripple
                               className="cursor-pointer bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl"
                               onClick={triggerStop}
                             >
@@ -380,7 +440,7 @@ export const SimpleTimerContainer = ({
                 <FocusAreaContainerMemo
                   focusAreas={focusAreas}
                   timeSpent={focusAreaTotals || []}
-                  handleStart={handleStart}
+                  handleStart={(focusId: string) => handleStart(focusId)}
                   handleStop={handleStop}
                   setStartTime={setStartTime}
                   setIsRunning={setRunning}
