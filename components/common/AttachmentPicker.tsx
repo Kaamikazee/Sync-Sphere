@@ -611,7 +611,7 @@ export const AttachmentPicker = forwardRef<AttachmentPickerRef, Props>(
     };
 
     return (
-      <div>
+      <div className="flex items-center gap-2">
         <input
           ref={inputRef}
           type="file"
@@ -620,18 +620,19 @@ export const AttachmentPicker = forwardRef<AttachmentPickerRef, Props>(
           accept="image/*,application/pdf,application/zip"
           style={{ display: "none" }}
         />
-        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="px-3 py-1 rounded bg-white/10"
+             className="px-3 py-2 rounded bg-white/10 flex items-center justify-center"
+          aria-label="Attach file"
           >
-            <Paperclip color="white" />
+            <Paperclip color="white" size={16}/>
           </button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar"
+          style={{ maxWidth: "40vw" }}
+          >
             {files.map((f, i) => (
-              <div key={f.id} className="w-20">
-                <div className="relative w-20 h-20 rounded overflow-hidden bg-gray-100 border flex items-center justify-center">
+              <div key={f.id} className="flex-shrink-0 w-14 h-14 sm:w-20 sm:h-20 rounded overflow-x-scroll relative bg-gray-100 border flex items-center justify-center">
                   {/* show oriented thumbnails: portrait images get taller preview look */}
                   {f.preview ? (
                     <img
@@ -644,7 +645,7 @@ export const AttachmentPicker = forwardRef<AttachmentPickerRef, Props>(
                       alt="attachment preview"
                     />
                   ) : (
-                    <div className="p-2 text-xs">
+                    <div className="p-1 text-xs">
                       {f.file.name.slice(0, 12)}
                     </div>
                   )}
@@ -675,12 +676,10 @@ export const AttachmentPicker = forwardRef<AttachmentPickerRef, Props>(
                       </button>
                     )}
                   </div>
-                </div>
                 <div className="text-xs mt-1 truncate">{f.file.name}</div>
               </div>
             ))}
           </div>
-        </div>
 
         {typeof document !== "undefined" && cropSrc
           ? createPortal(

@@ -10,6 +10,7 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
 import { SeenButton } from "./SeenButton";
+import { formatSeenAt } from "@/utils/dayDivider";
 
 interface MutedUser {
   userId: string;
@@ -734,15 +735,7 @@ function ChatMessageInner({
                           {viewer.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {viewer.seenAt
-                            ? `Seen at ${new Date(
-                                viewer.seenAt
-                              ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true,
-                              })}`
-                            : "Seen"}
+                          {viewer.seenAt ? formatSeenAt(viewer.seenAt) : "Seen"}
                         </p>
                       </div>
                     </div>

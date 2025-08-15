@@ -23,7 +23,7 @@ import {
   AttachmentPicker,
   AttachmentPickerRef,
 } from "../common/AttachmentPicker";
-
+import { formatDateDivider, isDifferentDay } from "@/utils/dayDivider";
 
 interface Props {
   group_id: string;
@@ -1180,44 +1180,65 @@ Props) => {
                 </div>
               )}
               <div ref={topRef} />
-              {history.map((msg) => {
+              {history.map((msg, index) => {
                 const isOwn = msg.senderId === userId;
+
+                // compute whether to show a date divider above this message
+                const prev = index > 0 ? history[index - 1] : null;
+                const showDateDivider =
+                  !prev ||
+                  isDifferentDay(
+                    new Date(msg.createdAt),
+                    new Date(prev.createdAt)
+                  );
+
                 return (
-                  <div
-                    key={msg.id}
-                    id={`message-${msg.id}`}
-                    ref={(el) => {
-                      if (el) messageRefs.current.set(msg.id, el);
-                      else messageRefs.current.delete(msg.id);
-                    }}
-                    data-message-id={msg.id}
-                  >
-                    <ChatMessage
-                      userId={userId}
-                      msg={msg}
-                      isOwn={isOwn}
-                      isOnline={onlineUserIds.includes(msg.senderId)}
-                      onReply={messageCallbacks.onReply}
-                      onJumpToMessage={messageCallbacks.onJumpToMessage}
-                      onEdit={messageCallbacks.onEdit}
-                      onDelete={messageCallbacks.onDelete}
-                      openSeenModal={messageCallbacks.openSeenModal}
-                      registerRef={messageCallbacks.registerRef}
-                      onToggleReaction={messageCallbacks.onToggleReaction}
-                      socket={socket}
-                      groupId={groupId}
-                      currentUserRole={userRole} // e.g. "OWNER" | "ADMIN" | "MEMBER"
-                      mutedUsers={mutedUsers}
-                    />
-                  </div>
+                  <React.Fragment key={msg.id}>
+                    {showDateDivider && (
+                      <div className="w-full my-3 flex items-center justify-center">
+                        <div className="flex-1 h-px bg-white/10" />
+                        <div className="mx-3 px-3 py-0.5 rounded-full text-xs text-white/90 bg-white/6">
+                          {formatDateDivider(new Date(msg.createdAt))}
+                        </div>
+                        <div className="flex-1 h-px bg-white/10" />
+                      </div>
+                    )}
+
+                    <div
+                      id={`message-${msg.id}`}
+                      ref={(el) => {
+                        if (el) messageRefs.current.set(msg.id, el);
+                        else messageRefs.current.delete(msg.id);
+                      }}
+                      data-message-id={msg.id}
+                    >
+                      <ChatMessage
+                        userId={userId}
+                        msg={msg}
+                        isOwn={isOwn}
+                        isOnline={onlineUserIds.includes(msg.senderId)}
+                        onReply={messageCallbacks.onReply}
+                        onJumpToMessage={messageCallbacks.onJumpToMessage}
+                        onEdit={messageCallbacks.onEdit}
+                        onDelete={messageCallbacks.onDelete}
+                        openSeenModal={messageCallbacks.openSeenModal}
+                        registerRef={messageCallbacks.registerRef}
+                        onToggleReaction={messageCallbacks.onToggleReaction}
+                        socket={socket}
+                        groupId={groupId}
+                        currentUserRole={userRole}
+                        mutedUsers={mutedUsers}
+                      />
+                    </div>
+                  </React.Fragment>
                 );
               })}
               <div ref={bottomRef} />
             </CardContent>
 
-            <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex flex-col gap-2 relative">
+            <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex items-center gap-2 relative">
               {replyTo && (
-                <div className="w-full bg-white/20 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
+                <div className="absolute left-4 top-[-3.25rem] w-[calc(100%-2rem)] bg-white/20 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
                   <div className="text-white/85 text-xs">
                     <strong>{replyTo.senderName}</strong>:{" "}
                     <em>{replyTo.content.slice(0, 30)}…</em>
@@ -1231,17 +1252,17 @@ Props) => {
                 </div>
               )}
 
-
-              {/* Composer row */}
-              <div className="flex gap-3 items-center">
-              {/* Attachment picker component (shows Attach button + previews inside) */}
-              <div>
+              {/* Attachment picker (inline) */}
+              <div className="flex items-center gap-2">
                 <AttachmentPicker
                   ref={attachmentPickerRef}
                   groupId={groupId}
                   chatId={chatId}
                 />
               </div>
+
+              {/* Textarea grows, can shrink, and starts taller on small screens */}
+              <div className="flex-1 min-w-0">
                 <textarea
                   ref={inputRef}
                   value={draft}
@@ -1253,47 +1274,48 @@ Props) => {
                   onKeyDown={handleKeyDown}
                   rows={1}
                   placeholder="Type a message…"
-                  style={{ maxHeight: "160px" }}
-                  className="min-w-[18rem] sm:min-w-[22rem] flex-1 sm:flex-[2] resize-none overflow-auto bg-white/20 text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-md py-2 px-4 text-base transition-all duration-200 no-scrollbar"
+                  style={{ maxHeight: "220px" }}
+                  className="w-full min-w-0 resize-none overflow-auto bg-white/20 text-slate-900 placeholder-white/70 focus:bg-white/30 focus:placeholder-white/50 backdrop-blur-sm rounded-md py-2 px-4 text-base transition-all duration-200 no-scrollbar"
+                  // note: py-3 makes it a bit taller on small screens by default
                 />
-
-                <button
-                  data-ripple
-                  onMouseDown={(e) => e.preventDefault()}
-                  type="button"
-                  onClick={() => send()}
-                  className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200 ${
-                    uploadingAttachments ? "opacity-60 pointer-events-none" : ""
-                  }`}
-                  aria-label="Send message"
-                  disabled={uploadingAttachments}
-                >
-                  {uploadingAttachments ? (
-                    // small spinner or text while uploading
-                    <svg
-                      className="animate-spin w-5 h-5 text-white"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        strokeWidth="4"
-                        strokeOpacity="0.2"
-                      />
-                      <path
-                        d="M22 12a10 10 0 0 1-10 10"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  ) : (
-                    <Send size={22} />
-                  )}
-                </button>
               </div>
+
+              {/* Send button — fixed size, won't shrink */}
+              <button
+                data-ripple
+                onMouseDown={(e) => e.preventDefault()}
+                type="button"
+                onClick={() => send()}
+                className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200 ${
+                  uploadingAttachments ? "opacity-60 pointer-events-none" : ""
+                }`}
+                aria-label="Send message"
+                disabled={uploadingAttachments}
+              >
+                {uploadingAttachments ? (
+                  <svg
+                    className="animate-spin w-5 h-5 text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      strokeWidth="4"
+                      strokeOpacity="0.2"
+                    />
+                    <path
+                      d="M22 12a10 10 0 0 1-10 10"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                ) : (
+                  <Send size={22} />
+                )}
+              </button>
             </CardFooter>
 
             {!isAutoScroll && (
