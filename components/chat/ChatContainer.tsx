@@ -1238,14 +1238,14 @@ Props) => {
 
             <CardFooter className="flex-shrink-0 bottom-0 mb-5 sm:mb-0 bg-white/10 backdrop-blur-md border-t border-white/25 py-2 px-2 flex items-center gap-2 relative">
               {replyTo && (
-                <div className="absolute left-4 top-[-3.25rem] w-[calc(100%-2rem)] bg-white/20 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
-                  <div className="text-white/85 text-xs">
+                <div className="absolute left-4 top-[-2.2rem] w-[calc(100%-2rem)] bg-white/50 p-1 rounded-lg flex justify-between items-start backdrop-blur-sm">
+                  <div className="text-gray-700 text-xs">
                     <strong>{replyTo.senderName}</strong>:{" "}
-                    <em>{replyTo.content.slice(0, 30)}…</em>
+                    <em>{replyTo.content.slice(0, 30)}{replyTo.content.length > 30 ? "…" : ""}</em>
                   </div>
                   <button
                     onClick={() => setReplyTo(null)}
-                    className="text-white font-bold ml-2 text-lg leading-none transition-transform hover:rotate-90"
+                    className="text-gray-700 font-bold ml-2 text-lg leading-none transition-transform hover:rotate-90"
                   >
                     ×
                   </button>

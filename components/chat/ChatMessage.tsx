@@ -9,7 +9,6 @@ import {
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
-import { SeenButton } from "./SeenButton";
 import { formatSeenAt } from "@/utils/dayDivider";
 
 interface MutedUser {
@@ -454,7 +453,7 @@ function ChatMessageInner({
           if (msg.isDeleted) return;
           openPopover(e);
         }}
-        className={`rounded-xl px-3 py-2 text-sm shadow-sm max-w-[85%] sm:max-w-[75%] break-words ${
+        className={`rounded-xl px-3 py-2 text-sm shadow-sm max-w-[85%] sm:max-w-[75%] break-words flex flex-col ${
           isOwn ? "bg-white text-black" : "bg-[#dcf8c6] text-black"
         } ${
           msg.isDeleted ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
@@ -464,7 +463,7 @@ function ChatMessageInner({
         aria-disabled={msg.isDeleted}
       >
         {!isOwn && (
-          <p className="text-xs font-semibold mb-1 flex items-center gap-2">
+          <p className="text-xs font-semibold flex items-center gap-2">
             <span>{msg.senderName}</span>
             {/* NEW: show muted badge */}
             {isSenderMuted && (
@@ -480,10 +479,11 @@ function ChatMessageInner({
             onClick={() => onJumpToMessage?.(msg.replyTo!.id)}
             type="button"
             onMouseDown={(e) => e.preventDefault()}
-            className="mb-1 px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md"
+            className="px-2 py-1 bg-black/5 border-l-4 border-blue-500 text-xs italic text-gray-800 rounded-md"
           >
             <strong>{msg.replyTo.senderName}</strong>:{" "}
-            {String(msg.replyTo.content).slice(0, 40)}…
+            {String(msg.replyTo.content).slice(0, 40)}
+            {msg.replyTo.content.length > 40 ? "…" : ""}
           </button>
         )}
 
@@ -520,14 +520,13 @@ function ChatMessageInner({
           <>
             <div className="whitespace-pre-wrap">{msg.content}</div>
             {/* Attachments preview */}
-            {/* Attachments preview */}
             {Array.isArray(msg.attachments) &&
               msg.attachments.length > 0 &&
               (() => {
                 const attCount = msg.attachments.length;
                 return (
                   <div
-                    className={`mt-2 grid gap-2 ${
+                    className={`grid gap-2 ${
                       attCount === 1 ? "grid-cols-1" : "grid-cols-3"
                     }`}
                   >
@@ -589,7 +588,7 @@ function ChatMessageInner({
                               const j = await r.json();
                               if (j.url) window.open(j.url, "_blank");
                             }}
-                            className="p-3 block bg-white/5 rounded w-full text-left h-32 flex flex-col justify-center"
+                            className="p-3 bg-white/5 rounded w-full text-left h-32 flex flex-col justify-center"
                           >
                             <div className="text-sm font-medium truncate">
                               {att.storagePath.split("/").pop()}
@@ -609,7 +608,7 @@ function ChatMessageInner({
 
         {/* --- Reactions (left) + Timestamp / Seen (right) in one row --- */}
         {!msg.isDeleted && (
-          <div className="mt-2 flex items-end justify-between gap-2 text-[10px] text-gray-500">
+          <div className="mt-1 flex items-end justify-between gap-2 text-[10px] text-gray-500">
             {/* Left: reaction chips — allow wrapping, but reserve space so time doesn't overlap */}
             <div className="flex flex-wrap gap-2 max-w-[66%]">
               {(computedSummary || []).map((r: any) => (
@@ -672,13 +671,8 @@ function ChatMessageInner({
                     title={`Seen by ${seenCount}+`}
                     aria-label={`Open seen by (${seenCount})`}
                   >
-                    <div className="flex items-center  mt-1">
-                      <SeenButton
-                        isOwn={isOwn}
-                        seenCount={seenCount}
-                        onOpenSeenModal={handleOpenSeenModal}
-                      />
-                    </div>
+                    <span>✔</span>
+                    <span className="text-[9px] text-gray-400">{seenCount}</span>
                   </button>
                 )}
               </div>
