@@ -4,9 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import {
-  ApiGroupSchema,
   groupSchema,
-  GroupSchema,
 } from "@/schemas/groupSchema";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -17,6 +15,7 @@ import { Uploadfile } from "../common/UploadFile";
 import { Group } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import {
+  ApiUpdateGroupSchema,
   updateGroupSchema,
   UpdateGroupSchema,
 } from "@/schemas/updateGroupSchema";
@@ -43,7 +42,7 @@ export const UpdateGroupForm = ({ onSetOpen, groupId, group }: Props) => {
   });
 
   const { mutate: updateGroup, isPending } = useMutation({
-    mutationFn: async (data: ApiGroupSchema) => {
+    mutationFn: async (data: ApiUpdateGroupSchema) => {
       const { data: result } = await axios.post("/api/group/update", {
         data,
         groupId,
@@ -79,26 +78,40 @@ export const UpdateGroupForm = ({ onSetOpen, groupId, group }: Props) => {
     },
   });
 
-  const onSubmit = async (data: GroupSchema) => {
-    setUploadError(false);
+  const onSubmit = async (data: UpdateGroupSchema) => {
+  setUploadError(false);
 
-    const image: File | undefined | null = data.file;
+  const image: File | undefined | null = data.file; // undefined = untouched, null = removed, File = new
+  let groupImageURL: string | null = null;
 
-    let groupImageURL: null | string = null;
-    if (image) {
-      const data = await startUpload([image]);
-      if (data) groupImageURL = data[0].ufsUrl;
-    }
-    if (uploadError) return;
+  // upload only when a new File was provided
+  if (image instanceof File) {
+    const uploaded = await startUpload([image]);
+    if (uploaded) groupImageURL = uploaded[0].ufsUrl;
+  }
 
-    updateGroup({
-      groupName: data.groupName,
-      file: groupImageURL,
-      description: data.description,
-      isPrivate: data.isPrivate,
-      password: data.password,
-    });
+  if (uploadError) return;
+
+  // build payload and only include 'file' when necessary
+  const payload: UpdateGroupSchema = {
+    groupName: data.groupName,
+    description: data.description,
+    isPrivate: data.isPrivate,
+    password: data.password,
   };
+
+  if (image instanceof File) {
+    // new file uploaded => send new URL
+    payload.file = groupImageURL;
+  } else if (form.getValues("file") === null) {
+    // user explicitly removed the file => send null to delete on backend
+    payload.file = null;
+  }
+  // else: file was untouched (undefined) => don't set payload.file so backend keeps existing image
+
+  updateGroup(payload);
+};
+
 
   // If using .transform or .refine, extract the base object schema:
   const baseGroupSchema = groupSchema._def.schema; // For .transform/.refine

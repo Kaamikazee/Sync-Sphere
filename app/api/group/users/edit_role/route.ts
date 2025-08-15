@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   const session = await getAuthSession();
+  const actorId = session?.user.id;
   if (!session?.user) {
     return new Response("User not authenticated", {
       status: 400,
@@ -22,41 +23,33 @@ export async function POST(req: Request) {
   const {groupId, userId, userRole} = result.data;
 
   try {
-    const user = await db.user.findUnique({
-        where: {
-            id: session.user.id
+    const subscription = await db.subscription.findUnique({
+      where: {
+        userId_groupId: {
+          userId: actorId!,
+          groupId,
         },
-        include: {
-            subscriptions: {
-                where: {
-                    groupId
-                },
-                select: {
-                    userRole: true
-                }
-            }
-        }
-    })
+      },
+      select: {
+        userRole: true,
+      },
+    });
 
-    if (!user) {
-        return new NextResponse("User not found", {
-          status: 404,
-          statusText: "User not found",
-        });
-      }
+    if (!subscription) {
+      return new NextResponse("Not a member of this group", {
+        status: 404,
+        statusText: "Forbidden",
+      });
+    }
 
-      if (
-        user.subscriptions[0].userRole === "CAN_EDIT" ||
-        user.subscriptions[0].userRole === "READ_ONLY"
-      ) {
-        return NextResponse.json(
-          "You don't have permission to do this action",
-          {
-            status: 403,
-            statusText: "Forbidden",
-          }
-        );
-      }
+    if (
+      !(subscription.userRole === "OWNER" || subscription.userRole === "ADMIN")
+    ) {
+      return new NextResponse("You don't have permission to do this action", {
+        status: 403,
+        statusText: "Forbidden",
+      });
+    }
 
       const updatedUser = await db.subscription.update({
         where: {

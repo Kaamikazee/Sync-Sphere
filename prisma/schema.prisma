@@ -340,6 +340,7 @@ model Message {
   sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
   senderId String
   content  String
+   attachments Attachment[]
 
   replyTo   Message? @relation("ReplySelfRelation", fields: [replyToId], references: [id])
   replyToId String?
@@ -349,7 +350,7 @@ model Message {
   reactions MessageReaction[]
 
   createdAt DateTime  @default(now())
-  // additionalResources additionalResource[]
+  
   isEdited  Boolean   @default(false)
   updatedAt DateTime? @updatedAt
   isDeleted Boolean   @default(false)
@@ -412,6 +413,27 @@ model Mute {
   @@index([groupId])
   @@index([userId, groupId])
 }
+
+model Attachment {
+  id          String   @id @default(cuid())
+  messageId   String?  // optional if you upload before creating message
+  message     Message?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chatId      String
+  groupId     String
+  uploaderId  String
+  storagePath String   // path inside bucket: e.g. attachments/{groupId}/{uuid}.jpg
+  mime        String
+  size        Int
+  width       Int?
+  height      Int?
+  thumbPath   String?  // optional generated thumbnail path
+  createdAt   DateTime @default(now())
+
+  @@index([chatId])
+  @@index([groupId])
+  @@index([uploaderId])
+}
+
 
 // NOTIFICATION SYSTEM
 

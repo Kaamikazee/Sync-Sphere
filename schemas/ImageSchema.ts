@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const MAX_FILE_SIZE = 1000000; // 1 MB in bytes
+export const MAX_FILE_SIZE = 8000000; // 8 MB in bytes
 export const SUPPORTED_FILE_TYPE = [
     "image/jpeg",
     "image/png",
@@ -17,7 +17,7 @@ export const imageSchema = z.object({
           if (!file) return true; // Skip validation if image is not provided
           return file.size <= MAX_FILE_SIZE;
         },
-        "File size must be 1 MB or less"
+        "File size must be 8 MB or less"
       )
       .refine(
         (file) => {

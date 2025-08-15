@@ -55,17 +55,25 @@ export const POST = async (request: Request) => {
 
   if (lastSegment) {
     const duration = Math.floor((now.getTime() - lastSegment.start.getTime()) / 1000);
-    await db.timerSegment.update({
-      where: { id: lastSegment.id },
-      data: {
-        end: now,
-        duration,
-        label: duration >= 3 * 3600 ? "Other" : cleanLabel,
-      },
-    });
 
-    lastBreakStart = lastSegment.start;
-    lastBreakEnd = now;
+    // If break lasted 5 hours or more, discard it (delete the DB record)
+    if (duration >= 5 * 3600) {
+      await db.timerSegment.delete({ where: { id: lastSegment.id } });
+      // we do NOT expose lastBreakStart/lastBreakEnd in the response
+    } else {
+      // otherwise update the break segment as before; label it "Other" if >= 3h
+      await db.timerSegment.update({
+        where: { id: lastSegment.id },
+        data: {
+          end: now,
+          duration,
+          label: cleanLabel,
+        },
+      });
+
+      lastBreakStart = lastSegment.start;
+      lastBreakEnd = now;
+    }
   }
 
   // Create new focus segment

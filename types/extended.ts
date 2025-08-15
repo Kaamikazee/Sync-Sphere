@@ -1,3 +1,4 @@
+import { AttachmentPreview } from "@/components/chat/ChatContainer";
 import { Chat, Group, Message, MessageView, UserPermission } from "@prisma/client";
 import "next-auth";
 
@@ -55,6 +56,7 @@ reactions: {
         id: string;
     } | null;
 }[],
+attachments: AttachmentPreview[]
 }
 
 export interface ViewsWithUser {

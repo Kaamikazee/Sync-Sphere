@@ -18,22 +18,40 @@ import { useMobile } from "@/hooks/use-mobile";
 import { initSocket } from "@/lib/initSocket";
 import { toast } from "sonner";
 import { UserPermission } from "@prisma/client";
+import { createClient } from "@supabase/supabase-js";
+import {
+  AttachmentPicker,
+  AttachmentPickerRef,
+} from "../common/AttachmentPicker";
+
 
 interface Props {
   group_id: string;
   userId: string;
   userName: string;
-  userImage: string;
+  // userImage: string;
   groupName: string;
   groupImage: string;
   chatId: string | undefined;
   userRole: UserPermission;
 }
 
+export type AttachmentPreview = {
+  id: string;
+  storagePath: string;
+  thumbPath?: string | null;
+  thumbUrl?: string | null;
+  mime?: string | null;
+  size?: number | null;
+  width?: number | null;
+  height?: number | null;
+};
+
 type NormalizedMessage = MessageWithSenderInfo & {
   seenCount: number;
   seenPreview: { id: string; name: string; image?: string | null }[];
   seenByMe: boolean;
+  attachments: AttachmentPreview[]; // NEW
 };
 
 const createNormalizeMessage =
@@ -48,14 +66,14 @@ const createNormalizeMessage =
 
     let seenPreview: { id: string; name: string; image?: string | null }[] = [];
 
-    if (Array.isArray(msg.seenPreview)) {
-      seenPreview = msg.seenPreview
+    if (Array.isArray((msg as any).seenPreview)) {
+      seenPreview = (msg as any).seenPreview
         .map((v: any) => ({
           id: v.id,
           name: v.name ?? "",
           image: v.image ?? null,
         }))
-        .filter((v) => v.id !== userId);
+        .filter((v: any) => v.id !== userId);
     } else if (Array.isArray(msg.views)) {
       seenPreview = msg.views
         .map((v: any) => {
@@ -86,11 +104,28 @@ const createNormalizeMessage =
           }) || msg.senderId === userId
         : msg.senderId === userId;
 
+    // --- NEW: attachments mapping (preserve any thumbUrl that server attached) ---
+    const attachments: AttachmentPreview[] = Array.isArray(
+      (msg as any).attachments
+    )
+      ? (msg as any).attachments.map((a: any) => ({
+          id: a.id,
+          storagePath: a.storagePath,
+          thumbPath: a.thumbPath ?? null,
+          thumbUrl: a.thumbUrl ?? null,
+          mime: a.mime ?? null,
+          size: typeof a.size === "number" ? a.size : null,
+          width: typeof a.width === "number" ? a.width : null,
+          height: typeof a.height === "number" ? a.height : null,
+        }))
+      : [];
+
     return {
       ...msg,
       seenCount,
       seenPreview,
       seenByMe,
+      attachments,
     };
   };
 
@@ -102,7 +137,8 @@ export const ChatContainer = ({
   groupImage,
   chatId,
   userRole,
-}: Props) => {
+}: // userImage
+Props) => {
   // keep single socket instance in a ref so it doesn't recreate across renders
   const socketRef = useRef(initSocket());
   const socket = socketRef.current;
@@ -143,6 +179,12 @@ export const ChatContainer = ({
     () => mutedUsers.some((m) => m.userId === userId),
     [mutedUsers, userId]
   );
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const attachmentPickerRef = useRef<AttachmentPickerRef | null>(null);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
 
   // stable normalize function
   const normalizeMessage = useMemo(
@@ -318,66 +360,72 @@ export const ChatContainer = ({
 
   // send message (stable)
   // change send signature to accept optional text
-const send = useCallback(
-  (text?: string) => {
-    const content = text !== undefined ? text : draft;
-    if (!content.trim()) return;
-    if (iAmMuted) {
-      const m = mutedUsers.find((u) => u.userId === userId);
-      toast.error(
-        `You are muted${
-          m?.expiresAt ? ` until ${new Date(m.expiresAt).toLocaleString()}` : ""
-        }`
-      );
-      return;
-    }
+  const send = useCallback(
+    async (text?: string) => {
+      const content = text !== undefined ? text : draft;
+      const hasText = !!(content && content.trim());
 
-    try {
-      socket?.emit("groupMessage", {
-        groupId,
-        fromUserId: userId,
-        text: content,
-        replyToId: replyTo?.id || null,
-      });
-    } catch (err) {
-      console.warn("groupMessage emit failed:", err);
-    }
+      // If no text and no attachments, do nothing
+      // We attempt to upload attachments via the picker regardless; uploadAll returns [] if none
+      if (!hasText && !attachmentPickerRef.current) return;
 
-    // clear UI & timers
-    setDraft("");
-    if (typingTimeoutRef.current) {
-      window.clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = null;
-    }
-    if (debounceTimeoutRef.current) {
-      window.clearTimeout(debounceTimeoutRef.current);
-      debounceTimeoutRef.current = null;
-    }
+      if (iAmMuted) {
+        const m = mutedUsers.find((u) => u.userId === userId);
+        toast.error(
+          `You are muted${
+            m?.expiresAt
+              ? ` until ${new Date(m.expiresAt).toLocaleString()}`
+              : ""
+          }`
+        );
+        return;
+      }
 
-    // ensure server knows we're not typing (keep payload consistent)
-    try {
-      socket?.emit("stopTyping", { groupId, userId });
-    } catch (err) {
-      console.warn("stopTyping emit failed:", err);
-    }
-    if (inputRef.current) inputRef.current.style.height = "auto";
-    setReplyTo(null);
-  },
-  // include dependencies
-  [draft, groupId, userId, replyTo, socket, iAmMuted, mutedUsers]
-);
+      let attachmentIds: string[] = [];
 
-// handleKeyDown: use the DOM value when Enter is pressed and DO NOT emit "typing" for that event
-const handleKeyDown = useCallback(
-  (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // If user pressed Enter to send (no shift) - grab current DOM value (may contain the latest char)
-    if (e.key === "Enter" && !e.shiftKey && !isMobile) {
-      e.preventDefault();
+      // 1) Upload attachments (if any)
+      if (attachmentPickerRef.current) {
+        try {
+          setUploadingAttachments(true);
+          const uploaded = await attachmentPickerRef.current.uploadAll(
+            supabase
+          );
+          // uploaded: Array<{ id, storagePath, mime?, size? }>
+          attachmentIds = uploaded.map((u) => u.id);
+        } catch (err) {
+          console.error("Attachment upload failed:", err);
+          toast.error("Failed to upload attachment(s). Message not sent.");
+          setUploadingAttachments(false);
+          return;
+        } finally {
+          setUploadingAttachments(false);
+        }
+      }
 
-      const textarea = e.currentTarget as HTMLTextAreaElement;
-      const value = textarea.value; // read the DOM value directly
+      // If no text and no uploaded attachments (e.g., user cancelled), do nothing
+      if (!hasText && attachmentIds.length === 0) return;
 
-      // clear any pending typing/debounce timers to avoid re-emitting typing
+      // 2) Emit groupMessage with attachments
+      try {
+        socket?.emit("groupMessage", {
+          groupId,
+          fromUserId: userId,
+          text: content,
+          replyToId: replyTo?.id || null,
+          attachments: attachmentIds,
+        });
+      } catch (err) {
+        console.warn("groupMessage emit failed:", err);
+      }
+
+      // 3) clear UI & picker
+      setDraft("");
+      try {
+        attachmentPickerRef.current?.clear();
+      } catch (err) {
+        console.warn("Failed to clear attachment picker", err);
+      }
+
       if (typingTimeoutRef.current) {
         window.clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
@@ -387,48 +435,46 @@ const handleKeyDown = useCallback(
         debounceTimeoutRef.current = null;
       }
 
-      // send using the DOM value
-      send(value);
-      return;
-    }
-
-    // normal keydown: indicate typing (for all other keys)
-    try {
-      if (socket?.connected) socket.emit("typing", { groupId, userId, userName });
-      else socket?.connect();
-    } catch (err) {
-      console.warn("typing emit failed:", err);
-    }
-
-    if (typingTimeoutRef.current)
-      window.clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = window.setTimeout(() => {
       try {
         socket?.emit("stopTyping", { groupId, userId });
       } catch (err) {
         console.warn("stopTyping emit failed:", err);
       }
-      typingTimeoutRef.current = null;
-    }, TYPING_TIMEOUT);
-  },
-  [socket, userId, userName, isMobile, send, groupId]
-);
+      if (inputRef.current) inputRef.current.style.height = "auto";
+      setReplyTo(null);
+    },
+    [draft, groupId, userId, replyTo, socket, iAmMuted, mutedUsers, supabase]
+  );
 
-// handleChange: keep debounce but include groupId and keep the typing/stopTyping flow consistent
-const handleChange = useCallback(
-  (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setDraft(value);
+  // handleKeyDown: use the DOM value when Enter is pressed and DO NOT emit "typing" for that event
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // If user pressed Enter to send (no shift) - grab current DOM value (may contain the latest char)
+      if (e.key === "Enter" && !e.shiftKey && !isMobile) {
+        e.preventDefault();
 
-    // autosize
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
+        const textarea = e.currentTarget as HTMLTextAreaElement;
+        const value = textarea.value; // read the DOM value directly
 
-    if (debounceTimeoutRef.current)
-      window.clearTimeout(debounceTimeoutRef.current);
-    debounceTimeoutRef.current = window.setTimeout(() => {
+        // clear any pending typing/debounce timers to avoid re-emitting typing
+        if (typingTimeoutRef.current) {
+          window.clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+        if (debounceTimeoutRef.current) {
+          window.clearTimeout(debounceTimeoutRef.current);
+          debounceTimeoutRef.current = null;
+        }
+
+        // send using the DOM value
+        send(value);
+        return;
+      }
+
+      // normal keydown: indicate typing (for all other keys)
       try {
-        if (socket?.connected) socket.emit("typing", { groupId, userId, userName });
+        if (socket?.connected)
+          socket.emit("typing", { groupId, userId, userName });
         else socket?.connect();
       } catch (err) {
         console.warn("typing emit failed:", err);
@@ -444,11 +490,45 @@ const handleChange = useCallback(
         }
         typingTimeoutRef.current = null;
       }, TYPING_TIMEOUT);
-    }, 300) as unknown as number;
-  },
-  [socket, userId, userName, groupId]
-);
+    },
+    [socket, userId, userName, isMobile, send, groupId]
+  );
 
+  // handleChange: keep debounce but include groupId and keep the typing/stopTyping flow consistent
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      setDraft(value);
+
+      // autosize
+      e.target.style.height = "auto";
+      e.target.style.height = `${e.target.scrollHeight}px`;
+
+      if (debounceTimeoutRef.current)
+        window.clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = window.setTimeout(() => {
+        try {
+          if (socket?.connected)
+            socket.emit("typing", { groupId, userId, userName });
+          else socket?.connect();
+        } catch (err) {
+          console.warn("typing emit failed:", err);
+        }
+
+        if (typingTimeoutRef.current)
+          window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = window.setTimeout(() => {
+          try {
+            socket?.emit("stopTyping", { groupId, userId });
+          } catch (err) {
+            console.warn("stopTyping emit failed:", err);
+          }
+          typingTimeoutRef.current = null;
+        }, TYPING_TIMEOUT);
+      }, 300) as unknown as number;
+    },
+    [socket, userId, userName, groupId]
+  );
 
   const openSeenModal = useCallback(
     (messageId: string) => {
@@ -744,6 +824,31 @@ const handleChange = useCallback(
       setMutedUsers((prev) => prev.filter((u) => u.userId !== userId));
     };
 
+    const handleMessageAttachmentUpdated = (payload: {
+      messageId: string;
+      attachments: any[];
+    }) => {
+      const { messageId, attachments } = payload;
+      setHistory((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                // Merge attachments - prefer to replace or upsert by id.
+                attachments: (() => {
+                  const existing = m.attachments || [];
+                  const byId = new Map(existing.map((a: any) => [a.id, a]));
+                  for (const a of attachments) {
+                    byId.set(a.id, { ...byId.get(a.id), ...a });
+                  }
+                  return Array.from(byId.values());
+                })(),
+              }
+            : m
+        )
+      );
+    };
+
     // register handlers
     socket.on("connect", onConnect);
     socket.on("recentMessages", handleRecentMessages);
@@ -762,6 +867,7 @@ const handleChange = useCallback(
     socket.on("mutedUsers", onMutedUsers);
     socket.on("userMuted", onUserMuted);
     socket.on("userUnmuted", onUserUnmuted);
+    socket.on("messageAttachmentUpdated", handleMessageAttachmentUpdated);
 
     // if currently connected, call onConnect to rejoin rooms immediately
     if (socket.connected) onConnect();
@@ -794,6 +900,7 @@ const handleChange = useCallback(
       socket.off("mutedUsers", onMutedUsers);
       socket.off("userMuted", onUserMuted);
       socket.off("userUnmuted", onUserUnmuted);
+      socket.off("messageAttachmentUpdated", handleMessageAttachmentUpdated);
 
       // clear per-chat caches to avoid unbounded growth
       emittedIds.clear();
@@ -1124,7 +1231,17 @@ const handleChange = useCallback(
                 </div>
               )}
 
+
+              {/* Composer row */}
               <div className="flex gap-3 items-center">
+              {/* Attachment picker component (shows Attach button + previews inside) */}
+              <div>
+                <AttachmentPicker
+                  ref={attachmentPickerRef}
+                  groupId={groupId}
+                  chatId={chatId}
+                />
+              </div>
                 <textarea
                   ref={inputRef}
                   value={draft}
@@ -1145,10 +1262,36 @@ const handleChange = useCallback(
                   onMouseDown={(e) => e.preventDefault()}
                   type="button"
                   onClick={() => send()}
-                  className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200"
+                  className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-full shadow transform hover:scale-110 transition-transform duration-200 ${
+                    uploadingAttachments ? "opacity-60 pointer-events-none" : ""
+                  }`}
                   aria-label="Send message"
+                  disabled={uploadingAttachments}
                 >
-                  <Send size={22} />
+                  {uploadingAttachments ? (
+                    // small spinner or text while uploading
+                    <svg
+                      className="animate-spin w-5 h-5 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        strokeWidth="4"
+                        strokeOpacity="0.2"
+                      />
+                      <path
+                        d="M22 12a10 10 0 0 1-10 10"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  ) : (
+                    <Send size={22} />
+                  )}
                 </button>
               </div>
             </CardFooter>

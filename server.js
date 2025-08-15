@@ -1,4 +1,5 @@
 // server.js
+import "dotenv/config";
 import { createServer } from "http";
 import express from "express";
 import next from "next";
@@ -12,6 +13,8 @@ const port = process.env.PORT || 3001;
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
+import { supabaseAdmin, ATTACHMENT_BUCKET } from "./lib/supabaseAdmin.js";
+import sharp from "sharp";
 
 app.prepare().then(() => {
   const server = express();
@@ -31,6 +34,8 @@ app.prepare().then(() => {
   // --- ONLINE USERS TRACKING ---
   const groupOnlineUsers = new Map(); // groupId -> Set of userIds
   const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
+
+  
 
   async function emitUnreadCount(chatId, userId) {
     try {
@@ -153,6 +158,221 @@ app.prepare().then(() => {
    */
   async function isUserMuted(userId, groupId) {
     return await getActiveMute(userId, groupId);
+  }
+
+  async function generateThumbnailForAttachment(attachmentId, io) {
+    try {
+      const att = await prisma.attachment.findUnique({
+        where: { id: attachmentId },
+        select: {
+          id: true,
+          storagePath: true,
+          chatId: true,
+          messageId: true,
+          mime: true,
+        },
+      });
+      if (!att){
+         console.warn(`[THUMB ${new Date().toISOString()}] attachment not found id=${attachmentId}`); 
+        return null;}
+      if (!att.storagePath) return null;
+      // only handle images (skip otherwise)
+      if (!att.mime?.startsWith?.("image/")) return null;
+
+      // download original file from Supabase
+      // download original file from Supabase
+const { data: downloadData, error: downloadErr } =
+  await supabaseAdmin.storage
+    .from(ATTACHMENT_BUCKET)
+    .download(att.storagePath);
+
+if (downloadErr || !downloadData) {
+  console.error("thumbnail: download error", downloadErr);
+  return null;
+}
+
+// read file into Buffer (Node)
+const arrayBuffer = await downloadData.arrayBuffer();
+const origBuffer = Buffer.from(arrayBuffer);
+      
+      // create thumbnail using sharp (adjust size/quality as you like)
+      const thumbBuffer = await sharp(origBuffer)
+      .resize({ width: 800, withoutEnlargement: true }) // pick width comfortable for your UI
+      .jpeg({ quality: 75 })
+      .toBuffer();
+
+
+      // decide thumb path: original: {groupId}/{id}.ext -> thumb: {groupId}/{id}_thumb.jpg
+      // baby-proof: ensure extension .jpg
+      const thumbPath = att.storagePath.replace(/(\.\w+)?$/, "_thumb.jpg");
+
+      // upload thumbnail to bucket (upsert true so repeated runs ok)
+      // supabaseAdmin.storage.from(...).upload supports Buffer on server
+      const { error: uploadErr } = await supabaseAdmin.storage
+        .from(ATTACHMENT_BUCKET)
+        .upload(thumbPath, thumbBuffer, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadErr) {
+        console.error(`[THUMB ${new Date().toISOString()}] thumbnail upload failed for att=${att.id}`, uploadErr);
+        return null;
+      }
+
+      // update DB row with thumbPath
+      await prisma.attachment.update({
+        where: { id: att.id },
+        data: { thumbPath },
+      });
+
+      // create signed URL for the thumbnail so clients can fetch it right away
+      let thumbUrl = null;
+      try {
+        const signed = await makeSignedUrl(thumbPath, 300); // 5min
+        thumbUrl = signed;
+      } catch (err) {
+        console.warn("Failed to create signed thumb URL", err);
+      }
+
+      // fetch the up-to-date attachment row (include fields you want to send)
+      const updatedAtt = await prisma.attachment.findUnique({
+        where: { id: att.id },
+        select: {
+          id: true,
+          storagePath: true,
+          thumbPath: true,
+          mime: true,
+          size: true,
+          width: true,
+          height: true,
+        },
+      });
+
+      // if this attachment belongs to a message, emit to its chat room so clients update UI
+      if (updatedAtt && att.messageId) {
+        // build minimal attachment payload (include thumbUrl we created)
+        const payloadAtt = {
+          id: updatedAtt.id,
+          storagePath: updatedAtt.storagePath,
+          thumbPath: updatedAtt.thumbPath,
+          thumbUrl,
+          mime: updatedAtt.mime,
+          size: updatedAtt.size,
+          width: updatedAtt.width ?? null,
+          height: updatedAtt.height ?? null,
+        };
+
+        // find chatId (we stored chatId on attachment row earlier — or use att.chatId)
+        const chatId =
+          att.chatId ||
+          (
+            await prisma.message.findUnique({
+              where: { id: att.messageId },
+              select: { chatId: true },
+            })
+          ).chatId;
+          
+          if (chatId) {
+          io.to(`chat_${chatId}`).emit("messageAttachmentUpdated", {
+            messageId: att.messageId,
+            attachments: [payloadAtt],
+          });
+        }
+      }
+
+      return updatedAtt;
+    } catch (err) {
+      console.error("generateThumbnailForAttachment error", err);
+      return null;
+    }
+  }
+
+  // helper: create a signed url for a given storage path (returns null on error)
+  async function makeSignedUrl(storagePath, expires = 60) {
+    try {
+      if (!storagePath) return null;
+      const { data, error } = await supabaseAdmin.storage
+        .from(ATTACHMENT_BUCKET)
+        .createSignedUrl(storagePath, expires);
+      if (error) {
+        console.error("createSignedUrl error", error);
+        return null;
+      }
+      return data.signedUrl;
+    } catch (err) {
+      console.error("makeSignedUrl error", err);
+      return null;
+    }
+  }
+
+  async function attachSignedUrlsToMessages(
+    messages,
+    opts = { thumbExpires: 120, fileExpires: 60 }
+  ) {
+    if (!messages || messages.length === 0) return messages;
+    // Collect unique paths
+    const thumbPaths = new Set();
+    const filePaths = new Set();
+    
+    for (const m of messages) {
+      if (!m.attachments || m.attachments.length === 0) continue;
+      for (const a of m.attachments) {
+        if (a.thumbPath){ 
+          thumbPaths.add(a.thumbPath);
+        }
+        if (a.storagePath){
+          filePaths.add(a.storagePath);
+        }
+      }
+    }
+
+    // Bulk-create signed urls (thumbs) and cache in a map
+    const thumbPathArray = Array.from(thumbPaths);
+    const thumbUrlMap = {};
+    await Promise.all(
+      thumbPathArray.map(async (p) => {
+        try {
+          thumbUrlMap[p] = await makeSignedUrl(p, opts.thumbExpires);
+        } catch (err) {
+          console.error(`[ATTACH-SIGNED ${new Date().toISOString()}] failed to create signed url for thumbPath=${p}`, err);
+          thumbUrlMap[p] = null;
+        }
+      })
+    );
+
+    // File download URL creation is optional/expensive; uncomment if you want immediate download links
+    // const fileUrlMap = {};
+    // const filePathArray = Array.from(filePaths);
+    // await Promise.all(filePathArray.map(async (p) => {
+    //   try { fileUrlMap[p] = await makeSignedUrl(p, opts.fileExpires); } catch (err) { fileUrlMap[p] = null; }
+    // }));
+
+    // Attach urls to message attachments (mutates messages)
+    for (const m of messages) {
+      if (!m.attachments || m.attachments.length === 0) continue;
+      m.attachments = m.attachments.map((a) => {
+        const out = { ...a };
+        if (a.thumbPath) out.thumbUrl = thumbUrlMap[a.thumbPath] ?? null;
+        // if you enabled file download urls above:
+        // if (a.storagePath) out.downloadUrl = fileUrlMap[a.storagePath] ?? null;
+        return out;
+      });
+    }
+
+    return messages;
+  }
+
+  // Helper: enqueue thumbnail generation (fire-and-forget)
+  function enqueueThumbGeneration(attachmentId, io) {
+    // fire-and-forget, but we call the generator and swallow errors
+    (async () => {
+      try {
+        await generateThumbnailForAttachment(attachmentId, io);
+      } catch (err) {
+        console.error("thumb enqueue failed", err);
+      }
+    })();
   }
 
   io.on("connection", (socket) => {
@@ -453,6 +673,18 @@ app.prepare().then(() => {
             sender: {
               select: { id: true, name: true, image: true },
             },
+            attachments: {
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                storagePath: true,
+                thumbPath: true,
+                mime: true,
+                size: true,
+                width: true,
+                height: true,
+              },
+            },
           },
         });
 
@@ -462,6 +694,9 @@ app.prepare().then(() => {
             error: "Message not found",
           });
           return;
+        }
+        if (message && message.attachments && message.attachments.length) {
+          await attachSignedUrlsToMessages([message], { thumbExpires: 300 });
         }
 
         // Send back only to the requesting client
@@ -920,7 +1155,6 @@ app.prepare().then(() => {
                   user: { select: { id: true, name: true, image: true } },
                 },
               },
-              // minimal preview of views (exclude requester)
               views: {
                 where: { userId: { not: userId } },
                 orderBy: { seenAt: "desc" },
@@ -929,10 +1163,21 @@ app.prepare().then(() => {
                 },
               },
               _count: { select: { views: true } },
+              attachments: {
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  storagePath: true,
+                  thumbPath: true,
+                  mime: true,
+                  size: true,
+                  width: true,
+                  height: true,
+                },
+              },
             },
           });
         } else {
-          // first page
           messages = await prisma.message.findMany({
             where: { chatId },
             orderBy: { createdAt: "desc" },
@@ -954,11 +1199,30 @@ app.prepare().then(() => {
                 },
               },
               _count: { select: { views: true } },
+              attachments: {
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  storagePath: true,
+                  thumbPath: true,
+                  mime: true,
+                  size: true,
+                  width: true,
+                  height: true,
+                },
+              },
             },
           });
         }
 
-        const formattedMessages = messages.reverse().map((msg) => {
+        // messages come back newest-first (desc). We'll flip them to oldest-first before sending.
+        const page = messages.slice().reverse(); // non-destructive reverse
+
+        // Attach signed URLs for all attachments in this page (bulk)
+        await attachSignedUrlsToMessages(page, { thumbExpires: 300 });
+
+        // Map synchronously now that thumbUrl fields are present
+        const formattedMessages = page.map((msg) => {
           const allViews = msg.views ?? [];
           const seenByMe = allViews.some((v) => v.user.id === userId);
           const otherViews = allViews.filter((v) => v.user.id !== userId);
@@ -974,6 +1238,16 @@ app.prepare().then(() => {
             whenEdited: msg.updatedAt,
             senderName: msg.sender.name,
             senderImage: msg.sender.image,
+            attachments: (msg.attachments || []).map((a) => ({
+              id: a.id,
+              storagePath: a.storagePath,
+              thumbPath: a.thumbPath ?? null,
+              thumbUrl: a.thumbUrl ?? null,
+              mime: a.mime,
+              size: a.size,
+              width: a.width ?? null,
+              height: a.height ?? null,
+            })),
             reactions: (msg.reactions || []).map((r) => ({
               id: r.id,
               emoji: r.emoji,
@@ -986,7 +1260,6 @@ app.prepare().then(() => {
                   }
                 : null,
             })),
-
             seenCount: otherViews.length ?? 0,
             seenPreview: otherViews.slice(0, 3).map((v) => ({
               id: v.user.id,
@@ -1004,6 +1277,7 @@ app.prepare().then(() => {
           };
         });
 
+        // Emit the fully-resolved, plain object array
         socket.emit("olderMessages", formattedMessages);
       } catch (error) {
         console.error("Error in getMessages:", error);
@@ -1113,10 +1387,23 @@ app.prepare().then(() => {
                 user: { select: { id: true, name: true, image: true } },
               },
             },
+            attachments: {
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                storagePath: true,
+                thumbPath: true,
+                mime: true,
+                size: true,
+                width: true,
+                height: true,
+              },
+            },
           },
         });
 
         const recentReversed = recent.reverse();
+        await attachSignedUrlsToMessages(recentReversed, { thumbExpires: 300 });
 
         // create MessageView rows only for the recent messages (bounded cost)
         const recentIds = recentReversed.map((m) => m.id);
@@ -1164,6 +1451,16 @@ app.prepare().then(() => {
             isEdited: msg.isEdited,
             isDeleted: msg.isDeleted,
             whenEdited: msg.updatedAt,
+            attachments: (msg.attachments || []).map((a) => ({
+              id: a.id,
+              storagePath: a.storagePath,
+              thumbPath: a.thumbPath ?? null,
+              thumbUrl: a.thumbUrl ?? null,
+              mime: a.mime,
+              size: a.size,
+              width: a.width ?? null,
+              height: a.height ?? null,
+            })),
             reactions: (msg.reactions || []).map((r) => ({
               id: r.id,
               emoji: r.emoji,
@@ -1292,7 +1589,13 @@ app.prepare().then(() => {
     // --- group message send ---
     socket.on(
       "groupMessage",
-      async ({ groupId, fromUserId: payloadFromUserId, text, replyToId }) => {
+      async ({
+        groupId,
+        fromUserId: payloadFromUserId,
+        text,
+        replyToId,
+        attachments: attachmentIds,
+      }) => {
         try {
           const fromUserId = getAuthUserId(socket, payloadFromUserId);
 
@@ -1318,6 +1621,10 @@ app.prepare().then(() => {
               content: text,
               replyTo: replyToId ? { connect: { id: replyToId } } : undefined,
               views: { create: { user: { connect: { id: fromUserId } } } }, // mark sender seen
+              attachments:
+                attachmentIds && attachmentIds.length
+                  ? { connect: attachmentIds.map((id) => ({ id })) }
+                  : undefined,
             },
             include: {
               sender: { select: { id: true, name: true, image: true } },
@@ -1328,8 +1635,57 @@ app.prepare().then(() => {
                   user: { select: { id: true, name: true, image: true } },
                 },
               },
+              attachments: {
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true,
+                  storagePath: true,
+                  thumbPath: true,
+                  mime: true,
+                  size: true,
+                  width: true,
+                  height: true,
+                },
+              },
             },
           });
+
+          // defensive: link attachments to message row
+          if (attachmentIds && attachmentIds.length) {
+            await prisma.attachment.updateMany({
+              where: { id: { in: attachmentIds } },
+              data: { messageId: saved.id },
+            });
+
+            // enqueue thumbnail generation for image attachments
+            const imageAtts = await prisma.attachment.findMany({
+              where: {
+                id: { in: attachmentIds },
+                mime: { startsWith: "image/" },
+              },
+            });
+            imageAtts.forEach((a) => {
+              enqueueThumbGeneration(a.id, io); // ensure you pass io if needed
+            });
+          }
+
+          // attach signed thumb urls to the saved message for immediate broadcast (optional)
+          if (saved.attachments && saved.attachments.length) {
+            await attachSignedUrlsToMessages([saved], { thumbExpires: 300 });
+          }
+
+          // build payloadForSender & payloadForOthers, include attachments mapping
+          const mapAttachments = (arr) =>
+            (arr || []).map((a) => ({
+              id: a.id,
+              storagePath: a.storagePath,
+              thumbPath: a.thumbPath ?? null,
+              thumbUrl: a.thumbUrl ?? null,
+              mime: a.mime,
+              size: a.size,
+              width: a.width ?? null,
+              height: a.height ?? null,
+            }));
 
           // update unread counts for subscribers (existing)
           const group = await prisma.group.findUnique({
@@ -1378,6 +1734,7 @@ app.prepare().then(() => {
                   content: saved.replyTo.content,
                 }
               : null,
+            attachments: mapAttachments(saved.attachments),
           };
 
           const payloadForOthers = {
@@ -1456,6 +1813,6 @@ app.prepare().then(() => {
 
   httpServer.listen(port, (err) => {
     if (err) throw err;
-    console.log(`Server running at http://localhost:${port}`);
+     console.log(`Server running at http://localhost:${port}`);
   });
 });

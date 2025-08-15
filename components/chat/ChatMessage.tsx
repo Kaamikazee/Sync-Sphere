@@ -9,6 +9,7 @@ import {
 import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MessageWithSenderInfo } from "@/types/extended";
+import { SeenButton } from "./SeenButton";
 
 interface MutedUser {
   userId: string;
@@ -515,16 +516,101 @@ function ChatMessageInner({
             </div>
           </div>
         ) : (
-          <div className="whitespace-pre-wrap">{msg.content}</div>
+          <>
+            <div className="whitespace-pre-wrap">{msg.content}</div>
+            {/* Attachments preview */}
+            {/* Attachments preview */}
+            {Array.isArray(msg.attachments) &&
+              msg.attachments.length > 0 &&
+              (() => {
+                const attCount = msg.attachments.length;
+                return (
+                  <div
+                    className={`mt-2 grid gap-2 ${
+                      attCount === 1 ? "grid-cols-1" : "grid-cols-3"
+                    }`}
+                  >
+                    {msg.attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        // larger container for single image, compact for multiple
+                        className={`relative rounded overflow-hidden ${
+                          attCount === 1
+                            ? "h-48 flex items-center justify-center"
+                            : "h-32"
+                        }`}
+                      >
+                        {att.mime?.startsWith("image/") ? (
+                          <img
+                            src={att.thumbUrl ?? att.storagePath ?? ""}
+                            alt="Photo"
+                            loading="lazy"
+                            onClick={async () => {
+                              const r = await fetch(
+                                "/api/attachments/download",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    "x-user-id": userId,
+                                  },
+                                  body: JSON.stringify({
+                                    path: att.storagePath,
+                                  }),
+                                }
+                              );
+                              const j = await r.json();
+                              if (j.url) window.open(j.url, "_blank");
+                            }}
+                            // when single show object-contain and center, when multiple fill the cell
+                            className={`block w-full ${
+                              attCount === 1
+                                ? "max-h-full h-auto object-contain"
+                                : "h-full object-cover"
+                            } cursor-pointer`}
+                          />
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              const r = await fetch(
+                                "/api/attachments/download",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    "x-user-id": userId,
+                                  },
+                                  body: JSON.stringify({
+                                    path: att.storagePath,
+                                  }),
+                                }
+                              );
+                              const j = await r.json();
+                              if (j.url) window.open(j.url, "_blank");
+                            }}
+                            className="p-3 block bg-white/5 rounded w-full text-left h-32 flex flex-col justify-center"
+                          >
+                            <div className="text-sm font-medium truncate">
+                              {att.storagePath.split("/").pop()}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {(att.size! / 1024).toFixed(1)} KB
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+          </>
         )}
 
+        {/* --- Reactions (left) + Timestamp / Seen (right) in one row --- */}
         {!msg.isDeleted && (
-          <div
-            className={`mt-2 ${
-              isOwn ? "flex justify-end" : "flex justify-start"
-            }`}
-          >
-            <div className="flex flex-wrap gap-2 max-w-full">
+          <div className="mt-2 flex items-end justify-between gap-2 text-[10px] text-gray-500">
+            {/* Left: reaction chips — allow wrapping, but reserve space so time doesn't overlap */}
+            <div className="flex flex-wrap gap-2 max-w-[66%]">
               {(computedSummary || []).map((r: any) => (
                 <motion.button
                   key={r.emoji}
@@ -552,46 +638,52 @@ function ChatMessageInner({
                 </motion.button>
               ))}
             </div>
+
+            {/* Right: time + edited/deleted markers, with seen button underneath */}
+            <div className="flex items-end">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px]">
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </span>
+
+                {msg.isEdited && (
+                  <span className="text-[10px] italic text-gray-400">
+                    (edited)
+                  </span>
+                )}
+                {msg.isDeleted && (
+                  <span className="text-[10px] italic text-gray-400">
+                    (deleted)
+                  </span>
+                )}
+              </div>
+
+              {/* Seen button (keeps previous behavior) */}
+              <div className="flex items-center gap-2 ml-2 mt-1">
+                {isOwn && seenCount > 0 && (
+                  <button
+                    onClick={handleOpenSeenModal}
+                    className="hover:text-blue-500 transition-colors flex items-center"
+                    title={`Seen by ${seenCount}+`}
+                    aria-label={`Open seen by (${seenCount})`}
+                  >
+                    <div className="flex items-center  mt-1">
+                      <SeenButton
+                        isOwn={isOwn}
+                        seenCount={seenCount}
+                        onOpenSeenModal={handleOpenSeenModal}
+                      />
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
-
-        <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500 mt-1">
-          <div className="flex items-center gap-2">
-            <span>
-              {new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })}
-            </span>
-            {msg.isEdited && (
-              <span className="text-[10px] italic text-gray-400">
-                {" "}
-                (edited)
-              </span>
-            )}
-            {msg.isDeleted && (
-              <span className="text-[10px] italic text-gray-400">
-                {" "}
-                (deleted)
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isOwn && seenCount > 0 && (
-              <button
-                onClick={handleOpenSeenModal}
-                className="hover:text-blue-500 transition-colors flex items-center gap-1"
-                title={`Seen by ${seenCount}+`}
-                aria-label={`Open seen by (${seenCount})`}
-              >
-                <span>✔</span>
-                <span className="text-[9px] text-gray-400">{seenCount}</span>
-              </button>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Seen modal (unchanged) */}
