@@ -321,6 +321,8 @@ function ChatMessageInner({
     "💯",
     "😱",
     "🤯",
+    "💔",
+    "🤝"
   ];
 
   // Popover open/close logic (unchanged)
