@@ -10,6 +10,8 @@ export const GET = async (request: Request) => {
   const userId = url.searchParams.get("userId");
   const session = await getAuthSession();
   const user = session?.user;
+  console.log("user:", user);
+  console.log("userId:", userId);
 
   if (!user) {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });

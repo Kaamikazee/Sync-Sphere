@@ -62,8 +62,6 @@ export function FocusAreaComp({
   // const [timeSpent] = useState(OldTimeSpent);
   const [segmentId, setSegmentId] = useState<string | null>(null);
   const running = useRunningStore((s) => s.running);
-  const activeFocusId = useRunningStore((s) => s.activeFocusAreaId);
-  const isThisFocusActive = running && activeFocusId === focusAreaId;
 
   // const setRunning = useRunningStore((s) => s.setRunning);
   const [IsFocusRunning, setIsFocusRunning] = useState(false);
@@ -264,7 +262,7 @@ export function FocusAreaComp({
             variants={iconVariants}
           >
             <AnimatePresence mode="wait">
-              {!isThisFocusActive && isToday && (
+              {!running && isToday && (
                 <motion.div
                   key={IsFocusRunning ? "pause" : "play"}
                   initial={{ opacity: 0, scale: 0.8, y: 10 }}

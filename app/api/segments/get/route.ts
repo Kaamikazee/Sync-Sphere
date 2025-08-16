@@ -1,3 +1,4 @@
+// app/api/segments/get/route.ts  (drop-in replacement)
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserDayRange } from "@/utils/IsToday";
@@ -29,11 +30,11 @@ export const GET = async (request: Request) => {
   );
 
   try {
+    // ---- ATTRIBUTION-BY-START: fetch only segments that START in the requested user-day ----
     const segments = await db.timerSegment.findMany({
       where: {
         userId: userId!,
-        start: { gte: startUtc },
-        end: { lt: endUtc },
+        start: { gte: startUtc, lt: endUtc }, // <-- only segments that started inside the day
       },
       orderBy: { start: "asc" },
       include: {
