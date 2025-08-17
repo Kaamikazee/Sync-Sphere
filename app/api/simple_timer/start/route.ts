@@ -55,9 +55,12 @@ export const POST = async (request: Request) => {
       (now.getTime() - lastSegment.start.getTime()) / 1000
     );
 
-    // If break lasted 5 hours or more, discard it (delete the DB record)
+    // If break lasted 5 hours or more, label it as NOT_RECORDED
     if (duration >= 5 * 3600) {
-      await db.timerSegment.delete({ where: { id: lastSegment.id } });
+      await db.timerSegment.update({
+        where: { id: lastSegment.id },
+        data: { end: now, duration, label: "NOT_RECORDED" },
+      });
       // we do NOT expose lastBreakStart/lastBreakEnd in the response
     } else {
       // otherwise update the break segment as before; label it "Other" if >= 3h
@@ -108,28 +111,27 @@ export const POST = async (request: Request) => {
 
   try {
     await db.dailyTotal.upsert({
-  where: { userId_date: { userId: userId!, date: today } },
-  update: { isRunning: true, startTimestamp: now },
-  create: {
-    userId: userId!,
-    date: today,
-    totalSeconds: 0,
-    isRunning: true,
-    startTimestamp: now,
-  },
-  select: { totalSeconds: true, startTimestamp: true },
-});
+      where: { userId_date: { userId: userId!, date: today } },
+      update: { isRunning: true, startTimestamp: now },
+      create: {
+        userId: userId!,
+        date: today,
+        totalSeconds: 0,
+        isRunning: true,
+        startTimestamp: now,
+      },
+      select: { totalSeconds: true, startTimestamp: true },
+    });
 
-
-return NextResponse.json(
-  {
-    segmentId: segment.id,
-    start: segment.start,
-    ...(lastBreakStart && { lastBreakStart }),
-    ...(lastBreakEnd && { lastBreakEnd }),
-  },
-  { status: 200 }
-);
+    return NextResponse.json(
+      {
+        segmentId: segment.id,
+        start: segment.start,
+        ...(lastBreakStart && { lastBreakStart }),
+        ...(lastBreakEnd && { lastBreakEnd }),
+      },
+      { status: 200 }
+    );
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }

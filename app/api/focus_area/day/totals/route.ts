@@ -2,9 +2,54 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserDayRange } from "@/utils/IsToday";
-// import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
+
+/**
+ * Split elapsed seconds between user-days.
+ *
+ * Returns an array of { date: Date (startUtc for that user-day), seconds: number }
+ * The `date` returned matches the shape you use for DailyTotal.date (startUtc).
+ */
+function splitSecondsByUserDay(
+  start: Date,
+  end: Date,
+  timezone: string,
+  resetHour: number
+): Array<{ date: Date; seconds: number }> {
+  if (end <= start) return [];
+
+  const parts: Array<{ date: Date; seconds: number }> = [];
+
+  // cursor walks from start to end
+  let cursor = new Date(start);
+
+  while (cursor < end) {
+    const { startUtc: dayStartUtc } = getUserDayRange({ timezone, resetHour }, cursor);
+    const nextDayStartUtc = new Date(dayStartUtc.getTime() + 24 * 3600 * 1000);
+
+    // the portion of this session that belongs to the current user-day ends at either end or nextDayStartUtc
+    const segmentEnd = new Date(Math.min(end.getTime(), nextDayStartUtc.getTime()));
+
+    const secs = Math.floor((segmentEnd.getTime() - cursor.getTime()) / 1000);
+    const keyDate = new Date(dayStartUtc); // ensure a fresh Date object
+
+    if (secs > 0) {
+      parts.push({ date: keyDate, seconds: secs });
+    }
+
+    // advance cursor
+    cursor = segmentEnd;
+  }
+
+  // merge parts for same date (in case of weird boundaries)
+  const merged = new Map<string, number>();
+  for (const p of parts) {
+    const iso = p.date.toISOString();
+    merged.set(iso, (merged.get(iso) ?? 0) + p.seconds);
+  }
+
+  return Array.from(merged.entries()).map(([iso, seconds]) => ({ date: new Date(iso), seconds }));
+}
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
@@ -25,10 +70,7 @@ export const GET = async (request: Request) => {
   const baseDate = date ? new Date(date) : new Date();
 
   // Get that day's start & end in UTC according to user's timezone/resetHour
-  const { startUtc, endUtc } = getUserDayRange(
-    { timezone, resetHour },
-    baseDate
-  );
+  const { startUtc, endUtc } = getUserDayRange({ timezone, resetHour }, baseDate);
 
   const finalDate = date
     ? getUserDayRange({ timezone, resetHour }, new Date(date)).startUtc
@@ -36,29 +78,56 @@ export const GET = async (request: Request) => {
 
   try {
     // For future dates, return early with empty response
-    const todayStartUtc = getUserDayRange(
-      { timezone, resetHour },
-      new Date()
-    ).startUtc;
+    const todayStartUtc = getUserDayRange({ timezone, resetHour }, new Date() ).startUtc;
     if (finalDate > todayStartUtc) {
       return NextResponse.json([], { status: 200 });
     }
 
-    const focusAreaTotals = await db.timerSegment.groupBy({
-      by: ["focusAreaId"],
+    // Fetch segments that overlap the requested UTC window [startUtc, endUtc).
+    // Condition: seg.start < endUtc AND (seg.end IS NULL OR seg.end > startUtc)
+    const now = new Date();
+    const segments = await db.timerSegment.findMany({
       where: {
         userId: userId!,
-        start: { gte: startUtc },
-        end: { lt: endUtc },
+        type: "FOCUS",
+        AND: [
+          { start: { lt: endUtc } },
+          {
+            OR: [
+              { end: null },
+              { end: { gt: startUtc } }
+            ]
+          }
+        ]
       },
-      _sum: {
-        duration: true,
+      select: {
+        id: true,
+        start: true,
+        end: true,
+        focusAreaId: true,
       },
     });
 
-    const result = focusAreaTotals.map((item) => ({
-      focusAreaId: item.focusAreaId,
-      totalDuration: item._sum.duration ?? null,
+    // accumulate per focusAreaId (only for the requested day)
+    const map = new Map<string | null, number>();
+    for (const seg of segments) {
+      const segStart = new Date(seg.start);
+      const segEnd = seg.end ? new Date(seg.end) : now; // treat running as now
+      const parts = splitSecondsByUserDay(segStart, segEnd, timezone, resetHour);
+
+      for (const p of parts) {
+        // only include parts that belong to the requested day
+        if (p.date.getTime() === finalDate.getTime()) {
+          const key = seg.focusAreaId ?? null;
+          map.set(key, (map.get(key) ?? 0) + p.seconds);
+        }
+      }
+    }
+
+    // build result array matching previous shape (focusAreaId + totalDuration)
+    const result = Array.from(map.entries()).map(([focusAreaId, totalSeconds]) => ({
+      focusAreaId,
+      totalDuration: totalSeconds,
     }));
 
     return NextResponse.json(result, { status: 200 });

@@ -19,7 +19,6 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -40,7 +39,7 @@ export function ResumeTimer({ onStart }: { onStart: () => void }) {
   useEffect(() => {
     if (startTime) {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      setNeedsReason(elapsed < 3 * 3600);
+      setNeedsReason(elapsed < 5 * 3600);
     }
   }, [startTime]);
 
@@ -109,10 +108,14 @@ export function ResumeTimer({ onStart }: { onStart: () => void }) {
 
       {isMobile ? (
         <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DrawerTrigger asChild>{/* Trigger already rendered above */}</DrawerTrigger>
+          <DrawerTrigger asChild>
+            {/* Trigger already rendered above */}
+          </DrawerTrigger>
           <DrawerContent className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-t-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto pb-28">
             <DrawerHeader>
-              <DrawerTitle className="text-white text-xl">⏸️ Break Reason</DrawerTitle>
+              <DrawerTitle className="text-white text-xl">
+                ⏸️ Break Reason
+              </DrawerTitle>
               <DrawerDescription className="text-white/80">
                 Provide a reason for your break. Click Save to resume.
               </DrawerDescription>
@@ -124,7 +127,9 @@ export function ResumeTimer({ onStart }: { onStart: () => void }) {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl transition-all">
             <DialogHeader>
-              <DialogTitle className="text-white text-xl">⏸️ Break Reason</DialogTitle>
+              <DialogTitle className="text-white text-xl">
+                ⏸️ Break Reason
+              </DialogTitle>
               <DialogDescription className="text-white/80">
                 Provide a reason for your break. Click Save to resume.
               </DialogDescription>

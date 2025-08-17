@@ -19,9 +19,10 @@ import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 
 interface Props {
   userId: string;
+  focusAreaNamesAndIds: { id: string; name: string }[];
 }
 
-export function Edit({ userId }: Props) {
+export function Edit({ userId, focusAreaNamesAndIds }: Props) {
   const today = normalizeToStartOfDay(new Date());
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date>(today);
@@ -171,8 +172,11 @@ export function Edit({ userId }: Props) {
                   end={seg.end!}
                   duration={seg.duration!}
                   focusAreaName={seg.focusArea.name}
+                  focusAreaNamesAndIds={focusAreaNamesAndIds}
                   type={seg.type}
                   label={seg.label!}
+                  id={seg.id}
+                  userId={userId}
                   showAddButton
                   showEditButton
                 />
