@@ -3,6 +3,8 @@ import { Clock, Users } from "lucide-react";
 import MenuAppBar from "@/components/ui/appbar";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import FcmRegister from "@/components/dashboard/common/fcmRegister";
+
 export default async function DashboardPage() {
   const session = await getServerSession();
 
@@ -12,6 +14,7 @@ export default async function DashboardPage() {
   return (
     <>
     <MenuAppBar />
+     <FcmRegister />
       <div className="min-h-screen bg-gradient-to-r from-indigo-950 via-purple-900 to-sky-900 flex items-center justify-center p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
           {/* ── Timer Card */}

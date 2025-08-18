@@ -31,6 +31,7 @@ import {
   cinzel,
 } from "@/lib/font";
 import RippleProvider from "@/components/common/RippleProvider";
+import ServiceWorkerRegister from "@/components/dashboard/common/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -125,6 +126,7 @@ export default function RootLayout({
         <AuthProvider>
           <QueryProvider>
             <Toaster richColors />
+            <ServiceWorkerRegister />
             <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
             <RippleProvider />
             {children}

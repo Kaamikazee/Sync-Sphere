@@ -25,7 +25,7 @@ model User {
   hashedPassword      String?
   image               String?
   bio                 String?
-  fcmToken            String?
+  fcmToken            FcmToken[]
   sessions            Session[]
   accounts            Account[]
   completedOnboarding Boolean            @default(false)
@@ -76,6 +76,19 @@ model Account {
 
   @@unique([provider, providerAccountId])
 }
+
+model FcmToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 
 model Session {
   id           String   @id @default(cuid())

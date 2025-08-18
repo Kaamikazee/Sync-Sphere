@@ -15,6 +15,8 @@ const app = next({ dev });
 const handle = app.getRequestHandler();
 import { supabaseAdmin, ATTACHMENT_BUCKET } from "./lib/supabaseAdmin.js";
 import sharp from "sharp";
+import { sendFcmNotification } from "./lib/fcmServer.js";
+import { notifyGroupParticipants } from "./lib/notifyGroupParticipants.js";
 
 app.prepare().then(() => {
   const server = express();
@@ -1261,10 +1263,9 @@ app.prepare().then(() => {
     });
 
     socket.on("timer:updated", (payload) => {
-   const { userId } = payload;
-   io.to(`user:${userId}`).emit("timer:updated", payload);
-});
-
+      const { userId } = payload;
+      io.to(`user:${userId}`).emit("timer:updated", payload);
+    });
 
     // -------- CHAT PAGINATION -------------
     socket.on("getMessages", async ({ beforeMessageId }) => {
@@ -1817,7 +1818,20 @@ app.prepare().then(() => {
           // update unread counts for subscribers (existing)
           const group = await prisma.group.findUnique({
             where: { id: groupId },
-            include: { subscribers: true },
+            include: {
+              subscribers: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                      fcmToken: true, // 👈 include this if you need it in notifyGroupParticipants
+                    },
+                  },
+                },
+              },
+            },
           });
 
           if (group?.subscribers) {
@@ -1826,6 +1840,27 @@ app.prepare().then(() => {
                 emitUnreadCount(chat.id, user.userId);
             }
           }
+
+          console.log("DEBUG saved:", {
+            id: saved.id,
+            sender: saved.sender,
+            senderId: saved.senderId,
+            content: saved.content,
+            attachmentsCount: saved.attachments?.length ?? 0,
+          });
+          console.log(
+            "DEBUG group.subscribers sample:",
+            group?.subscribers?.slice(0, 5)
+          );
+
+          await notifyGroupParticipants({
+            groupId,
+            message: saved, // the saved message object you already created
+            group, // the group object you already fetched earlier
+            senderId: fromUserId, // sender id from your handler
+            prisma, // your prisma client (db or prisma)
+            sendFcmNotification, // imported helper from lib/fcmServer
+          });
 
           // ---- tailored payloads ----
           const payloadForSender = {
