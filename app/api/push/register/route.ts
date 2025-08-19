@@ -1,4 +1,3 @@
-// app/api/push/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -16,10 +15,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing token" }, { status: 400 });
     }
 
-    // Store or update user’s FCM token
-    await db.user.update({
-      where: { id: session.user.id },
-      data: { fcmToken: token },
+    // Upsert token into FcmToken table
+    await db.fcmToken.upsert({
+      where: { token }, // unique constraint must exist on token
+      update: { userId: session.user.id },
+      create: { token, userId: session.user.id },
     });
 
     return NextResponse.json({ ok: true });
