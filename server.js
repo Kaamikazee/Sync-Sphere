@@ -1841,18 +1841,6 @@ app.prepare().then(() => {
             }
           }
 
-          console.log("DEBUG saved:", {
-            id: saved.id,
-            sender: saved.sender,
-            senderId: saved.senderId,
-            content: saved.content,
-            attachmentsCount: saved.attachments?.length ?? 0,
-          });
-          console.log(
-            "DEBUG group.subscribers sample:",
-            group?.subscribers?.slice(0, 5)
-          );
-
           await notifyGroupParticipants({
             groupId,
             message: saved, // the saved message object you already created

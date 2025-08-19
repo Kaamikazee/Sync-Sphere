@@ -19,11 +19,14 @@ const messaging = firebase.messaging();
 
 // Background push message handler
 messaging.onBackgroundMessage((payload) => {
-  console.log("[firebase-messaging-sw.js] Received background message", payload);
+  console.log("[firebase-messaging-sw.js] Background message:", payload);
 
-  const notificationTitle = payload.notification?.title || "New Message";
+  // 🔑 Ensure FCM `data` payloads (strings only) still show notifications
+  const notificationTitle =
+    payload.notification?.title || payload.data?.title || "New Message";
   const notificationOptions = {
-    body: payload.notification?.body || "",
+    body:
+      payload.notification?.body || payload.data?.body || "You have a new update",
     icon: payload.notification?.icon || "/icons/icon-192x192.png",
     data: payload.data || {},
   };
@@ -31,15 +34,23 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
+// Handle notification clicks
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  // Focus/open chat if clicked
+
+  // For example: open chat if groupId/messageId exists in payload
+  const targetUrl = event.notification.data?.url || "/";
+
   event.waitUntil(
-    clients.matchAll({ type: "window" }).then((clientList) => {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url === "/" && "focus" in client) return client.focus();
+        if (client.url.includes(targetUrl) && "focus" in client) {
+          return client.focus();
+        }
       }
-      if (clients.openWindow) return clients.openWindow("/");
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
     })
   );
 });
