@@ -1858,7 +1858,7 @@ app.prepare().then(() => {
             message: saved, // the saved message object you already created
             group, // the group object you already fetched earlier
             senderId: fromUserId, // sender id from your handler
-            prisma, // your prisma client (db or prisma)
+            // prisma, // your prisma client (db or prisma)
             sendFcmNotification, // imported helper from lib/fcmServer
           });
 

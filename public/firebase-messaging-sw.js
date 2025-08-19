@@ -7,12 +7,12 @@ importScripts("https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-comp
 
 // Your Firebase project config (use the *client-side* keys)
 firebase.initializeApp({
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyB4Qpsb6uP_NP8XqIiVD16-y8mcSYBw55k",
+  authDomain: "sync-sphere-4cb41.firebaseapp.com",
+  projectId: "sync-sphere-4cb41",
+  storageBucket: "sync-sphere-4cb41.firebasestorage.app",
+  messagingSenderId: "29476559327",
+  appId: "1:29476559327:web:e17c74a049c5755b080c6a",
 });
 
 const messaging = firebase.messaging();
