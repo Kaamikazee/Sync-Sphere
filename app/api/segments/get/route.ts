@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 
 /**
  * Split elapsed seconds between user-days.
- * Returns an array of { date: Date (startUtc for that user-day), seconds: number }.
+ * Returns an array of { date: Date (startUtc for that user-day), seconds: number, segmentStart, segmentEnd }.
  */
 function splitSecondsByUserDay(
   start: Date,
@@ -49,7 +49,6 @@ function splitSecondsByUserDay(
       merged.set(iso, { seconds: p.seconds, segmentStart: p.segmentStart, segmentEnd: p.segmentEnd });
     } else {
       const cur = merged.get(iso)!;
-      // merge by expanding start/end and summing seconds
       const startMin = cur.segmentStart.getTime() < p.segmentStart.getTime() ? cur.segmentStart : p.segmentStart;
       const endMax = cur.segmentEnd.getTime() > p.segmentEnd.getTime() ? cur.segmentEnd : p.segmentEnd;
       merged.set(iso, { seconds: cur.seconds + p.seconds, segmentStart: startMin, segmentEnd: endMax });
@@ -111,38 +110,40 @@ export const GET = async (request: Request) => {
 
     const finalDate = getUserDayRange({ timezone, resetHour }, baseDate).startUtc;
 
-    const simplified = segments.map((segment) => {
-      const segStart = new Date(segment.start);
-      const segEnd = segment.end ? new Date(segment.end) : now;
+    // Build simplified list: only include the clipped portion for requested day.
+    const simplified = segments
+      .map((segment) => {
+        const segStart = new Date(segment.start);
+        const segEnd = segment.end ? new Date(segment.end) : now;
 
-      // compute parts split by user-day boundaries
-      const parts = splitSecondsByUserDay(segStart, segEnd, timezone, resetHour);
+        // compute split parts across user-days
+        const parts = splitSecondsByUserDay(segStart, segEnd, timezone, resetHour);
 
-      // find the part that belongs to the requested day (if any)
-      const partForDay = parts.find(p => p.date.getTime() === finalDate.getTime());
+        // the part for the requested day (if exists)
+        const partForDay = parts.find((p) => p.date.getTime() === finalDate.getTime());
 
-      // clipped start/end for the requested day (null if no part)
-      const startForDay = partForDay ? partForDay.segmentStart : null;
-      const endForDay = partForDay ? partForDay.segmentEnd : null;
+        if (!partForDay) return null; // nothing of this segment belongs to the requested day
 
-      return {
-        id: segment.id,
-        // original values (full segment)
-        start: segment.start,
-        end: segment.end,
-        duration: segment.duration,
-        type: segment.type,
-        label: segment.label,
-        focusArea: {
-          id: segment.focusArea?.id,
-          name: segment.focusArea?.name,
-        },
-        // per-day clipped values
-        durationForDay: partForDay ? partForDay.seconds : 0,
-        startForDay,
-        endForDay,
-      };
-    });
+        // return clipped values as the primary fields so UI reads the per-day slice
+        return {
+          id: segment.id,
+          // clipped values for the requested day
+          start: partForDay.segmentStart,
+          end: partForDay.segmentEnd,
+          duration: partForDay.seconds,
+          // also keep original/full values for reference
+          originalStart: segStart,
+          originalEnd: segment.end ? new Date(segment.end) : null,
+          originalDuration: segment.duration ?? Math.floor((segEnd.getTime() - segStart.getTime()) / 1000),
+          type: segment.type,
+          label: segment.label,
+          focusArea: {
+            id: segment.focusArea?.id,
+            name: segment.focusArea?.name,
+          },
+        };
+      })
+      .filter(Boolean); // remove nulls (segments with no part in requested day)
 
     return NextResponse.json(simplified, { status: 200 });
   } catch (error) {
