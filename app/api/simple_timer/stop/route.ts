@@ -5,13 +5,6 @@ import { splitSecondsByUserDay } from "@/utils/splitSecondsByUserDay";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-/**
- * Split elapsed seconds between user-days.
- *
- * Returns an array of { date: Date (startUtc for that user-day), seconds: number }
- * The `date` returned matches the shape you use for dailyTotal.date (startUtc).
- */
-
 export const POST = async (request: Request) => {
   const session = await getAuthSession();
   const user = session?.user;
@@ -21,19 +14,13 @@ export const POST = async (request: Request) => {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
 
-  // Ensure timezone & resetHour exist (fallbacks if missing)
-  const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+  const timezone = user.timezone ?? "Asia/Kolkata";
   const resetHour = user.resetHour ?? 0;
 
-  // Get user's day range in UTC for the stop time (not used for splitting here)
-  // const { startUtc } = getUserDayRange({ timezone, resetHour }, new Date());
-  // const today = startUtc;
-
   const body: unknown = await request.json();
-
   const result = z
     .object({
-      segmentId: z.string(),
+      segmentId: z.string().optional(),
     })
     .safeParse(body);
 
@@ -41,11 +28,25 @@ export const POST = async (request: Request) => {
     return NextResponse.json("ERRORS.WRONG_DATA", { status: 401 });
   }
 
-  const { segmentId } = result.data;
+  const providedSegmentId = result.data.segmentId;
 
-  const segment = await db.timerSegment.findUnique({
-    where: { id: segmentId },
-  });
+  // Prefer authoritative RunningTimer row
+  const running = await db.runningTimer.findUnique({ where: { userId } });
+
+  // Resolve segment to finalize
+  let segment = null;
+
+  if (running && running.segmentId) {
+    segment = await db.timerSegment.findUnique({ where: { id: running.segmentId } });
+  } else if (providedSegmentId) {
+    segment = await db.timerSegment.findUnique({ where: { id: providedSegmentId } });
+  } else {
+    // fallback: find the most recent open focus segment
+    segment = await db.timerSegment.findFirst({
+      where: { userId, end: null, type: "FOCUS" },
+      orderBy: { start: "desc" },
+    });
+  }
 
   if (!segment || segment.end) {
     return NextResponse.json(
@@ -54,38 +55,31 @@ export const POST = async (request: Request) => {
     );
   }
 
-  // ✅ Only FOCUS segments can trigger breaks
+  // IMPORTANT: enforce that only FOCUS segments can be stopped here
   if (segment.type !== "FOCUS") {
     return NextResponse.json("ERRORS.NOT_FOCUS_SEGMENT", { status: 400 });
   }
 
-  // Calculate duration (total seconds for the whole segment)
+  // Determine actual start time: prefer running.startTimestamp (authoritative), else segment.start
+  const startTimestamp = running?.startTimestamp ?? segment.start;
   const now = new Date();
-  const duration = Math.floor(
-    (now.getTime() - new Date(segment.start).getTime()) / 1000
-  );
+  const duration = Math.floor((now.getTime() - new Date(startTimestamp).getTime()) / 1000);
 
   try {
-    // Confirm that the timer was actually running (we still require a dailyTotal record for the start day)
-    // Note: we will split across days, but at minimum the day that originally started should exist (or we can upsert)
-    // Here we will allow upserts so we don't fail if dailyTotal for some day is missing.
-
     // Split seconds by user-day boundaries
-    const perDay = splitSecondsByUserDay(
-      new Date(segment.start),
-      now,
-      timezone,
-      resetHour
-    );
+    const perDay = splitSecondsByUserDay(new Date(startTimestamp), now, timezone, resetHour);
 
-    // Build transaction ops:
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Build transaction ops
+    // 1) finalize focus segment
+    // 2) create auto-start BREAK segment
+    // 3) upsert per-day dailyTotal increments
+    // 4) delete runningTimer row if present
+    // eslint-disable-next-line
     const txOps: any[] = [];
 
-    // 1) Stop current FOCUS segment (set end + duration)
     txOps.push(
       db.timerSegment.update({
-        where: { id: segmentId },
+        where: { id: segment.id },
         data: {
           end: now,
           duration,
@@ -93,7 +87,6 @@ export const POST = async (request: Request) => {
       })
     );
 
-    // 2) Auto-start BREAK segment
     txOps.push(
       db.timerSegment.create({
         data: {
@@ -104,8 +97,6 @@ export const POST = async (request: Request) => {
       })
     );
 
-    // 3) For each affected day, upsert dailyTotal with the incremented seconds.
-    //    Also clear isRunning/startTimestamp for those days (safe to clear for any affected day).
     for (const { date, seconds } of perDay) {
       txOps.push(
         db.dailyTotal.upsert({
@@ -131,11 +122,11 @@ export const POST = async (request: Request) => {
       );
     }
 
-    // Execute transaction. results array has same order as txOps array.
-    const txResults = await db.$transaction(txOps);
+    if (running) {
+      txOps.push(db.runningTimer.delete({ where: { userId } }));
+    }
 
-    // txResults[0] => updated focus segment
-    // txResults[1] => created break segment
+    const txResults = await db.$transaction(txOps);
     const createdBreak = txResults[1];
 
     return NextResponse.json(
@@ -143,7 +134,7 @@ export const POST = async (request: Request) => {
       { status: 200 }
     );
   } catch (err) {
-    console.error("Timer stop error (split):", err);
+    console.error("Timer stop error (runningTimer):", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }
 };

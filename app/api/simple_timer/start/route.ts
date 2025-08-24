@@ -15,15 +15,12 @@ export const POST = async (request: Request) => {
   }
 
   // Ensure timezone & resetHour exist (fallbacks if missing)
-  const timezone = user.timezone ?? "Asia/Kolkata"; // default IST
+  const timezone = user.timezone ?? "Asia/Kolkata";
   const resetHour = user.resetHour ?? 0;
 
   // Get user's day range in UTC
   const { startUtc } = getUserDayRange({ timezone, resetHour }, new Date());
-
-  // `today` should match your dailyTotal.date (start of user’s day in UTC)
   const today = startUtc;
-
   const now = new Date();
 
   const body: unknown = await request.json();
@@ -44,26 +41,24 @@ export const POST = async (request: Request) => {
   let lastBreakStart: Date | null = null;
   let lastBreakEnd: Date | null = null;
 
-  // Close any ongoing break segment
+  // Close any ongoing BREAK segment (same behavior as before)
   const lastSegment = await db.timerSegment.findFirst({
     where: { userId, end: null, type: "BREAK" },
     orderBy: { start: "desc" },
   });
 
   if (lastSegment) {
-    const duration = Math.floor(
-      (now.getTime() - lastSegment.start.getTime()) / 1000
-    );
+    const duration = Math.floor((now.getTime() - lastSegment.start.getTime()) / 1000);
 
-    // If break lasted 5 hours or more, label it as NOT_RECORDED
+    // If break lasted 5 hours or more, mark NOT_RECORDED
     if (duration >= 5 * 3600) {
       await db.timerSegment.update({
         where: { id: lastSegment.id },
         data: { end: now, duration, label: "NOT_RECORDED" },
       });
-      // we do NOT expose lastBreakStart/lastBreakEnd in the response
+      // don't expose lastBreakStart/lastBreakEnd
     } else {
-      // otherwise update the break segment as before; label it "Other" if >= 3h
+      // otherwise update the break segment and expose its start/end
       await db.timerSegment.update({
         where: { id: lastSegment.id },
         data: {
@@ -78,18 +73,14 @@ export const POST = async (request: Request) => {
     }
   }
 
-  // Check if there is already a running focus segment for this user
+  // Defensive: Close any existing FOCUS segment (if any)
   const existingFocus = await db.timerSegment.findFirst({
     where: { userId, end: null, type: "FOCUS" },
     orderBy: { start: "desc" },
   });
 
   if (existingFocus) {
-    // Close the existing focus segment before starting a new one
-    const focusDuration = Math.floor(
-      (now.getTime() - existingFocus.start.getTime()) / 1000
-    );
-
+    const focusDuration = Math.floor((now.getTime() - existingFocus.start.getTime()) / 1000);
     await db.timerSegment.update({
       where: { id: existingFocus.id },
       data: {
@@ -99,7 +90,7 @@ export const POST = async (request: Request) => {
     });
   }
 
-  // Create new focus segment
+  // Create new FOCUS segment
   const segment = await db.timerSegment.create({
     data: {
       userId: userId!,
@@ -110,18 +101,36 @@ export const POST = async (request: Request) => {
   });
 
   try {
-    await db.dailyTotal.upsert({
-      where: { userId_date: { userId: userId!, date: today } },
-      update: { isRunning: true, startTimestamp: now },
-      create: {
-        userId: userId!,
-        date: today,
-        totalSeconds: 0,
-        isRunning: true,
-        startTimestamp: now,
-      },
-      select: { totalSeconds: true, startTimestamp: true },
-    });
+    // Upsert the RunningTimer (authoritative single running row per user)
+    // and upsert today's dailyTotal to mark it running (keeps backward compatibility)
+    await db.$transaction([
+      db.runningTimer.upsert({
+        where: { userId },
+        create: {
+          userId: userId!,
+          startTimestamp: now,
+          segmentId: segment.id,
+        },
+        update: {
+          startTimestamp: now,
+          segmentId: segment.id,
+        },
+      }),
+      db.dailyTotal.upsert({
+        where: { userId_date: { userId: userId!, date: today } },
+        create: {
+          userId: userId!,
+          date: today,
+          totalSeconds: 0,
+          isRunning: true,
+          startTimestamp: now,
+        },
+        update: {
+          isRunning: true,
+          startTimestamp: now,
+        },
+      }),
+    ]);
 
     return NextResponse.json(
       {
@@ -132,7 +141,8 @@ export const POST = async (request: Request) => {
       },
       { status: 200 }
     );
-  } catch {
+  } catch (err) {
+    console.error("Start timer error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }
 };

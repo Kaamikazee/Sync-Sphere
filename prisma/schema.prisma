@@ -53,6 +53,7 @@ model User {
   focusAreas      FocusArea[]
   timerSegments   TimerSegment[]
   MessageReaction MessageReaction[]
+  RunningTimer    RunningTimer?
 }
 
 model Account {
@@ -280,10 +281,25 @@ model TimerSegment {
   type        SegmentType @default(FOCUS) // <-- NEW: FOCUS or BREAK
   label       String? // <-- Optional label for break reason (e.g. "Lunch", "Phone")
 
-  user      User       @relation(fields: [userId], references: [id])
-  focusArea FocusArea? @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id])
+  focusArea    FocusArea?     @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
+  RunningTimer RunningTimer[]
 
   @@index([userId, start])
+}
+
+model RunningTimer {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  startTimestamp DateTime
+  segmentId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user    User?         @relation(fields: [userId], references: [id])
+  segment TimerSegment? @relation(fields: [segmentId], references: [id])
+
+  @@index([userId])
 }
 
 enum SegmentType {
