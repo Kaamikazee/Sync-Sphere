@@ -167,8 +167,8 @@ export function Edit({ userId, focusAreaNamesAndIds }: Props) {
         <CardContent className="p-4 space-y-4">
           {/* Total focus-area time for the day */}
           <div className="flex items-center justify-between px-2">
-            <div className="text-sm text-white/80">Focus time (today)</div>
-            <div className="text-lg font-mono font-bold">
+            <div className="text-sm text-white">Focus time: </div>
+            <div className="text-lg font-mono font-bold text-white">
               {formatHMS(totalFocusSeconds)}
             </div>
           </div>
