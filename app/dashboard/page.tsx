@@ -67,7 +67,7 @@ export default async function DashboardPage() {
           </Link>
 
           {/* ── Todos Card (NEW) */}
-          <Link href="/dashboard/todos" className="group">
+          <Link href="/todos" className="group">
             <div
               data-ripple
               className="relative p-8 bg-gradient-to-br from-emerald-700/30 via-lime-600/25 to-green-700/25 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg

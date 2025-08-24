@@ -445,7 +445,22 @@ export function TodosClient({
                                   : "text-white"
                               } text-sm sm:text-base`}
                             >
-                              {t.title}
+                              <UpdateTodo
+                              todo={
+                                {
+                                  id: t.id,
+                                  userId: t.userId,
+                                  focusAreaId: t.focusAreaId,
+                                  title: t.title,
+                                  content: t.content ?? undefined,
+                                  completed: t.completed as any,
+                                  date: t.date ? new Date(t.date) : undefined,
+                                  priority: t.priority as any,
+                                  createdAt: new Date(t.createdAt),
+                                  updatedAt: new Date(t.updatedAt),
+                                } as any
+                              }
+                            />
                             </div>
                             <div className="text-sm text-white/60 truncate">
                               {t.date
@@ -468,23 +483,6 @@ export function TodosClient({
                               <option value="MEDIUM">Medium</option>
                               <option value="HIGH">High</option>
                             </select>
-
-                            <UpdateTodo
-                              todo={
-                                {
-                                  id: t.id,
-                                  userId: t.userId,
-                                  focusAreaId: t.focusAreaId,
-                                  title: t.title,
-                                  content: t.content ?? undefined,
-                                  completed: t.completed as any,
-                                  date: t.date ? new Date(t.date) : undefined,
-                                  priority: t.priority as any,
-                                  createdAt: new Date(t.createdAt),
-                                  updatedAt: new Date(t.updatedAt),
-                                } as any
-                              }
-                            />
                           </div>
                         </motion.div>
                       ))}
