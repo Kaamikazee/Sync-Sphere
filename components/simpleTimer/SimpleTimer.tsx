@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React, { useEffect, useRef, useState } from "react";
 import FocusAreaContainer from "../focusAreaContainer/FocusAreaContainer";
-import { FocusArea, Group, PomodoroSettings } from "@prisma/client";
+import { FocusArea, PomodoroSettings } from "@prisma/client";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useRunningStore } from "@/stores/useGlobalTimer";
@@ -19,6 +19,7 @@ import { Calendar } from "../ui/calendar";
 import { SessionTimerWidget } from "./SessionTimerWidget";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { getSocket } from "@/lib/socket";
+import { groupsWithUserNameAndRole } from "@/lib/api";
 // import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
@@ -30,7 +31,7 @@ interface Props {
   focusAreas: FocusArea[];
   // timeSpentOfFA: FocusAreTotalsById[];
   // todos: Todo[];
-  groups: Group[];
+  groups: groupsWithUserNameAndRole[];
   pomodoroSettings: PomodoroSettings;
 }
 

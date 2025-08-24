@@ -862,7 +862,7 @@ app.prepare().then(() => {
           // soft delete: mark deleted=true and optionally replace content
           const deleted = await prisma.message.update({
             where: { id: messageId },
-            data: { isDeleted: true, content: "[deleted]" },
+            data: { isDeleted: true, content: "[deleted]", attachments: [] },
           });
 
           const chatId = deleted.chatId;

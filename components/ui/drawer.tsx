@@ -5,10 +5,110 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+// Replace your current Drawer function with this one:
+
 function Drawer({
+  open: controlledOpen,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot="drawer" {...props} />
+  // internal state for uncontrolled usage
+  const [internalOpen, setInternalOpen] = React.useState<boolean>(false);
+
+  // derived "open" value and setter that work for both controlled & uncontrolled usage
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? (controlledOpen as boolean) : internalOpen;
+
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      // notify parent if controlled
+      if (isControlled) {
+        onOpenChange?.(next);
+      } else {
+        setInternalOpen(next);
+        onOpenChange?.(next); // also call callback if provided
+      }
+    },
+    [isControlled, onOpenChange]
+  );
+
+  // refs to manage history bookkeeping and avoid reacting to our own history.back()
+  const pushedRef = React.useRef(false);
+  const suppressPopRef = React.useRef(false);
+  const idRef = React.useRef<string | null>(null);
+
+  // when drawer opens -> push a history entry and add popstate listener
+  React.useEffect(() => {
+    if (!open) return;
+
+    // If we've already pushed for this instance, don't push again
+    if (!pushedRef.current) {
+      // unique id for debugging / identification
+      idRef.current = `drawer-${Math.random().toString(36).slice(2, 9)}`;
+      // push a small state object so back triggers popstate rather than leaving the app
+      try {
+        window.history.pushState({ __drawer: idRef.current }, "");
+        pushedRef.current = true;
+      } catch {
+        // ignore if pushState fails for any reason
+      }
+    }
+
+    const onPopstate = () => {
+      // if we just programmatically called history.back(), suppress handling
+      if (suppressPopRef.current) {
+        suppressPopRef.current = false;
+        return;
+      }
+      // user pressed back -> close the drawer
+      setOpen(false);
+    };
+
+    window.addEventListener("popstate", onPopstate);
+    return () => {
+      window.removeEventListener("popstate", onPopstate);
+    };
+  }, [open, setOpen]);
+
+  // When the UI closes the drawer (not via popstate), remove the pushed history entry.
+  // We detect UI close when open changes from true -> false.
+  const prevOpenRef = React.useRef(open);
+  React.useEffect(() => {
+    if (prevOpenRef.current && !open) {
+      // We are transitioning from open -> closed by UI action
+      if (pushedRef.current) {
+        // prevent reacting to the popstate that window.history.back() will cause
+        suppressPopRef.current = true;
+        try {
+          // go back one entry to remove the pushed state
+          window.history.back();
+        } catch {
+          // ignore
+        }
+        pushedRef.current = false;
+        idRef.current = null;
+      }
+    }
+    prevOpenRef.current = open;
+  }, [open]);
+
+  // cleanup on unmount: don't try to mutate history, just clear listeners/refs
+  React.useEffect(() => {
+    return () => {
+      pushedRef.current = false;
+      idRef.current = null;
+      suppressPopRef.current = false;
+    };
+  }, []);
+
+  return (
+    <DrawerPrimitive.Root
+      data-slot="drawer"
+      open={open}
+      onOpenChange={(next) => setOpen(next)}
+      {...props}
+    />
+  );
 }
 
 function DrawerTrigger({

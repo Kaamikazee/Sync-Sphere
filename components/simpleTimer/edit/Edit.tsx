@@ -16,6 +16,7 @@ import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
 import { SegmentTypes } from "@/lib/api";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
+import { formatHMS } from "../BreakTimerWidget"; // <-- added
 
 interface Props {
   userId: string;
@@ -45,6 +46,13 @@ export function Edit({ userId, focusAreaNamesAndIds }: Props) {
         })
         .then((res) => res.data),
   });
+
+  // total focus-area time (exclude BREAK segments)
+  const totalFocusSeconds = React.useMemo(() => {
+    return (segments as SegmentTypes[])
+      .filter((s) => s.type !== "BREAK")
+      .reduce((acc, s) => acc + (s.duration ?? 0), 0);
+  }, [segments]);
 
   // glow hover effect
   React.useEffect(() => {
@@ -157,8 +165,19 @@ export function Edit({ userId, focusAreaNamesAndIds }: Props) {
         className="w-full max-w-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg rounded-xl"
       >
         <CardContent className="p-4 space-y-4">
+          {/* Total focus-area time for the day */}
+          <div className="flex items-center justify-between px-2">
+            <div className="text-sm text-white/80">Focus time (today)</div>
+            <div className="text-lg font-mono font-bold">
+              {formatHMS(totalFocusSeconds)}
+            </div>
+          </div>
+
           <AnimatePresence mode="wait">
-            {segments.map((seg: SegmentTypes) => (
+            {/*
+              --- NOTE: still slicing to skip the first block if you kept that behavior ---
+            */}
+            {segments.slice(1).map((seg: SegmentTypes) => (
               <motion.div
                 key={seg.id + date.toISOString()}
                 initial={{ opacity: 0, y: 10 }}
