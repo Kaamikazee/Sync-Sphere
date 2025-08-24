@@ -9,7 +9,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Group } from "@prisma/client";
 import Link from "next/link";
 import { NewLeaderboard } from "../dashboard/group/leaderboard/NewLeaderboard";
 import { AnimatePresence, motion } from "framer-motion";
@@ -22,13 +21,15 @@ import {
 } from "../ui/dialog";
 import Image from "next/image";
 import { useSwipeable } from "react-swipeable";
+import { groupsWithUserNameAndRole } from "@/lib/api";
 
 interface Props {
-  groups: Group[];
+  groups: groupsWithUserNameAndRole[];
   userId: string;
+  userName: string;
 }
 
-export function SthElse({ groups, userId }: Props) {
+export function SthElse({ groups, userId, userName }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 1;
@@ -105,9 +106,11 @@ export function SthElse({ groups, userId }: Props) {
               layout="position" // Optional smoother effect
             >
               <NewLeaderboard
-                groupId={currentGroup.id}
                 uuserId={userId}
+                groupId={currentGroup.id}
                 groupName={currentGroup.name}
+                uuserName={userName}
+                sessionUserRole={currentGroup.userRole}
               />
             </motion.div>
           </AnimatePresence>

@@ -18,22 +18,21 @@ export const GET = async (request: Request) => {
             chat: {
               select: {
                 id: true,
-              }
+              },
             },
             creator: {
               select: {
                 name: true,
               },
             },
-          }
+          },
         },
         user: {
           select: {
             name: true,
-          }
-        }
+          },
+        },
       },
-      
       orderBy: {
         group: {
           createdAt: "desc",
@@ -41,26 +40,22 @@ export const GET = async (request: Request) => {
       },
     });
 
+    const groupsWithUserNameAndRole = subscriptions.map((subscription) => {
+      const { creator, ...groupWithoutCreator } = subscription.group;
 
-    // Attach user name to each group object
-   const groupsWithUserName = subscriptions.map((subscription) => {
-  const {
-    creator,
-    ...groupWithoutCreator
-  } = subscription.group;
+      return {
+        ...groupWithoutCreator,
+        userName: subscription.user?.name || null,
+        creatorName: creator?.name || null,
+        chatId: subscription.group.chat[0]?.id ?? null,
+        userRole: subscription.userRole, // 👈 attach role here
+      };
+    });
 
-  return {
-    ...groupWithoutCreator,
-    userName: subscription.user?.name || null,
-    creatorName: creator?.name || null,
-    chatId: subscription.group.chat[0].id ?? null,
-  };
-});
+    if (!groupsWithUserNameAndRole)
+      return NextResponse.json([], { status: 200 });
 
-
-    if (!groupsWithUserName) return NextResponse.json([], { status: 200 });
-
-    return NextResponse.json(groupsWithUserName, { status: 200 });
+    return NextResponse.json(groupsWithUserNameAndRole, { status: 200 });
   } catch {
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }

@@ -17,7 +17,7 @@ export const baseUrl =
   process.env.NEXTAUTH_URL || "http://localhost:3000";
 
 
-export interface GroupsWithUserName {
+export interface groupsWithUserNameAndRole {
   userName: string | null;
   name: string;
   id: string;
@@ -35,6 +35,7 @@ export interface GroupsWithUserName {
   isPrivate: boolean;
   creatorName: string | null;
   chatId: string;
+  userRole: UserPermission
 }
 
 export const getGroups = async (userId: string) => {
@@ -50,7 +51,7 @@ export const getGroups = async (userId: string) => {
     return [];
   }
 
-  return res.json() as Promise<GroupsWithUserName[]>;
+  return res.json() as Promise<groupsWithUserNameAndRole[]>;
 };
 
 export interface GroupWithChatId extends Group {

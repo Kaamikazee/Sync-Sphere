@@ -29,6 +29,7 @@ const SimpleTimer = async () => {
     <div className="overflow-x-hidden">
       <SimpleTimerContainer
         userId={session.user.id}
+        userName={session.user.name!}
         isRunning={isRunning || false}
         startTimeStamp={startTime!}
         focusAreas={focusAreas!}

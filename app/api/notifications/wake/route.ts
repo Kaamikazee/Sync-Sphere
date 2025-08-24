@@ -25,7 +25,7 @@ export const POST = async (req: Request) => {
   if (senderId === targetUserId) {
     return NextResponse.json(
       { error: "You cannot wake yourself up" },
-      { status: 400 }
+      { status: 400, statusText: "Why would you wake up yourself? huh?" }
     );
   }
 

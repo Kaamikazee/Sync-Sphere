@@ -5,12 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import { GroupsWithUserName } from "@/lib/api";
+import { groupsWithUserNameAndRole } from "@/lib/api";
 // import { initSocket } from "@/lib/initSocket";
 import { getSocket } from "@/lib/socket";
 
 interface Props {
-  group: GroupsWithUserName;
+  group: groupsWithUserNameAndRole;
   href: string;
   SessionUserId: string;
 }

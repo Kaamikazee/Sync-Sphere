@@ -24,6 +24,7 @@ import { getSocket } from "@/lib/socket";
 interface Props {
   // totalSeconds: number;
   userId: string;
+  userName: string;
   isRunning: boolean;
   startTimeStamp: Date;
   focusAreas: FocusArea[];
@@ -44,6 +45,7 @@ export const SimpleTimerContainer = ({
   // todos,
   groups,
   pomodoroSettings,
+  userName
 }: Props) => {
   const socket = getSocket();
   const today = normalizeToStartOfDay(new Date());
@@ -456,7 +458,7 @@ useEffect(() => {
         <aside className="w-full">
           <div className="p-4 h-full">
             <div className="relative sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md shadow-sm sm:rounded-2xl sm:shadow-lg sm:p-6 p-3 sm:hover:shadow-2xl transition-all duration-300">
-              <SthElseMemo groups={groups} userId={userId} />
+              <SthElseMemo groups={groups} userId={userId} userName={userName}/>
             </div>
           </div>
         </aside>
