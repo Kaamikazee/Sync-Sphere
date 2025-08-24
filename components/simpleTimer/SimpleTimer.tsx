@@ -35,25 +35,6 @@ interface Props {
   pomodoroSettings: PomodoroSettings;
 }
 
-  const toNumberSafe = (v: unknown) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? Math.floor(n) : 0;
-  };
-
-  // parse ISO / number / Date to millis or null
-  const parseToMs = (v: unknown): number | null => {
-    if (v == null) return null;
-    // If it's already a number and finite, return it
-    if (typeof v === "number" && Number.isFinite(v)) return Math.floor(v);
-    // If it's a Date
-    if (v instanceof Date) {
-      return Number.isFinite(v.getTime()) ? v.getTime() : null;
-    }
-    // otherwise try to parse string
-    const parsed = Date.parse(String(v));
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
 const FocusAreaContainerMemo = React.memo(FocusAreaContainer);
 const SthElseMemo = React.memo(SthElse);
 
@@ -209,61 +190,51 @@ export const SimpleTimerContainer = ({
 }, [running, startTime]);
 
 
-    useEffect(() => {
-    // Normalise incoming startTimeStamp -> ms or null
-    const parsedStartMs = parseToMs(startTimeStamp ?? null);
-    if (isRunning && parsedStartMs !== null) {
-      baselineRef.current = toNumberSafe(totalSeconds);
-      setStartTime(parsedStartMs);
-      const elapsed = Math.max(0, Math.floor((Date.now() - parsedStartMs) / 1000));
-      setTime(toNumberSafe(totalSeconds) + elapsed);
+  useEffect(() => {
+    if (isRunning) {
+      baselineRef.current = totalSeconds;
+      const elapsed = Math.floor(
+        (Date.now() - new Date(startTimeStamp).getTime()) / 1000
+      );
+      setTime(totalSeconds + elapsed);
+      setStartTime(new Date(startTimeStamp).getTime());
     } else {
-      // not running or no valid start -> show base
-      setStartTime(null);
-      setTime(toNumberSafe(totalSeconds));
+      setTime(totalSeconds);
     }
   }, [isRunning, totalSeconds, startTimeStamp]);
 
   // Join room and reconcile updates from server
 useEffect(() => {
-    if (!socket || !userId) return;
+  if (!socket || !userId) return;
 
-    // join the user room (server will validate)
-    socket.emit("joinUserRoom", { userId });
+  // join the user room
+  socket.emit("joinUserRoom", { userId });
 
-    const onUpdate = (payload: {
-      isRunning: boolean;
-      activeFocusAreaId: string | null;
-      totalSeconds: number | string | null;
-      startTime: number | string | null; // server may send ISO or number
-    }) => {
-      const secs = toNumberSafe(payload.totalSeconds);
-      const parsedStartMs = parseToMs(payload.startTime ?? null);
+  const onUpdate = (payload: {
+    isRunning: boolean;
+    activeFocusAreaId: string | null;
+    totalSeconds: number;
+    startTime: number | null;
+  }) => {
+    useRunningStore.getState().setRunning(payload.isRunning);
+    useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId);
 
-      // update global store (your implementations)
-      useRunningStore.getState().setRunning(Boolean(payload.isRunning));
-      useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId ?? null);
+    setTime(payload.totalSeconds);
+    if (payload.startTime) {
+      setStartTime(payload.startTime);
+    } else {
+      setStartTime(null);
+    }
+  };
 
-      // update local baseline/time/start
-      setTime(secs);
-      setTimeSpent(secs);
-      baselineRef.current = secs;
-      if (parsedStartMs !== null && payload.isRunning) {
-        setStartTime(parsedStartMs);
-      } else {
-        setStartTime(null);
-      }
-    };
-
-    socket.on("timer:updated", onUpdate);
-    return () => {
-      socket.off("timer:updated", onUpdate);
-    };
-  }, [socket, userId]);
+  socket.on("timer:updated", onUpdate);
+  return () => {
+    socket.off("timer:updated", onUpdate);
+  };
+}, [socket, userId]);
 
 
-    // --- emit ticks to server (use ref to avoid re-creating interval every second) ---
-  useEffect(() => {
+   useEffect(() => {
     if (!socket || !userId) return;
     if (!running) return;
 

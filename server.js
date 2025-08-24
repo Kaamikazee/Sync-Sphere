@@ -38,19 +38,6 @@ app.prepare().then(() => {
   const groupOnlineUsers = new Map(); // groupId -> Set of userIds
   const socketToUserGroup = new Map(); // socket.id -> { userId, groupId }
 
-  const toNumberSafe = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? Math.floor(n) : 0;
-  };
-
-  const toISOStringSafe = (v) => {
-    if (!v) return new Date().toISOString();
-    const d = new Date(v);
-    return Number.isFinite(d.getTime())
-      ? d.toISOString()
-      : new Date().toISOString();
-  };
-
   async function emitUnreadCount(chatId, userId) {
     try {
       const receipt = await prisma.chatReadReceipt.findUnique({
@@ -1108,58 +1095,42 @@ app.prepare().then(() => {
     });
 
     // --- activity / timer handlers ---
-    socket.on("joinUserRoom", ({ userId: claimedUserId }) => {
-      try {
-        const userId = getAuthUserId(socket, claimedUserId);
-        if (!userId) {
-          console.warn("joinUserRoom unauthorized attempt", claimedUserId);
-          return;
-        }
-        socket.join(`user:${userId}`);
-      } catch (err) {
-        console.error("joinUserRoom handler error:", err);
-      }
+    socket.on("joinUserRoom", ({ userId }) => {
+      if (!userId) return;
+      socket.join(`user:${userId}`);
     });
 
-    // ---- Optimistic / fast-notify handlers ----
     // start-timer: optimistic fast-notify.
-    // Client should send: { userId, startTime?, focusAreaId? }
+    // Client should send: { userId, startTime, focusAreaId? }
     socket.on(
       "start-timer",
       ({ userId: payloadUserId, startTime, focusAreaId }) => {
         try {
           const userId = getAuthUserId(socket, payloadUserId);
-          if (!userId) {
-            console.warn("start-timer unauthorized", payloadUserId);
-            return;
-          }
+          if (!userId) return;
 
           // Remember which focus is running on this socket (optional convenience)
           if (focusAreaId) socket.data.activeFocusAreaId = focusAreaId;
 
-          const normalizedStartTime = toISOStringSafe(startTime);
-
           console.log("TIMER-STARTED (socket)", {
             userId,
-            startTime: normalizedStartTime,
+            startTime,
             focusAreaId,
           });
 
           // Short, compatibility event for listeners that expect it
           io.to(`user:${userId}`).emit("timer-started", {
             userId,
-            // emit canonical ISO string
-            startTime: normalizedStartTime,
-            focusAreaId: focusAreaId ?? null,
+            startTime,
+            focusAreaId,
           });
 
           // Canonical optimistic update payload (clients should reconcile with DB-driven emits)
           io.to(`user:${userId}`).emit("timer:updated", {
-            userId,
             isRunning: true,
             activeFocusAreaId: focusAreaId ?? null,
             totalSeconds: 0, // optimistic; server-side DB upsert will emit authoritative value
-            startTime: normalizedStartTime,
+            startTime: typeof startTime === "number" ? startTime : Date.now(),
           });
         } catch (err) {
           console.error("start-timer handler error:", err);
@@ -1174,35 +1145,30 @@ app.prepare().then(() => {
       ({ userId: payloadUserId, totalSeconds, segmentId }) => {
         try {
           const userId = getAuthUserId(socket, payloadUserId);
-          if (!userId) {
-            console.warn("stop-timer unauthorized", payloadUserId);
-            return;
-          }
+          if (!userId) return;
 
           // clear socket-level focus marker
           socket.data.activeFocusAreaId = null;
 
-          const normalizedTotalSeconds = toNumberSafe(totalSeconds);
-
           console.log("TIMER-STOPPED (socket)", {
             userId,
-            totalSeconds: normalizedTotalSeconds,
+            totalSeconds,
             segmentId,
           });
 
           // Compatibility short event
           io.to(`user:${userId}`).emit("timer-stopped", {
             userId,
-            totalSeconds: normalizedTotalSeconds,
-            segmentId: segmentId ?? null,
+            totalSeconds,
+            segmentId,
           });
 
           // Canonical optimistic update — serverside DB route should still emit final `timer:updated`.
           io.to(`user:${userId}`).emit("timer:updated", {
-            userId,
             isRunning: false,
             activeFocusAreaId: null,
-            totalSeconds: normalizedTotalSeconds,
+            totalSeconds:
+              typeof totalSeconds === "number" ? totalSeconds : null,
             startTime: null,
           });
         } catch (err) {
@@ -1216,36 +1182,34 @@ app.prepare().then(() => {
     socket.on("tick", ({ userId: payloadUserId, currentTotalSeconds }) => {
       try {
         const userId = getAuthUserId(socket, payloadUserId);
-        if (!userId) {
-          // ignore unauthorized ticks
-          return;
-        }
+        if (!userId) return;
 
         const activeFocusAreaId = socket.data.activeFocusAreaId ?? null;
-        const normalizedSeconds = toNumberSafe(currentTotalSeconds);
 
         // forward tick only to that user's rooms (not everyone)
         io.to(`user:${userId}`).emit("timer-tick", {
           userId,
-          currentTotalSeconds: normalizedSeconds,
+          currentTotalSeconds,
           activeFocusAreaId,
-          // note: ticks are non-authoritative by default
+          // don't try to be authoritative here — these are just ticks
         });
 
-        // OPTIONALLY: if you want ticks treated as authoritative for display, also emit a normalized timer:updated
+        // Optional: also emit a canonical "timer:updated" with the tick value if you want clients to
+        // treat ticks as authoritative for display. If you do, include the same payload shape:
         // io.to(`user:${userId}`).emit("timer:updated", {
-        //   userId,
         //   isRunning: true,
         //   activeFocusAreaId,
-        //   totalSeconds: normalizedSeconds,
-        //   startTime: null, // you may include startTime if known
+        //   totalSeconds: currentTotalSeconds,
+        //   startTime: null,
         // });
       } catch (err) {
         console.error("tick handler error:", err);
       }
     });
 
-    // ---- Activity events (unchanged but defensive normalizers) ----
+    //
+    // Activity events (use activity rooms so only clients that care receive updates)
+    //
     socket.on("startActivity", async ({ activityId, startTime }) => {
       try {
         console.log("Activity started:", activityId);
@@ -1257,10 +1221,10 @@ app.prepare().then(() => {
         // Join activity room for subscribers (optional)
         socket.join(`activity:${activityId}`);
 
-        // Emit to activity room with normalized startTime
+        // Emit to activity room
         io.to(`activity:${activityId}`).emit("activityStarted", {
           activityId,
-          startTime: toISOStringSafe(startTime),
+          startTime,
           baseline,
         });
       } catch (error) {
@@ -1270,14 +1234,13 @@ app.prepare().then(() => {
 
     socket.on("updateTimer", async ({ activityId, elapsedTime }) => {
       try {
-        const normalized = toNumberSafe(elapsedTime);
         await prisma.activity.update({
           where: { id: activityId },
-          data: { timeSpent: normalized },
+          data: { timeSpent: elapsedTime },
         });
         io.to(`activity:${activityId}`).emit("timerUpdated", {
           activityId,
-          elapsedTime: normalized,
+          elapsedTime,
         });
       } catch (error) {
         console.error("Error updating timer:", error);
@@ -1286,48 +1249,22 @@ app.prepare().then(() => {
 
     socket.on("stopActivity", async ({ activityId, elapsedTime }) => {
       try {
-        const normalized = toNumberSafe(elapsedTime);
         await prisma.activity.update({
           where: { id: activityId },
-          data: { timeSpent: normalized },
+          data: { timeSpent: elapsedTime },
         });
         io.to(`activity:${activityId}`).emit("activityStopped", {
           activityId,
-          elapsedTime: normalized,
+          elapsedTime,
         });
       } catch (error) {
         console.error("Error stopping activity:", error);
       }
     });
 
-    // ---- Safe relay for client/server timer:updated messages ----
-    // Validate and normalize payload, do not blindly re-emit arbitrary values
     socket.on("timer:updated", (payload) => {
-      try {
-        // require that the caller is authorized for the claimed userId
-        const userId = getAuthUserId(socket, payload.userId);
-        if (!userId) {
-          console.warn("Unauthorized timer:updated attempt", payload);
-          return;
-        }
-
-        // Normalize fields to canonical shapes
-        const normalized = {
-          userId,
-          isRunning: !!payload.isRunning,
-          totalSeconds: toNumberSafe(payload.totalSeconds),
-          // Use normalized ISO string or null
-          startTime: payload.startTime
-            ? toISOStringSafe(payload.startTime)
-            : null,
-          activeFocusAreaId: payload.activeFocusAreaId ?? null,
-          // include any other safe fields you want to forward explicitly
-        };
-
-        io.to(`user:${userId}`).emit("timer:updated", normalized);
-      } catch (err) {
-        console.error("timer:updated relay error:", err);
-      }
+      const { userId } = payload;
+      io.to(`user:${userId}`).emit("timer:updated", payload);
     });
 
     // -------- CHAT PAGINATION -------------
