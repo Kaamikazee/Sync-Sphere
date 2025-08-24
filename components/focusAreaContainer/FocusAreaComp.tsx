@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { CreateTodo } from "@/components/todo/CreateTodo";
@@ -23,6 +24,7 @@ import {
 } from "../ui/dialog";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
+import { normalizeToStartOfDay } from "@/utils/normalizeDate"; // <-- added import
 
 const iconVariants = {
   hover: { scale: 1.2, rotate: 10 },
@@ -68,6 +70,8 @@ export function FocusAreaComp({
   const [displayTime, setDisplayTime] = useState(timeSpent);
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [migrateDialogOpen, setMigrateDialogOpen] = useState(false); // <-- migrate dialog state
+  const [migrating, setMigrating] = useState(false); // <-- migrating state
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -169,21 +173,20 @@ export function FocusAreaComp({
   });
 
   const onStart = () => {
-  // optimistic local + global
-  setIsFocusRunning(true);
-  useRunningStore.getState().setRunning(true, true);
-  useRunningStore.getState().setActiveFocusAreaId(focusAreaId);
+    // optimistic local + global
+    setIsFocusRunning(true);
+    useRunningStore.getState().setRunning(true, true);
+    useRunningStore.getState().setActiveFocusAreaId(focusAreaId);
 
-  // call parent
-  handleStart(focusAreaId);
-  start();
-  onActivate();
+    // call parent
+    handleStart(focusAreaId);
+    start();
+    onActivate();
 
-  localStorage.setItem("activeFocusAreaId", focusAreaId);
-  breakTimer.stop();
-  breakTimer.reset();
-};
-
+    localStorage.setItem("activeFocusAreaId", focusAreaId);
+    breakTimer.stop();
+    breakTimer.reset();
+  };
 
   const { mutate: stop } = useMutation({
     mutationFn: async () => {
@@ -217,21 +220,20 @@ export function FocusAreaComp({
   });
 
   const onStop = useCallback(() => {
-  setIsFocusRunning(false);
+    setIsFocusRunning(false);
 
-  useRunningStore.getState().setRunning(false);
-  useRunningStore.getState().setActiveFocusAreaId(null);
+    useRunningStore.getState().setRunning(false);
+    useRunningStore.getState().setActiveFocusAreaId(null);
 
-  handleStop();
-  stop();
-  breakTimer.start();
+    handleStop();
+    stop();
+    breakTimer.start();
 
-  localStorage.removeItem("activeSegmentId");
-  localStorage.removeItem("activeStartTime");
-  localStorage.removeItem("activeDisplayTime");
-  localStorage.removeItem("activeFocusAreaId");
-}, [handleStop, stop, breakTimer]);
-
+    localStorage.removeItem("activeSegmentId");
+    localStorage.removeItem("activeStartTime");
+    localStorage.removeItem("activeDisplayTime");
+    localStorage.removeItem("activeFocusAreaId");
+  }, [handleStop, stop, breakTimer]);
 
   useEffect(() => {
     if (stopRequested) {
@@ -247,6 +249,54 @@ export function FocusAreaComp({
     const s = total % 60;
     return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
   }
+
+  // -------------------------
+  // Migrate all to next day
+  // -------------------------
+  const migrateAllToNextDay = async () => {
+    if (todos.length === 0) {
+      toast("No todos to migrate");
+      setMigrateDialogOpen(false);
+      return;
+    }
+
+    setMigrating(true);
+    try {
+      const promises = todos.map(async (t) => {
+        // Handle nullable date: if none, use today as base
+        const base = t.date ? new Date(t.date as any) : new Date();
+        const next = new Date(base);
+        next.setDate(next.getDate() + 1);
+        const midnightUTC = normalizeToStartOfDay(next);
+
+        // call your update endpoint for each todo
+        return axios.post(`/api/todos/update?todoId=${t.id}`, {
+          date: midnightUTC,
+        });
+      });
+
+      const results = await Promise.allSettled(promises);
+      const fulfilled = results.filter((r) => r.status === "fulfilled").length;
+      const rejected = results.filter((r) => r.status === "rejected").length;
+
+      if (fulfilled > 0) {
+        toast.success(`Migrated ${fulfilled} todo${fulfilled > 1 ? "s" : ""} to next day.`);
+      }
+      if (rejected > 0) {
+        toast.error(`${rejected} todo${rejected > 1 ? "s" : ""} failed to migrate.`);
+      }
+
+      // Sync UI
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      router.refresh();
+    } catch (err) {
+      console.error("MIGRATE ERROR:", err);
+      toast.error("Migration failed.");
+    } finally {
+      setMigrating(false);
+      setMigrateDialogOpen(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-full overflow-x-auto no-scrollbar px-2 sm:px-4">
@@ -369,9 +419,7 @@ export function FocusAreaComp({
 
               <div className="flex flex-col gap-4">
                 {todos.length === 0 ? (
-                  <p className="text-sm italic text-gray-100/80">
-                    No todos yet
-                  </p>
+                  <p className="text-sm italic text-gray-100/80">No todos yet</p>
                 ) : (
                   todos.map((t) => (
                     <div key={t.id} className="w-full">
@@ -390,9 +438,48 @@ export function FocusAreaComp({
                   ))
                 )}
               </div>
+
               {isToday && (
-                <div className="flex justify-center items-center mt-2">
+                <div className="flex justify-center items-center mt-2 gap-3">
                   <CreateTodo focusAreaId={focusAreaId} />
+
+                  {/* Migrate All to Next Day - confirmation dialog */}
+                  <Dialog open={migrateDialogOpen} onOpenChange={setMigrateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 py-2 rounded-lg"
+                        disabled={migrating}
+                      >
+                        {migrating ? "Migrating..." : "Migrate all to next day"}
+                      </Button>
+                    </DialogTrigger>
+
+                    <DialogContent>
+                      <p className="mb-4">
+                        This will move <strong>{todos.length}</strong> todos in{" "}
+                        <strong>{name}</strong> to their next calendar day (tomorrow).
+                        Are you sure you want to continue?
+                      </p>
+
+                      <DialogFooter>
+                        <Button
+                          onClick={() => setMigrateDialogOpen(false)}
+                          variant="outline"
+                        >
+                          Cancel
+                        </Button>
+
+                        <Button
+                          onClick={() => migrateAllToNextDay()}
+                          disabled={migrating}
+                          className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
+                        >
+                          {migrating ? "Migrating..." : "Yes, migrate all"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
             </motion.div>

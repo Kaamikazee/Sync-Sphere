@@ -78,17 +78,16 @@ model Account {
 }
 
 model FcmToken {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
-  token      String   @unique
-  createdAt  DateTime @default(now())
+  token      String    @unique
+  createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
-
 
 model Session {
   id           String   @id @default(cuid())
@@ -301,6 +300,13 @@ model FocusArea {
   todos    Todo[]
 }
 
+enum Priority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model Todo {
   id          String       @id @default(uuid())
   userId      String
@@ -309,6 +315,7 @@ model Todo {
   content     String?
   completed   TodoWorkDone @default(NOT_DONE)
   date        DateTime // normalized to midnight
+  priority    Priority     @default(NONE)
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   focusArea FocusArea @relation(fields: [focusAreaId], references: [id], onDelete: Cascade)
@@ -318,6 +325,8 @@ model Todo {
 
   @@index([userId])
   @@index([focusAreaId])
+  @@index([date])
+  @@index([priority])
 }
 
 enum TodoWorkDone {
@@ -347,13 +356,13 @@ model Chat {
 }
 
 model Message {
-  id       String @id @default(uuid())
-  chat     Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  chatId   String
-  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  senderId String
-  content  String
-   attachments Attachment[]
+  id          String       @id @default(uuid())
+  chat        Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chatId      String
+  sender      User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId    String
+  content     String
+  attachments Attachment[]
 
   replyTo   Message? @relation("ReplySelfRelation", fields: [replyToId], references: [id])
   replyToId String?
@@ -362,7 +371,7 @@ model Message {
   views     MessageView[]
   reactions MessageReaction[]
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   isEdited  Boolean   @default(false)
   updatedAt DateTime? @updatedAt
@@ -429,24 +438,23 @@ model Mute {
 
 model Attachment {
   id          String   @id @default(cuid())
-  messageId   String?  // optional if you upload before creating message
-  message     Message?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId   String? // optional if you upload before creating message
+  message     Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
   chatId      String
   groupId     String
   uploaderId  String
-  storagePath String   // path inside bucket: e.g. attachments/{groupId}/{uuid}.jpg
+  storagePath String // path inside bucket: e.g. attachments/{groupId}/{uuid}.jpg
   mime        String
   size        Int
   width       Int?
   height      Int?
-  thumbPath   String?  // optional generated thumbnail path
+  thumbPath   String? // optional generated thumbnail path
   createdAt   DateTime @default(now())
 
   @@index([chatId])
   @@index([groupId])
   @@index([uploaderId])
 }
-
 
 // NOTIFICATION SYSTEM
 

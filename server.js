@@ -1840,14 +1840,17 @@ app.prepare().then(() => {
                 emitUnreadCount(chat.id, user.userId);
             }
           }
+          const notifUrl = `/groups/${groupId}`;
 
           await notifyGroupParticipants({
+            type: "GROUP_MESSAGE",
             groupId,
             message: saved, // the saved message object you already created
             group, // the group object you already fetched earlier
             senderId: fromUserId, // sender id from your handler
             // prisma, // your prisma client (db or prisma)
             sendFcmNotification, // imported helper from lib/fcmServer
+            url: notifUrl, // <<--- important: service worker will read this
           });
 
           // ---- tailored payloads ----

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import * as React from "react";
@@ -34,6 +35,8 @@ interface Props {
   todo: Todo;
 }
 
+type Priority = "NONE" | "LOW" | "MEDIUM" | "HIGH";
+
 export function UpdateTodo({ todo }: Props) {
   const { title, id, content, completed, date } = todo;
   const [todoName, setTodoName] = React.useState(title);
@@ -47,6 +50,11 @@ export function UpdateTodo({ todo }: Props) {
 
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  // PRIORITY: state initialised defensively from todo (server may or may not include it)
+  const [priorityState, setPriorityState] = React.useState<Priority>(
+    (todo as any).priority ?? "NONE"
+  );
 
   // Unified mutation accepting fields
   const updateMutation = useMutation({
@@ -90,18 +98,26 @@ export function UpdateTodo({ todo }: Props) {
     updateMutation.mutate({ completed: value });
   };
 
+  // PRIORITY: small helper to change priority (optimistic UI + server update)
+  const handlePriorityClick = (p: Priority) => {
+    setPriorityState(p);
+    updateMutation.mutate({ priority: p } as Partial<Todo>);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!todoName.trim() || !todoContent!.trim()) {
       toast.error("Please fill out both fields.");
       return;
     }
+    // Include priorityState in the full update payload
     updateMutation.mutate({
       title: todoName,
       content: todoContent,
       completed: todoDone,
       date: selectedDate ? normalizeToStartOfDay(selectedDate) : undefined,
-    });
+      priority: priorityState as any,
+    } as Partial<Todo>);
   };
 
   const options: {
@@ -132,30 +148,55 @@ export function UpdateTodo({ todo }: Props) {
     HALF_DONE: "fill-yellow-300",
   };
 
+  // PRIORITY: options and badge mapping
+  const priorityOptions: { value: Priority; label: string; tone: string }[] = [
+    { value: "NONE", label: "None", tone: "bg-white/6 text-white" },
+    { value: "LOW", label: "Low", tone: "bg-green-600 text-white" },
+    { value: "MEDIUM", label: "Medium", tone: "bg-yellow-500 text-black" },
+    { value: "HIGH", label: "High", tone: "bg-red-500 text-white" },
+  ];
+
+  const priorityBadgeClass: Record<Priority, string> = {
+    NONE: "bg-white/10 text-white/80",
+    LOW: "bg-emerald-600 text-white",
+    MEDIUM: "bg-yellow-500 text-black",
+    HIGH: "bg-red-500 text-white",
+  };
+
   return (
     <Drawer>
       <DrawerTrigger asChild>
         <motion.span
           initial={{ scale: 1 }}
           whileHover={{
-            scale: 1.1,
+            scale: 1.05,
             textShadow: "0px 0px 8px rgba(79, 70, 229, 0.8)",
           }}
-          className={`flex items-center gap-1 cursor-pointer transition-colors duration-200 
-            ${
-              todoDone === "DONE"
-                ? "text-purple-300/60 italic line-through"
-                : "text-purple-200 hover:text-purple-400"
-            }`}
+          // allow overflow so left icon / badge don't get clipped; protect icon from shrinking
+          className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 overflow-visible min-w-0
+          ${
+            todoDone === "DONE"
+              ? "text-purple-300/60 italic line-through"
+              : "text-purple-200 hover:text-purple-400"
+          }`}
         >
-          <Star className={fillColors[todoDone]} /> {todoName}
+          <Star className={`${fillColors[todoDone]} flex-shrink-0`} />
+          <span className="truncate min-w-0">{todoName}</span>
+
+          {/* PRIORITY: small badge next to name — smaller text to avoid overflow */}
+          <span
+            className={`ml-2 px-2 py-0.5 text-[10px] leading-none rounded-full ${priorityBadgeClass[priorityState]}`}
+            aria-hidden
+          >
+            {priorityState === "NONE" ? "No" : priorityState.slice(0, 4)}
+          </span>
         </motion.span>
       </DrawerTrigger>
 
       <DrawerContent
         className="bg-gradient-to-br from-purple-900 via-indigo-800 to-blue-900
-             backdrop-blur-xl shadow-2xl border-l-4 border-purple-500
-             rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden"
+           backdrop-blur-xl shadow-2xl border-l-4 border-purple-500
+           rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden"
       >
         <form
           onSubmit={handleSubmit}
@@ -169,51 +210,72 @@ export function UpdateTodo({ todo }: Props) {
               <Star className="fill-yellow-300 w-5 h-5 animate-spin-slow" />
             </DrawerTitle>
 
-            {/* Status selector */}
-            <div className="space-y-2">
-              <Label className="text-gray-100 font-semibold">
-                Status (click to update)
-              </Label>
-              <div className="flex gap-3">
-                {options.map(({ value, label, icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => handleStatusClick(value)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg transition-transform duration-200 ${
-                      todoDone === value
-                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
-                        : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    }`}
-                  >
-                    {icon}
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </DrawerHeader>
+            {/* Status selector — inline on all screen sizes */}
+<div className="space-y-3 w-full">
+  <div>
+    <Label className="text-gray-100 font-semibold">Status</Label>
 
-          <Button
+    {/* Inline row always */}
+    <div className="flex flex-row gap-2 mt-2 items-center">
+      {options.map(({ value, label, icon }) => {
+        // shorter label mapping kept optional
+        const shortLabelMap: Record<string, string> = {
+          DONE: "Done",
+          HALF_DONE: "Half",
+          NOT_DONE: "Open",
+        };
+        const short = shortLabelMap[value] ?? label;
+
+        return (
+          <button
+            key={value}
             type="button"
-            onClick={() => {
-              if (!date) {
-                return toast.error("This todo does not have a date assigned.");
-              }
-              const currentDate = new Date(date);
-              const nextDate = new Date(currentDate);
-              nextDate.setDate(currentDate.getDate() + 1);
-              const midnightUTC = normalizeToStartOfDay(nextDate);
-              updateMutation.mutate({ date: midnightUTC });
-              toast.success("Todo migrated to the next day!");
-            }}
-            className="bg-gradient-to-r from-pink-500 to-red-500 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform"
+            onClick={() => handleStatusClick(value)}
+            className={`flex items-center justify-center gap-2 px-2 py-1 h-9 rounded-md shadow-sm transition-transform duration-180 text-sm
+              ${
+                todoDone === value
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+              }`}
+            aria-pressed={todoDone === value}
+            title={label}
           >
-            ⏭️ Migrate to Next Date
-          </Button>
+            <span className="flex-shrink-0">{icon}</span>
+            <span className="truncate">{short}</span>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+</div>
+
+          </DrawerHeader>
 
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto space-y-6 pr-1 mt-2 no-scrollbar">
+            {/* Migrate to Next Date (moved from header into scroll area) */}
+            <div>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!date) {
+                    return toast.error(
+                      "This todo does not have a date assigned."
+                    );
+                  }
+                  const currentDate = new Date(date);
+                  const nextDate = new Date(currentDate);
+                  nextDate.setDate(currentDate.getDate() + 1);
+                  const midnightUTC = normalizeToStartOfDay(nextDate);
+                  updateMutation.mutate({ date: midnightUTC });
+                  toast.success("Todo migrated to the next day!");
+                }}
+                className="w-full bg-gradient-to-r from-pink-500 to-red-500 text-white font-bold px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform"
+              >
+                ⏭️ Migrate to Next Date
+              </Button>
+            </div>
+
             <div className="space-y-2">
               <Label className="text-gray-100 font-semibold">
                 Migrate Todo to Date
@@ -257,6 +319,41 @@ export function UpdateTodo({ todo }: Props) {
               >
                 📆 Migrate to Selected Date
               </Button>
+            </div>
+
+            {/* PRIORITY selector (moved here) */}
+            <div className="space-y-2">
+              <Label className="text-gray-100 font-semibold">Priority</Label>
+              <div className="flex flex-row gap-2 mt-2 items-center">
+                {priorityOptions.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => handlePriorityClick(p.value)}
+                    className={`flex items-center gap-2 px-2 py-1 h-9 rounded-md shadow-sm transition-transform duration-150 text-sm
+          ${
+            priorityState === p.value
+              ? "transform scale-105 ring-2 ring-offset-1 ring-white/20"
+              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+          }`}
+                    aria-pressed={priorityState === p.value}
+                    title={p.label}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        p.value === "NONE"
+                          ? "bg-white/40"
+                          : p.value === "LOW"
+                          ? "bg-emerald-400"
+                          : p.value === "MEDIUM"
+                          ? "bg-yellow-300"
+                          : "bg-red-400"
+                      }`}
+                    />
+                    <span className="truncate">{p.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Todo Title */}

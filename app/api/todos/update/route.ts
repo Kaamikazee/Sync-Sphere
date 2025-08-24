@@ -2,7 +2,6 @@ import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { updateTodoSchema } from "@/schemas/updateTodoSchema";
 import { getUserDayRange } from "@/utils/IsToday";
-// import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -32,41 +31,48 @@ export async function POST(request: Request) {
     content,
     completed, // default value
     date, // Optional date field
+    priority, // <-- new, optional
   } = result.data;
 
-   // Ensure timezone & resetHour exist (fallbacks if missing)
-    const timezone = user.timezone ?? "Asia/Kolkata";
-    const resetHour = user.resetHour ?? 0;
-  
-    // Pick the base date (user-specified or today)
-    const baseDate = date ? new Date(date) : new Date();
-  
-    // Get that day's start & end in UTC according to user's timezone/resetHour
-    const { startUtc } = getUserDayRange(
-      { timezone, resetHour },
-      baseDate
-    );
-  
-    const finalDate = date
-      ? getUserDayRange({ timezone, resetHour }, new Date(date)).startUtc
-      : startUtc;
+  // Ensure timezone & resetHour exist (fallbacks if missing)
+  const timezone = user.timezone ?? "Asia/Kolkata";
+  const resetHour = user.resetHour ?? 0;
+
+  // Pick the base date (user-specified or today)
+  const baseDate = date ? new Date(date) : new Date();
+
+  // Get that day's start & end in UTC according to user's timezone/resetHour
+  const { startUtc } = getUserDayRange({ timezone, resetHour }, baseDate);
+
+  const finalDate = date
+    ? getUserDayRange({ timezone, resetHour }, new Date(date)).startUtc
+    : startUtc;
 
   try {
+    // Build update payload only with fields we have (avoid overwriting with undefined)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dataToUpdate: any = {
+      content,
+      title,
+      completed,
+      date: finalDate,
+    };
+
+    // Only include priority if provided in payload (keeps code defensive)
+    if (typeof priority !== "undefined") {
+      dataToUpdate.priority = priority;
+    }
+
     await db.todo.update({
       where: {
         id: todoId,
       },
-      data: {
-        content,
-        title,
-        completed,
-        date: finalDate
-      },
+      data: dataToUpdate,
     });
 
     return NextResponse.json("OK", { status: 200 });
   } catch (error) {
-    console.error("DB ERROR:", error); // <-- ADD THIS
+    console.error("DB ERROR:", error);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
   }
 }

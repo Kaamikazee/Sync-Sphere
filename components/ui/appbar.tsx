@@ -8,6 +8,7 @@ import {
   FaUserCircle,
   FaBars,
   FaTimes,
+  FaClipboardList,
 } from "react-icons/fa";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { signOut } from "next-auth/react";
@@ -77,6 +78,16 @@ export default function MenuAppBar() {
                 <FaClock className="w-5 h-5" />
                 <span>Timer</span>
               </Link>
+
+              {/* Todos link for desktop */}
+              <Link
+                className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
+                href="/todos"
+              >
+                <FaClipboardList className="w-5 h-5" />
+                <span>Todos</span>
+              </Link>
+
               <Link
                 className="flex gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
                 href="/profile"
@@ -179,6 +190,16 @@ export default function MenuAppBar() {
                 >
                   <FaClock className="w-5 h-5" />
                   <span>Timer</span>
+                </Link>
+
+                {/* Todos link for mobile */}
+                <Link
+                  className="flex items-center gap-2 text-blue-900 hover:text-indigo-600 transition-colors"
+                  href="/todos"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <FaClipboardList className="w-5 h-5" />
+                  <span>Todos</span>
                 </Link>
 
                 <Link
