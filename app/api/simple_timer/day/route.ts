@@ -2,53 +2,52 @@
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserDayRange } from "@/utils/IsToday";
-import { splitSecondsByUserDay } from "@/utils/splitSecondsByUserDay";
 import { NextResponse } from "next/server";
 
 /**
  * Split elapsed seconds between user-days.
  * Returns an array of { date: Date (startUtc for that user-day), seconds: number }.
  */
-// function splitSecondsByUserDay(
-//   start: Date,
-//   end: Date,
-//   timezone: string,
-//   resetHour: number
-// ): Array<{ date: Date; seconds: number }> {
-//   if (end <= start) return [];
+function splitSecondsByUserDay(
+  start: Date,
+  end: Date,
+  timezone: string,
+  resetHour: number
+): Array<{ date: Date; seconds: number }> {
+  if (end <= start) return [];
 
-//   const parts: Array<{ date: Date; seconds: number }> = [];
-//   let cursor = new Date(start);
+  const parts: Array<{ date: Date; seconds: number }> = [];
+  let cursor = new Date(start);
 
-//   while (cursor < end) {
-//     const { startUtc: dayStartUtc } = getUserDayRange(
-//       { timezone, resetHour },
-//       cursor
-//     );
-//     const nextDayStartUtc = new Date(dayStartUtc.getTime() + 24 * 3600 * 1000);
+  while (cursor < end) {
+    const { startUtc: dayStartUtc } = getUserDayRange(
+      { timezone, resetHour },
+      cursor
+    );
+    const nextDayStartUtc = new Date(dayStartUtc.getTime() + 24 * 3600 * 1000);
 
-//     const segmentEnd = new Date(
-//       Math.min(end.getTime(), nextDayStartUtc.getTime())
-//     );
-//     const secs = Math.floor((segmentEnd.getTime() - cursor.getTime()) / 1000);
+    const segmentEnd = new Date(
+      Math.min(end.getTime(), nextDayStartUtc.getTime())
+    );
+    const secs = Math.floor((segmentEnd.getTime() - cursor.getTime()) / 1000);
 
-//     if (secs > 0) parts.push({ date: new Date(dayStartUtc), seconds: secs });
+    if (secs > 0) parts.push({ date: new Date(dayStartUtc), seconds: secs });
 
-//     cursor = segmentEnd;
-//   }
+    cursor = segmentEnd;
+  }
 
-//   // merge parts with same date
-//   const merged = new Map<string, number>();
-//   for (const p of parts) {
-//     const iso = p.date.toISOString();
-//     merged.set(iso, (merged.get(iso) ?? 0) + p.seconds);
-//   }
+  // merge parts with same date
+  const merged = new Map<string, number>();
+  for (const p of parts) {
+    const iso = p.date.toISOString();
+    merged.set(iso, (merged.get(iso) ?? 0) + p.seconds);
+  }
 
-//   return Array.from(merged.entries()).map(([iso, seconds]) => ({
-//     date: new Date(iso),
-//     seconds,
-//   }));
-// }
+  return Array.from(merged.entries()).map(([iso, seconds]) => ({
+    date: new Date(iso),
+    seconds,
+  }));
+}
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url);
