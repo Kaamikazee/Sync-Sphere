@@ -19,18 +19,6 @@ export interface MemberWithTimer {
   Role: UserPermission;
 }
 
-const parseSafeDate = (v: unknown): Date | null => {
-  if (!v) return null;
-  // eslint-disable-next-line
-  const d = new Date(v as any);
-  return Number.isFinite(d.getTime()) ? d : null;
-};
-
-const toNumberSafe = (v: unknown): number => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.floor(n) : 0;
-};
-
 interface Props {
   uuserId: string;
   groupId: string;
@@ -56,20 +44,14 @@ export const NewLeaderboard = ({
   const normalizedGroupId = String(groupId).trim();
 
   const fetchMembers = async () => {
-    const res = await fetch(
-      `/api/simple_timer/get?groupId=${encodeURIComponent(groupId)}`
-    );
+    const res = await fetch(`/api/simple_timer/get?groupId=${encodeURIComponent(groupId)}`);
     const data = await res.json();
     return data.map((m: { user: MemberWithTimer }) => {
       const user = m.user;
       return {
         ...user,
-        // ensure totalSeconds is a number
-        totalSeconds: toNumberSafe(user.totalSeconds),
-        // parse startTimestamp safely
-        startTimestamp: parseSafeDate(user.startTimestamp),
-        // preserve other fields (isRunning etc.)
-      } as MemberWithTimer;
+        startTimestamp: user.startTimestamp ? new Date(user.startTimestamp) : null,
+      };
     });
   };
 
@@ -89,10 +71,7 @@ export const NewLeaderboard = ({
     if (!socket) return;
 
     const join = () => {
-      socket.emit("joinGroup", {
-        groupId: normalizedGroupId,
-        userId: normalizedUserId,
-      });
+      socket.emit("joinGroup", { groupId: normalizedGroupId, userId: normalizedUserId });
       // immediately ask server for current online users for fast UI
       socket.emit("get-online-users", { groupId: normalizedGroupId });
       console.log("joinGroup emitted", normalizedGroupId, normalizedUserId);
@@ -115,10 +94,11 @@ export const NewLeaderboard = ({
       startTime: string | number | Date;
     }) => {
       const uid = String(userId).trim();
-      const parsed = parseSafeDate(startTime);
       setMembers((prev) =>
         prev.map((m) =>
-          m.id === uid ? { ...m, isRunning: true, startTimestamp: parsed } : m
+          m.id === uid
+            ? { ...m, isRunning: true, startTimestamp: startTime ? new Date(startTime) : null }
+            : m
         )
       );
     };
@@ -128,10 +108,9 @@ export const NewLeaderboard = ({
       totalSeconds,
     }: {
       userId: string;
-      totalSeconds: number | string | null;
+      totalSeconds: number;
     }) => {
       const uid = String(userId).trim();
-      const secs = toNumberSafe(totalSeconds);
       setMembers((prev) =>
         prev.map((m) =>
           m.id === uid
@@ -139,45 +118,7 @@ export const NewLeaderboard = ({
                 ...m,
                 isRunning: false,
                 startTimestamp: null,
-                totalSeconds: secs,
-              }
-            : m
-        )
-      );
-    };
-
-    const handleTick = ({
-      userId,
-      currentTotalSeconds,
-    }: {
-      userId: string;
-      currentTotalSeconds: number | string | null;
-    }) => {
-      const uid = String(userId).trim();
-      const secs = toNumberSafe(currentTotalSeconds);
-      setMembers((prev) =>
-        prev.map((m) => (m.id === uid ? { ...m, totalSeconds: secs } : m))
-      );
-    };
-
-    const handleUpdated = (payload: {
-      userId: string;
-      isRunning: boolean;
-      totalSeconds: number | string | null;
-      startTime?: string | number | null;
-      activeFocusAreaId?: string | null;
-    }) => {
-      const uid = String(payload.userId).trim();
-      const parsed = parseSafeDate(payload.startTime);
-      const secs = toNumberSafe(payload.totalSeconds);
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === uid
-            ? {
-                ...m,
-                isRunning: !!payload.isRunning,
-                totalSeconds: secs,
-                startTimestamp: parsed,
+                totalSeconds,
               }
             : m
         )
@@ -187,6 +128,53 @@ export const NewLeaderboard = ({
     const handleOnlineUsers = (ids: string[]) => {
       setOnlineUserIds(ids.map((id) => String(id).trim()));
     };
+
+    // Lightweight per-second server-provided tick (authoritative per-second)
+    const handleTick = ({
+      userId,
+      currentTotalSeconds,
+    }: {
+      userId: string;
+      currentTotalSeconds: number;
+      activeFocusAreaId?: string | null;
+    }) => {
+      const uid = String(userId).trim();
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === uid
+            ? {
+                ...m,
+                // keep isRunning/startTimestamp as-is (server tick is just an update to base)
+                totalSeconds: currentTotalSeconds,
+              }
+            : m
+        )
+      );
+    };
+
+    // Authoritative update from DB/routes (replace base + running state)
+    const handleUpdated = (payload: {
+      userId: string;
+      isRunning: boolean;
+      totalSeconds: number;
+      startTime?: string | number | null;
+      activeFocusAreaId?: string | null;
+    }) => {
+      const uid = String(payload.userId).trim();
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === uid
+            ? {
+                ...m,
+                isRunning: !!payload.isRunning,
+                totalSeconds: payload.totalSeconds,
+                startTimestamp: payload.startTime ? new Date(payload.startTime) : null,
+              }
+            : m
+        )
+      );
+    };
+
     // Register listeners
     socket.on("timer-started", handleStart);
     socket.on("timer-stopped", handleStop);
@@ -197,10 +185,7 @@ export const NewLeaderboard = ({
     // cleanup
     return () => {
       try {
-        socket.emit("leaveGroup", {
-          groupId: normalizedGroupId,
-          userId: normalizedUserId,
-        });
+        socket.emit("leaveGroup", { groupId: normalizedGroupId, userId: normalizedUserId });
       } catch {
         // ignore if socket is disconnected
       }
