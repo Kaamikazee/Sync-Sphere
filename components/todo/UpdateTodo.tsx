@@ -211,44 +211,43 @@ export function UpdateTodo({ todo }: Props) {
             </DrawerTitle>
 
             {/* Status selector — inline on all screen sizes */}
-<div className="space-y-3 w-full">
-  <div>
-    <Label className="text-gray-100 font-semibold">Status</Label>
+            <div className="space-y-3 w-full">
+              <div>
+                <Label className="text-gray-100 font-semibold">Status</Label>
 
-    {/* Inline row always */}
-    <div className="flex flex-row gap-2 mt-2 items-center">
-      {options.map(({ value, label, icon }) => {
-        // shorter label mapping kept optional
-        const shortLabelMap: Record<string, string> = {
-          DONE: "Done",
-          HALF_DONE: "Half",
-          NOT_DONE: "Open",
-        };
-        const short = shortLabelMap[value] ?? label;
+                {/* Inline row always */}
+                <div className="flex flex-row gap-2 mt-2 items-center">
+                  {options.map(({ value, label, icon }) => {
+                    // shorter label mapping kept optional
+                    const shortLabelMap: Record<string, string> = {
+                      DONE: "Done",
+                      HALF_DONE: "Half",
+                      NOT_DONE: "Open",
+                    };
+                    const short = shortLabelMap[value] ?? label;
 
-        return (
-          <button
-            key={value}
-            type="button"
-            onClick={() => handleStatusClick(value)}
-            className={`flex items-center justify-center gap-2 px-2 py-1 h-9 rounded-md shadow-sm transition-transform duration-180 text-sm
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => handleStatusClick(value)}
+                        className={`flex items-center justify-center gap-2 px-2 py-1 h-9 rounded-md shadow-sm transition-transform duration-180 text-sm
               ${
                 todoDone === value
                   ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white transform scale-105"
                   : "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
               }`}
-            aria-pressed={todoDone === value}
-            title={label}
-          >
-            <span className="flex-shrink-0">{icon}</span>
-            <span className="truncate">{short}</span>
-          </button>
-        );
-      })}
-    </div>
-  </div>
-</div>
-
+                        aria-pressed={todoDone === value}
+                        title={label}
+                      >
+                        <span className="flex-shrink-0">{icon}</span>
+                        <span className="truncate">{short}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </DrawerHeader>
 
           {/* Scrollable content */}

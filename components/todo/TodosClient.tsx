@@ -42,10 +42,10 @@ type TodoSerialized = {
 
 export function TodosClient({
   initialTodos,
-}: //   userId,
-{
+  focusAreaNamesAndIds,
+}: {
   initialTodos: TodoSerialized[];
-  userId: string;
+  focusAreaNamesAndIds: { id: string; name: string }[];
 }) {
   const [todos, setTodos] = React.useState<TodoSerialized[]>(
     initialTodos || []
@@ -233,7 +233,7 @@ export function TodosClient({
           <div>
             {/* make the create CTA more touch-friendly on mobile via padding */}
             <div className="py-0.5">
-              <CreateTodo focusAreaId={undefined as any} />
+              <CreateTodo focusAreaId={undefined as any} focusAreaNamesAndIds={focusAreaNamesAndIds} />
             </div>
           </div>
         </div>
@@ -290,7 +290,7 @@ export function TodosClient({
           />
           {/* Provide quick create (will open your existing CreateTodo component) */}
           <div className="sm:hidden">
-            <CreateTodo focusAreaId={undefined as any} />
+            <CreateTodo focusAreaId={undefined as any} focusAreaNamesAndIds={focusAreaNamesAndIds} />
           </div>
         </div>
       </div>
@@ -349,7 +349,25 @@ export function TodosClient({
                                   : "text-white"
                               } text-sm sm:text-base`}
                             >
-                              {t.title}
+                              {/* UpdateTodo trigger: we reuse your existing component which shows a drawer */}
+                          <div className="ml-1">
+                            <UpdateTodo
+                              todo={
+                                {
+                                  id: t.id,
+                                  userId: t.userId,
+                                  focusAreaId: t.focusAreaId,
+                                  title: t.title,
+                                  content: t.content ?? undefined,
+                                  completed: t.completed as any,
+                                  date: t.date ? new Date(t.date) : undefined,
+                                  priority: t.priority as any,
+                                  createdAt: new Date(t.createdAt),
+                                  updatedAt: new Date(t.updatedAt),
+                                } as any
+                              }
+                            />
+                          </div>
                             </div>
                             <div className="text-xs text-white/60 truncate">
                               {t.focusArea?.name ?? "Unassigned"}
@@ -377,26 +395,6 @@ export function TodosClient({
                                 </div>
                               )
                             )}
-                          </div>
-
-                          {/* UpdateTodo trigger: we reuse your existing component which shows a drawer */}
-                          <div className="ml-1">
-                            <UpdateTodo
-                              todo={
-                                {
-                                  id: t.id,
-                                  userId: t.userId,
-                                  focusAreaId: t.focusAreaId,
-                                  title: t.title,
-                                  content: t.content ?? undefined,
-                                  completed: t.completed as any,
-                                  date: t.date ? new Date(t.date) : undefined,
-                                  priority: t.priority as any,
-                                  createdAt: new Date(t.createdAt),
-                                  updatedAt: new Date(t.updatedAt),
-                                } as any
-                              }
-                            />
                           </div>
                         </div>
                       </motion.div>

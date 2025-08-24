@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { getAuthSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { TodosClient } from "@/components/todo/TodosClient";
+import { getFocusAreas } from "@/lib/api";
 
 // --------------------------------------------------
 // Server component: loads all todos for the current user
@@ -23,6 +24,12 @@ export default async function Page() {
     include: { focusArea: true },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
+
+  const focusAreas = await getFocusAreas(session.user.id);
+        const focusAreaNamesAndIds = focusAreas!.map((item) => ({
+          name: item.name,
+          id: item.id
+        })).filter(Boolean);
 
   // Serialize dates to ISO strings so they are safe to pass to client
   const serialized = todos.map((t) => ({
@@ -60,7 +67,7 @@ export default async function Page() {
 
         {/* Main client interactive list (keeps same API) */}
         <div className="mt-6">
-          <TodosClient initialTodos={serialized} userId={userId} />
+          <TodosClient initialTodos={serialized} focusAreaNamesAndIds={focusAreaNamesAndIds} />
         </div>
       </div>
     </div>
