@@ -179,6 +179,8 @@ export const SimpleTimerContainer = ({
   }, [isRunning, totalSeconds, startTimeStamp]);
 
   // Join room and reconcile updates from server
+// Replace the existing "Join room and reconcile updates from server" useEffect with this:
+
 useEffect(() => {
   if (!socket || !userId) return;
 
@@ -186,37 +188,46 @@ useEffect(() => {
   socket.emit("joinUserRoom", { userId });
 
   const onUpdate = (payload: {
-  isRunning: boolean;
-  activeFocusAreaId: string | null;
-  totalSeconds: number | null;
-  startTime: number | null;
-}) => {
-  useRunningStore.getState().setRunning(payload.isRunning);
-  useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId);
+    userId?: string; // might be present for group broadcasts
+    isRunning: boolean;
+    activeFocusAreaId: string | null;
+    totalSeconds: number | null;
+    startTime: number | null;
+  }) => {
+    // If the server included a userId and it does NOT match this client, ignore it.
+    // If server did NOT include userId (legacy/per-user emit), assume it's for this socket.
+    if (payload.userId && String(payload.userId) !== String(userId)) {
+      // Not for us — ignore
+      return;
+    }
 
-  // Only overwrite time when server provides an authoritative numeric value
-  if (typeof payload.totalSeconds === "number" && !Number.isNaN(payload.totalSeconds)) {
-    baselineRef.current = payload.totalSeconds;
-    setTime(payload.totalSeconds);
-  } else if (payload.startTime) {
-    // server told us the timer started; set startTime but keep the current baseline/time
-    setStartTime(payload.startTime);
-    // ensure baselineRef is in sync with the currently-displayed time so the interval will add correctly
-    baselineRef.current = timeRef.current;
-  }
+    // At this point the payload is either explicitly for this user or was sent to the user's room.
+    useRunningStore.getState().setRunning(!!payload.isRunning);
+    useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId ?? null);
 
-  // if server explicitly cleared startTime (stop), reflect that
-  if (!payload.isRunning) {
-    setStartTime(null);
-  }
-};
+    // Only overwrite time when server provides an authoritative numeric value
+    if (typeof payload.totalSeconds === "number" && !Number.isNaN(payload.totalSeconds)) {
+      baselineRef.current = payload.totalSeconds;
+      setTime(payload.totalSeconds);
+    } else if (payload.startTime) {
+      // server told us the timer started; set startTime but keep the current baseline/time
+      setStartTime(payload.startTime);
+      // ensure baselineRef is in sync with the currently-displayed time so the interval will add correctly
+      baselineRef.current = timeRef.current;
+    }
 
+    // if server explicitly cleared startTime (stop), reflect that
+    if (!payload.isRunning) {
+      setStartTime(null);
+    }
+  };
 
   socket.on("timer:updated", onUpdate);
   return () => {
     socket.off("timer:updated", onUpdate);
   };
 }, [socket, userId]);
+
 
 
    useEffect(() => {

@@ -862,7 +862,7 @@ app.prepare().then(() => {
           // soft delete: mark deleted=true and optionally replace content
           const deleted = await prisma.message.update({
             where: { id: messageId },
-            data: { isDeleted: true, content: "[deleted]", attachments: [] },
+            data: { isDeleted: true, content: "[deleted]" },
           });
 
           const chatId = deleted.chatId;
@@ -1094,6 +1094,15 @@ app.prepare().then(() => {
       }
     });
 
+    function broadcastToMemberGroups(socket, eventName, payload) {
+      // socket.rooms is a Set-like (contains socket.id plus joined rooms)
+      for (const room of socket.rooms) {
+        // joinGroup should have joined group rooms with a prefix like "group:<id>"
+        if (typeof room === "string" && room.startsWith("group:")) {
+          io.to(room).emit(eventName, payload);
+        }
+      }
+    }
     // --- activity / timer handlers ---
     socket.on("joinUserRoom", ({ userId }) => {
       if (!userId) return;
@@ -1102,6 +1111,11 @@ app.prepare().then(() => {
 
     // start-timer: optimistic fast-notify.
     // Client should send: { userId, startTime, focusAreaId? }
+    // --- server-side socket handlers (patch) ---
+    // assumes `io` and `socket` are in scope and getAuthUserId exists
+
+    // start-timer: optimistic fast-notify.
+    // Client should send: { userId, startTime, focusAreaId?, groupId? }
     socket.on(
       "start-timer",
       ({ userId: payloadUserId, startTime, focusAreaId }) => {
@@ -1109,7 +1123,6 @@ app.prepare().then(() => {
           const userId = getAuthUserId(socket, payloadUserId);
           if (!userId) return;
 
-          // Remember which focus is running on this socket (optional convenience)
           if (focusAreaId) socket.data.activeFocusAreaId = focusAreaId;
 
           console.log("TIMER-STARTED (socket)", {
@@ -1118,20 +1131,34 @@ app.prepare().then(() => {
             focusAreaId,
           });
 
-          // Short, compatibility event for listeners that expect it
+          // compatibility per-user emit
           io.to(`user:${userId}`).emit("timer-started", {
             userId,
             startTime,
             focusAreaId,
           });
 
-          // Canonical optimistic update payload (clients should reconcile with DB-driven emits)
-          // start-timer handler (change this block)
-          io.to(`user:${userId}`).emit("timer:updated", {
+          // canonical optimistic payload
+          const payload = {
             isRunning: true,
             activeFocusAreaId: focusAreaId ?? null,
-            totalSeconds: null, // <--- don't force 0
+            totalSeconds: null,
             startTime: typeof startTime === "number" ? startTime : Date.now(),
+          };
+
+          // per-user canonical update
+          io.to(`user:${userId}`).emit("timer:updated", payload);
+
+          // ALSO broadcast to any group rooms this socket belongs to (no client groupId required)
+          // add userId into group payload so listeners can attribute the update
+          broadcastToMemberGroups(socket, "timer-started", {
+            userId,
+            startTime,
+            focusAreaId,
+          });
+          broadcastToMemberGroups(socket, "timer:updated", {
+            ...payload,
+            userId,
           });
         } catch (err) {
           console.error("start-timer handler error:", err);
@@ -1139,7 +1166,7 @@ app.prepare().then(() => {
       }
     );
 
-    // stop-timer: optimistic fast-notify.
+    // STOP-TIMER
     // Client should send: { userId, totalSeconds?, segmentId? }
     socket.on(
       "stop-timer",
@@ -1148,7 +1175,6 @@ app.prepare().then(() => {
           const userId = getAuthUserId(socket, payloadUserId);
           if (!userId) return;
 
-          // clear socket-level focus marker
           socket.data.activeFocusAreaId = null;
 
           console.log("TIMER-STOPPED (socket)", {
@@ -1157,20 +1183,33 @@ app.prepare().then(() => {
             segmentId,
           });
 
-          // Compatibility short event
+          // compatibility per-user
           io.to(`user:${userId}`).emit("timer-stopped", {
             userId,
             totalSeconds,
             segmentId,
           });
 
-          // Canonical optimistic update — serverside DB route should still emit final `timer:updated`.
-          io.to(`user:${userId}`).emit("timer:updated", {
+          // canonical payload
+          const payload = {
             isRunning: false,
             activeFocusAreaId: null,
             totalSeconds:
               typeof totalSeconds === "number" ? totalSeconds : null,
             startTime: null,
+          };
+
+          io.to(`user:${userId}`).emit("timer:updated", payload);
+
+          // Broadcast to group rooms this socket belongs to
+          broadcastToMemberGroups(socket, "timer-stopped", {
+            userId,
+            totalSeconds,
+            segmentId,
+          });
+          broadcastToMemberGroups(socket, "timer:updated", {
+            ...payload,
+            userId,
           });
         } catch (err) {
           console.error("stop-timer handler error:", err);
@@ -1178,7 +1217,7 @@ app.prepare().then(() => {
       }
     );
 
-    // tick: receive periodic tick from client and forward to the user's room.
+    // TICK
     // Client should send: { userId, currentTotalSeconds }
     socket.on("tick", ({ userId: payloadUserId, currentTotalSeconds }) => {
       try {
@@ -1187,27 +1226,29 @@ app.prepare().then(() => {
 
         const activeFocusAreaId = socket.data.activeFocusAreaId ?? null;
 
-        // forward tick only to that user's rooms (not everyone)
+        // per-user tick
         io.to(`user:${userId}`).emit("timer-tick", {
           userId,
           currentTotalSeconds,
           activeFocusAreaId,
-          // don't try to be authoritative here — these are just ticks
         });
 
-        // Optional: also emit a canonical "timer:updated" with the tick value if you want clients to
-        // treat ticks as authoritative for display. If you do, include the same payload shape:
-        // io.to(`user:${userId}`).emit("timer:updated", {
-        //   isRunning: true,
-        //   activeFocusAreaId,
-        //   totalSeconds: currentTotalSeconds,
-        //   startTime: null,
-        // });
+        // broadcast to group rooms (so leaderboards receive ticks without needing groupId)
+        broadcastToMemberGroups(socket, "timer-tick", {
+          userId,
+          currentTotalSeconds,
+          activeFocusAreaId,
+        });
+
+        // (optional) you can also emit timer:updated if you want group listeners to treat
+        // ticks as authoritative; do that only if you want to. Example commented out:
+        // const tickPayload = { isRunning: true, activeFocusAreaId, totalSeconds: currentTotalSeconds, startTime: null };
+        // io.to(`user:${userId}`).emit("timer:updated", tickPayload);
+        // broadcastToMemberGroups(socket, "timer:updated", { ...tickPayload, userId });
       } catch (err) {
         console.error("tick handler error:", err);
       }
     });
-
     //
     // Activity events (use activity rooms so only clients that care receive updates)
     //
@@ -1500,6 +1541,10 @@ app.prepare().then(() => {
         socket.data.userId = userId;
         socket.data.groupId = groupId;
         socket.join(groupId);
+
+        const room = `group:${String(groupId).trim()}`;
+        socket.join(room);
+        console.log("socket joined group room:", room, "for user:", userId);
 
         const current = userTimers.get(userId);
         socket.to(groupId).emit("user-joined", { userId, ...current });

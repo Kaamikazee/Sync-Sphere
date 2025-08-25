@@ -522,11 +522,9 @@ function ChatMessageInner({
           <>
             <div className="whitespace-pre-wrap">{msg.content}</div>
             {/* Attachments preview */}
-            {Array.isArray(msg.attachments) &&
-              msg.attachments.length > 0 &&
-              (() => {
-                const attCount = msg.attachments.length;
-                return (
+            {!msg.isDeleted && Array.isArray(msg.attachments) && msg.attachments.length > 0 && (() => {
+              const attCount = msg.attachments.length;
+              return (
                   <div
                     className={`grid gap-2 ${
                       attCount === 1 ? "grid-cols-1" : "grid-cols-3"
