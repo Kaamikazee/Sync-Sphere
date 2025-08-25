@@ -1,30 +1,29 @@
+// app/api/warning/cancel/route.ts
+import { NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
-import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const session = await getAuthSession();
-
   if (!session?.user) {
-    return new Response("Unauthorized", {
-      status: 400,
-      statusText: "Unauthorized User",
-    });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-const { warningId } = await request.json();
+  const body = await request.json();
+  const { warningId } = body;
+  if (!warningId) {
+    return NextResponse.json({ error: "Missing warningId" }, { status: 400 });
+  }
 
   try {
-     await db.warning.delete({
-      where: {
-        id: warningId,
-      }
+    // remove the warning (or mark it cancelled if you prefer a soft-delete field)
+    const deleted = await db.warning.delete({
+      where: { id: warningId },
     });
 
-
-    return NextResponse.json("OK", { status: 200 });
-  } catch (error) {
-    console.error("DB ERROR:", error); // <-- ADD THIS
-    return NextResponse.json("ERRORS.DB_ERROR", { status: 405 });
+    return NextResponse.json({ ok: true, deleted }, { status: 200 });
+  } catch (err) {
+    console.error("DB ERROR (warning cancel):", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

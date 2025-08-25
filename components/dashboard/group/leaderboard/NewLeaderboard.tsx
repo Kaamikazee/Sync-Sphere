@@ -318,6 +318,7 @@ const handleUpdated = (payload: {
                   isOnline={isOnline}
                   isMe={isMe}
                   role={sessionUserRole}
+                  isTimerRunning={member.isRunning}   // 👈 here
                 />
               </li>
             );

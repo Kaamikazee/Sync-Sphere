@@ -18,6 +18,51 @@
   display: none;                /* Safari and Chrome */
 }
 
+/* gradient animation for animated text */
+@keyframes gradientX {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* utility: animated gradient background for text */
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradientX 4s linear infinite;
+}
+
+/* neon / soft-glow text-shadow utilities */
+.text-neon-green {
+  text-shadow: 0 0 6px rgba(72, 187, 120, 0.85),
+               0 0 20px rgba(72, 187, 120, 0.35);
+}
+.text-neon-cyan {
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.85),
+               0 0 24px rgba(56, 189, 248, 0.3);
+}
+.text-neon-magenta {
+  text-shadow: 0 0 6px rgba(219, 39, 119, 0.9),
+               0 0 30px rgba(219, 39, 119, 0.25);
+}
+.text-soft-gold {
+  text-shadow: 0 1px 0 rgba(255,255,255,0.2),
+               0 4px 18px rgba(224, 171, 33, 0.18);
+}
+
+/* subtle outline/stroke fallback for readability */
+.text-outline {
+  -webkit-text-stroke: 0.5px rgba(0,0,0,0.25);
+}
+
+/* small utility to make ring stronger on desktop */
+.ring-strong-desktop {
+  /* will pair with Tailwind ring classes; this just boosts on larger screens */
+}
+@media (min-width: 640px) {
+  .ring-strong-desktop { box-shadow: 0 6px 30px rgba(0,0,0,0.18); }
+}
+
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

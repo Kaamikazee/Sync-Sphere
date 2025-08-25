@@ -27,7 +27,19 @@ interface Props {
   isOnline?: boolean;
   isMe?: boolean;
   role?: string; // Added role prop
+  isTimerRunning?: boolean; // new
 }
+
+const timerTextClasses = `text-xs sm:text-base md:text-lg font-mono font-semibold bg-clip-text text-transparent
+  bg-gradient-to-r from-green-300 via-green-400 to-green-100 animated-gradient text-neon-green`;
+
+const cardHighlightClasses = `ring-2 ring-green-400/60 sm:ring-green-400/80 bg-green-500/6 sm:bg-green-500/8 hover:shadow-[0_12px_40px_rgba(72,187,120,0.14)]`;
+
+const nameNeonClasses = `
+  bg-clip-text text-transparent 
+  bg-gradient-to-r from-green-300 via-green-400 to-green-100 
+  animated-gradient text-neon-green font-semibold
+`;
 
 export function MemberComponent({
   name,
@@ -43,8 +55,10 @@ export function MemberComponent({
   isOnline = false,
   isMe = false,
   role = "Member", // Default to "Member" if not provided
+  isTimerRunning = false,
 }: Props) {
   const queryClient = useQueryClient();
+  const timerHighlight = !warningId && isTimerRunning;
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -156,8 +170,8 @@ export function MemberComponent({
             hover:scale-100 sm:hover:scale-105 
             hover:bg-white/10 sm:hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] 
             hover:ring-0 sm:hover:ring-2 sm:hover:ring-white/30 
-            ${isMe ? "ring-2 ring-indigo-500/80 bg-indigo-500/10" : ""}
-          `}
+             ${isMe ? "ring-2 ring-indigo-500/80 bg-indigo-500/10" : ""}
+            ${warningId ? " " : timerHighlight ? cardHighlightClasses : ""}`}
           >
             {/* Warning Overlay */}
             {warningId && (
@@ -188,7 +202,13 @@ export function MemberComponent({
                 warningId ? "opacity-40 pointer-events-none" : ""
               }`}
             >
-              <span className="text-sm sm:text-lg font-bold text-white/50 sm:text-[#2c2c2c]">
+              <span
+                className={`${warningId ? "opacity-40" : ""} ${
+                  timerHighlight
+                    ? timerTextClasses
+                    : "text-xs sm:text-xl font-mono text-white/80 sm:text-[#2c2c2c]"
+                }`}
+              >
                 #{index + 1}
               </span>
 
@@ -216,7 +236,15 @@ export function MemberComponent({
                 )}
               </div>
 
-              <span className="text-xs sm:text-base font-medium text-white/80 sm:text-[#2c2c2c] flex items-center gap-1 flex-wrap max-w-[120px] sm:max-w-none">
+              <span
+                className={`text-xs sm:text-base flex items-center gap-1 flex-wrap max-w-[120px] sm:max-w-none
+    ${
+      isTimerRunning && !warningId
+        ? nameNeonClasses
+        : "font-medium text-white/80 sm:text-[#2c2c2c]"
+    }
+  `}
+              >
                 {name ?? "Anonymous"}
                 {isMe && (
                   <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 font-semibold">
@@ -228,8 +256,10 @@ export function MemberComponent({
 
             {/* Right section: Timer */}
             <span
-              className={`text-xs sm:text-xl font-mono text-white/80 sm:text-[#2c2c2c] ${
-                warningId ? "opacity-40" : ""
+              className={`${warningId ? "opacity-40" : ""} ${
+                timerHighlight
+                  ? timerTextClasses
+                  : "text-xs sm:text-xl font-mono text-white/80 sm:text-[#2c2c2c]"
               }`}
             >
               {base}
