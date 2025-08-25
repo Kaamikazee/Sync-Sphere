@@ -24,7 +24,7 @@ export const POST = async (req: Request) => {
 
   if (senderId === targetUserId) {
     return NextResponse.json(
-      { error: "You cannot wake yourself up" },
+      { error: "Why would you wake up yourself? huh?"},
       { status: 400, statusText: "Why would you wake up yourself? huh?" }
     );
   }
@@ -43,7 +43,7 @@ export const POST = async (req: Request) => {
     });
 
     if (lastWake) {
-      return NextResponse.json({ error: "Cooldown active" }, { status: 429 });
+      return NextResponse.json({ error: "Cooldown active, You can only wake up once every 2 hours" }, { status: 429 });
     }
 
     // create DB notification
@@ -75,7 +75,7 @@ export const POST = async (req: Request) => {
           notificationId: notif.id,
           groupId: groupId ?? "",
           senderId,
-          url: `/groups/${groupId}`, // or a user profile path if you prefer
+          url: `/dashboard/groups/${groupId}`, // or a user profile path if you prefer
         });
         console.log("[wakeup] FCM sent to", tokens.length, "tokens");
       } catch (fcmErr) {

@@ -17,6 +17,7 @@ export interface MemberWithTimer {
   warningMessage: string | null;
   warningId: string | null;
   Role: UserPermission;
+  lastServerTick?: number | null;
 }
 
 interface Props {
@@ -44,16 +45,17 @@ export const NewLeaderboard = ({
   const normalizedGroupId = String(groupId).trim();
 
   const fetchMembers = async () => {
-    const res = await fetch(`/api/simple_timer/get?groupId=${encodeURIComponent(groupId)}`);
-    const data = await res.json();
-    return data.map((m: { user: MemberWithTimer }) => {
-      const user = m.user;
-      return {
-        ...user,
-        startTimestamp: user.startTimestamp ? new Date(user.startTimestamp) : null,
-      };
-    });
-  };
+  const res = await fetch(`/api/simple_timer/get?groupId=${encodeURIComponent(groupId)}`);
+  const data = await res.json();
+  return data.map((m: { user: MemberWithTimer }) => {
+    const user = m.user;
+    return {
+      ...user,
+      startTimestamp: user.startTimestamp ? new Date(user.startTimestamp) : null,
+      lastServerTick: null, // initialize
+    };
+  });
+};
 
   const { data: membersData, isLoading } = useQuery({
     queryKey: ["groupMembers", groupId],
@@ -131,49 +133,48 @@ export const NewLeaderboard = ({
 
     // Lightweight per-second server-provided tick (authoritative per-second)
     const handleTick = ({
-      userId,
-      currentTotalSeconds,
-    }: {
-      userId: string;
-      currentTotalSeconds: number;
-      activeFocusAreaId?: string | null;
-    }) => {
-      const uid = String(userId).trim();
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === uid
-            ? {
-                ...m,
-                // keep isRunning/startTimestamp as-is (server tick is just an update to base)
-                totalSeconds: currentTotalSeconds,
-              }
-            : m
-        )
-      );
-    };
+  userId,
+  currentTotalSeconds,
+}: {
+  userId: string;
+  currentTotalSeconds: number;
+}) => {
+  const uid = String(userId).trim();
+  setMembers((prev) =>
+    prev.map((m) =>
+      m.id === uid
+        ? {
+            ...m,
+            totalSeconds: currentTotalSeconds,
+            lastServerTick: Date.now(),
+          }
+        : m
+    )
+  );
+};
 
-    // Authoritative update from DB/routes (replace base + running state)
-    const handleUpdated = (payload: {
-      userId: string;
-      isRunning: boolean;
-      totalSeconds: number;
-      startTime?: string | number | null;
-      activeFocusAreaId?: string | null;
-    }) => {
-      const uid = String(payload.userId).trim();
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === uid
-            ? {
-                ...m,
-                isRunning: !!payload.isRunning,
-                totalSeconds: payload.totalSeconds,
-                startTimestamp: payload.startTime ? new Date(payload.startTime) : null,
-              }
-            : m
-        )
-      );
-    };
+const handleUpdated = (payload: {
+  userId: string;
+  isRunning: boolean;
+  totalSeconds: number;
+  startTime?: string | number | null;
+}) => {
+  const uid = String(payload.userId).trim();
+  setMembers((prev) =>
+    prev.map((m) =>
+      m.id === uid
+        ? {
+            ...m,
+            isRunning: !!payload.isRunning,
+            totalSeconds: payload.totalSeconds,
+            startTimestamp: payload.startTime ? new Date(payload.startTime) : null,
+            lastServerTick: Date.now(),
+          }
+        : m
+    )
+  );
+};
+
 
     // Register listeners
     socket.on("timer-started", handleStart);
@@ -222,16 +223,27 @@ export const NewLeaderboard = ({
   };
 
   const getLiveTotalSeconds = (member: MemberWithTimer) => {
-    const base = member.totalSeconds;
-    if (member.isRunning && member.startTimestamp) {
-      const elapsed =
-        Math.floor(
-          (Date.now() - new Date(member.startTimestamp).getTime()) / 1000
-        ) || 0;
-      return base + elapsed;
+  const base = member.totalSeconds || 0;
+
+  // If server gave us a recent tick, trust it (avoid double-counting).
+  if (member.isRunning && member.lastServerTick) {
+    const since = Date.now() - member.lastServerTick;
+    // 1500ms threshold is forgiving for network jitter; adjust if you like.
+    if (since < 1500) {
+      return base;
     }
-    return base;
-  };
+  }
+
+  // Fallback: compute elapsed locally from startTimestamp
+  if (member.isRunning && member.startTimestamp) {
+    const elapsed =
+      Math.floor((Date.now() - new Date(member.startTimestamp).getTime()) / 1000) || 0;
+    return base + elapsed;
+  }
+
+  return base;
+};
+
 
   const sorted = [...members].sort(
     (a, b) => getLiveTotalSeconds(b) - getLiveTotalSeconds(a)

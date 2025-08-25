@@ -58,17 +58,20 @@ export function MemberComponent({
       return new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onSuccess: () => {
-      // Handle success, e.g., show a toast or update state
-
       toast.success(`${name} has been woken up!`, {
         duration: 3000,
       });
     },
-    onError: (error: AxiosError) => {
-      // Handle error, e.g., show an error message
-      toast.error(`Failed to wake up ${name}: ${error.response?.statusText}`, {
+    onError: (error: AxiosError<{ error: string }>) => {
+      const message =
+        error.response?.data?.error ?? // from your API body
+        error.message ?? // network/axios-level error
+        "Something went wrong"; // fallback
+
+      toast.error(`Failed to wake up ${name}: ${message}`, {
         duration: 5000,
       });
+
       console.error("Error waking up:", error);
     },
   });
@@ -210,7 +213,6 @@ export function MemberComponent({
                 )}
                 {isOnline && (
                   <span className="absolute bottom-0 right-0 translate-x-[4px] translate-y-[4px] sm:translate-x-[6px] sm:translate-y-[6px] w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full z-20" />
-
                 )}
               </div>
 
@@ -270,7 +272,7 @@ export function MemberComponent({
               </Button>
             </Link>
             <Button
-            data-ripple
+              data-ripple
               size="sm"
               type="submit"
               disabled={isPending}
@@ -282,7 +284,7 @@ export function MemberComponent({
             {(role === "ADMIN" || role === "OWNER") &&
               (!warningId ? (
                 <Button
-                data-ripple
+                  data-ripple
                   size="sm"
                   type="submit"
                   variant="destructive"
@@ -294,7 +296,7 @@ export function MemberComponent({
                 </Button>
               ) : (
                 <Button
-                data-ripple
+                  data-ripple
                   size="sm"
                   type="submit"
                   variant="outline"

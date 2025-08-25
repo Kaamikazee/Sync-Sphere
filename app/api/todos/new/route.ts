@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const today = startUtc;
 
   if (!user || !focusAreaId) {
-    return new Response("Unauthorized", {
+    return new Response("You need to add Focus Area as well", {
       status: 400,
       statusText: "Unauthorized User",
     });

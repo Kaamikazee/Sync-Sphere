@@ -140,31 +140,6 @@ export const SimpleTimerContainer = ({
   };
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const el = glowRef.current;
-      if (!el) return;
-
-      const rect = el.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      el.style.setProperty("--mouse-x", `${x}px`);
-      el.style.setProperty("--mouse-y", `${y}px`);
-    };
-
-    const el = glowRef.current;
-    if (el) {
-      el.addEventListener("mousemove", handleMouseMove);
-    }
-
-    return () => {
-      if (el) {
-        el.removeEventListener("mousemove", handleMouseMove);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (totalSeconds && typeof totalSeconds === "number") {
       setTime(totalSeconds);
       baselineRef.current = totalSeconds;
@@ -211,21 +186,31 @@ useEffect(() => {
   socket.emit("joinUserRoom", { userId });
 
   const onUpdate = (payload: {
-    isRunning: boolean;
-    activeFocusAreaId: string | null;
-    totalSeconds: number;
-    startTime: number | null;
-  }) => {
-    useRunningStore.getState().setRunning(payload.isRunning);
-    useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId);
+  isRunning: boolean;
+  activeFocusAreaId: string | null;
+  totalSeconds: number | null;
+  startTime: number | null;
+}) => {
+  useRunningStore.getState().setRunning(payload.isRunning);
+  useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId);
 
+  // Only overwrite time when server provides an authoritative numeric value
+  if (typeof payload.totalSeconds === "number" && !Number.isNaN(payload.totalSeconds)) {
+    baselineRef.current = payload.totalSeconds;
     setTime(payload.totalSeconds);
-    if (payload.startTime) {
-      setStartTime(payload.startTime);
-    } else {
-      setStartTime(null);
-    }
-  };
+  } else if (payload.startTime) {
+    // server told us the timer started; set startTime but keep the current baseline/time
+    setStartTime(payload.startTime);
+    // ensure baselineRef is in sync with the currently-displayed time so the interval will add correctly
+    baselineRef.current = timeRef.current;
+  }
+
+  // if server explicitly cleared startTime (stop), reflect that
+  if (!payload.isRunning) {
+    setStartTime(null);
+  }
+};
+
 
   socket.on("timer:updated", onUpdate);
   return () => {
@@ -294,6 +279,31 @@ useEffect(() => {
       queryKey: ["focusAreaTotals", userId, date],
     });
   };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const el = glowRef.current;
+      if (!el) return;
+
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      el.style.setProperty("--mouse-x", `${x}px`);
+      el.style.setProperty("--mouse-y", `${y}px`);
+    };
+
+    const el = glowRef.current;
+    if (el) {
+      el.addEventListener("mousemove", handleMouseMove);
+    }
+
+    return () => {
+      if (el) {
+        el.removeEventListener("mousemove", handleMouseMove);
+      }
+    };
+  }, []);
 
   return (
     <div className="w-full overflow-x-hidden">

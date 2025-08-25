@@ -1126,10 +1126,11 @@ app.prepare().then(() => {
           });
 
           // Canonical optimistic update payload (clients should reconcile with DB-driven emits)
+          // start-timer handler (change this block)
           io.to(`user:${userId}`).emit("timer:updated", {
             isRunning: true,
             activeFocusAreaId: focusAreaId ?? null,
-            totalSeconds: 0, // optimistic; server-side DB upsert will emit authoritative value
+            totalSeconds: null, // <--- don't force 0
             startTime: typeof startTime === "number" ? startTime : Date.now(),
           });
         } catch (err) {
@@ -1840,7 +1841,7 @@ app.prepare().then(() => {
                 emitUnreadCount(chat.id, user.userId);
             }
           }
-          const notifUrl = `/groups/${groupId}`;
+          const notifUrl = `/dashboard/groups/${groupId}/chat`;
 
           await notifyGroupParticipants({
             type: "GROUP_MESSAGE",

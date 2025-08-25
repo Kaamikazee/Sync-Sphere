@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import axios from "axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 // import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,7 @@ import {
 import { format as fformat, parseISO } from "date-fns";
 import { CreateTodo } from "./CreateTodo";
 import { UpdateTodo } from "./UpdateTodo";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { PriorityChip } from "./PriorityChip";
-// import { UpdateTodo } from "@/components/UpdateTodo";
-// import { CreateTodo } from "@/components/CreateTodo";
 
 type Priority = "NONE" | "LOW" | "MEDIUM" | "HIGH";
 type TodoWorkDone = "DONE" | "NOT_DONE" | "HALF_DONE";
@@ -47,40 +43,39 @@ export function TodosClient({
   initialTodos: TodoSerialized[];
   focusAreaNamesAndIds: { id: string; name: string }[];
 }) {
-  const [todos, setTodos] = React.useState<TodoSerialized[]>(
-    initialTodos || []
-  );
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | TodoWorkDone>(
     "ALL"
   );
-  const [priorityFilter, setPriorityFilter] = React.useState<"ALL" | Priority>(
-    "ALL"
-  );
+  const [priorityFilter, setPriorityFilter] = React.useState<
+    "ALL" | Priority
+  >("ALL");
   const [groupBy, setGroupBy] = React.useState<"date" | "focusArea">("date");
   const [query, setQuery] = React.useState("");
 
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
   const reduceMotion = useReducedMotion();
 
-  // Mutation to update a single todo field (used for priority updates)
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<any> }) => {
-      await axios.post(`/api/todos/update?todoId=${id}`, data);
-    },
-    onError: (err: any) => {
-      console.error(err);
-      alert("Failed to update todo");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
-    },
+  // -------------------------
+  // React Query: todos list
+  // -------------------------
+  const fetchTodos = async (): Promise<TodoSerialized[]> => {
+    const { data } = await axios.get("/api/todos/list");
+    return data;
+  };
+
+  const todosQuery = useQuery<TodoSerialized[]>({
+    queryKey: ["todos"],
+    queryFn: fetchTodos,
+    initialData: initialTodos,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 
+  const todos = React.useMemo(() => todosQuery.data ?? [], [todosQuery.data]);
+  // -------------------------
   // Helper: filter todos locally based on current filters/search
+  // -------------------------
   const filtered = React.useMemo(() => {
-    return todos.filter((t) => {
+    return todos.filter((t: any) => {
       if (statusFilter !== "ALL" && t.completed !== statusFilter) return false;
       if (priorityFilter !== "ALL" && t.priority !== priorityFilter)
         return false;
@@ -96,13 +91,13 @@ export function TodosClient({
     });
   }, [todos, statusFilter, priorityFilter, query]);
 
+  // -------------------------
   // Grouping helpers
+  // -------------------------
   const groupedByDate = React.useMemo(() => {
     const map = new Map<string, TodoSerialized[]>();
     for (const t of filtered) {
-      const dateKey = t.date
-        ? fformat(parseISO(t.date), "yyyy-MM-dd")
-        : "No date";
+      const dateKey = t.date ? fformat(parseISO(t.date), "yyyy-MM-dd") : "No date";
       if (!map.has(dateKey)) map.set(dateKey, []);
       map.get(dateKey)!.push(t);
     }
@@ -113,61 +108,13 @@ export function TodosClient({
   const groupedByFocus = React.useMemo(() => {
     const map = new Map<string, TodoSerialized[]>();
     for (const t of filtered) {
-      const key = t.focusArea
-        ? `${t.focusArea.id}||${t.focusArea.name}`
-        : "unassigned||Unassigned";
+      const key = t.focusArea ? `${t.focusArea.id}||${t.focusArea.name}` : "unassigned||Unassigned";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
     // keep insertion order
     return map;
   }, [filtered]);
-
-  // UI action: change priority on a todo
-  const changePriority = (todoId: string, p: Priority) => {
-    // optimistic update
-    setTodos((prev) =>
-      prev.map((x) => (x.id === todoId ? { ...x, priority: p } : x))
-    );
-    updateMutation.mutate({ id: todoId, data: { priority: p } });
-  };
-
-  // Use onInvalidate: subscribe to query cache changes and update local state when ["todos"] changes.
-  React.useEffect(() => {
-    const cache = queryClient.getQueryCache();
-    const unsubscribe = cache.subscribe((event: any) => {
-      try {
-        // event.query should exist when queries change. Use defensive checks.
-        const q = event?.query;
-        if (
-          q?.queryKey &&
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === "todos"
-        ) {
-          // Pull fresh todos data from react-query cache (if available) and update local state.
-          const latest = queryClient.getQueryData<TodoSerialized[]>(["todos"]);
-          if (latest && Array.isArray(latest)) {
-            setTodos(latest);
-          } else {
-            // If cache doesn't have fresh data, keep using server refresh to be safe.
-            // This also triggers a refresh if you rely on router.refresh().
-            router.refresh();
-          }
-        }
-      } catch {
-        // swallow errors so UI doesn't crash due to cache shape differences
-        // console.warn("Query cache event handling error", err);
-      }
-    });
-
-    return () => {
-      try {
-        unsubscribe();
-      } catch {
-        // ignore
-      }
-    };
-  }, [queryClient, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white px-4 sm:px-6 lg:px-8 py-6">
@@ -197,8 +144,7 @@ export function TodosClient({
               Todos
             </h2>
             <p className="text-xs text-white/70 mt-0.5 max-w-xs">
-              Keep track of tasks — frosty glass, vivid gradients, and smooth
-              animations.
+              Keep track of your tasks.
             </p>
           </div>
         </div>
@@ -379,24 +325,6 @@ export function TodosClient({
                               : "No date"}
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                          <div className="flex items-center gap-2 touch-manipulation">
-                            {(["NONE", "LOW", "MEDIUM", "HIGH"] as const).map(
-                              (p) => (
-                                <div key={p} className="p-0.5">
-                                  <PriorityChip
-                                    key={p}
-                                    value={p}
-                                    small
-                                    active={t.priority === p}
-                                    onChange={(nv) => changePriority(t.id, nv)}
-                                  />
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
                       </motion.div>
                     ))}
                   </div>
@@ -469,21 +397,6 @@ export function TodosClient({
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                            <select
-                              className="rounded-md p-2 bg-white/6 text-white text-sm"
-                              value={t.priority}
-                              onChange={(e) =>
-                                changePriority(t.id, e.target.value as Priority)
-                              }
-                              aria-label="Change priority"
-                            >
-                              <option value="NONE">None</option>
-                              <option value="LOW">Low</option>
-                              <option value="MEDIUM">Medium</option>
-                              <option value="HIGH">High</option>
-                            </select>
-                          </div>
                         </motion.div>
                       ))}
                     </div>
