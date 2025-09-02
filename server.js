@@ -1110,12 +1110,6 @@ app.prepare().then(() => {
     });
 
     // start-timer: optimistic fast-notify.
-    // Client should send: { userId, startTime, focusAreaId? }
-    // --- server-side socket handlers (patch) ---
-    // assumes `io` and `socket` are in scope and getAuthUserId exists
-
-    // start-timer: optimistic fast-notify.
-    // Client should send: { userId, startTime, focusAreaId?, groupId? }
     socket.on(
       "start-timer",
       ({ userId: payloadUserId, startTime, focusAreaId }) => {
@@ -1167,7 +1161,6 @@ app.prepare().then(() => {
     );
 
     // STOP-TIMER
-    // Client should send: { userId, totalSeconds?, segmentId? }
     socket.on(
       "stop-timer",
       ({ userId: payloadUserId, totalSeconds, segmentId }) => {
@@ -1218,7 +1211,6 @@ app.prepare().then(() => {
     );
 
     // TICK
-    // Client should send: { userId, currentTotalSeconds }
     socket.on("tick", ({ userId: payloadUserId, currentTotalSeconds }) => {
       try {
         const userId = getAuthUserId(socket, payloadUserId);

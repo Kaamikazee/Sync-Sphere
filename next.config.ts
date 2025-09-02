@@ -10,6 +10,11 @@ const withPWA = require("next-pwa")({
 
 /** @type {NextConfig} */
 const nextConfig: NextConfig = {
+    devIndicators: {
+    // This will hide the small overlay indicating the Next.js server status
+    buildActivity: false,
+    // This setting might also impact other dev overlays.
+  },
   images: {
     remotePatterns: [
       {

@@ -46,13 +46,20 @@ export const NewLeaderboard = ({
 
   const fetchMembers = async () => {
   const res = await fetch(`/api/simple_timer/get?groupId=${encodeURIComponent(groupId)}`);
-  const data = await res.json();
-  return data.map((m: { user: MemberWithTimer }) => {
+  const raw = await res.json();
+
+  // If the API gave us a computed timestamp (serverComputedAt) use it.
+  // Otherwise, for running members assume the API's totalSeconds is fresh and set lastServerTick = now.
+  const now = Date.now();
+
+  return raw.map((m: { user: MemberWithTimer }) => {
     const user = m.user;
     return {
       ...user,
+      // normalise startTimestamp to Date or null
       startTimestamp: user.startTimestamp ? new Date(user.startTimestamp) : null,
-      lastServerTick: null, // initialize
+      // mark the server tick as recent if user is running (pragmatic default)
+      lastServerTick: user.isRunning ? now : null,
     };
   });
 };
@@ -223,26 +230,28 @@ const handleUpdated = (payload: {
   };
 
   const getLiveTotalSeconds = (member: MemberWithTimer) => {
-  const base = member.totalSeconds || 0;
+  // treat totalSeconds only when it's a number (avoid falsy pitfalls)
+  const base = typeof member.totalSeconds === "number" ? member.totalSeconds : 0;
 
-  // If server gave us a recent tick, trust it (avoid double-counting).
-  if (member.isRunning && member.lastServerTick) {
+  // If server gave a recent tick, trust it for a short window
+  if (member.isRunning && typeof member.lastServerTick === "number") {
     const since = Date.now() - member.lastServerTick;
-    // 1500ms threshold is forgiving for network jitter; adjust if you like.
-    if (since < 1500) {
+    const THRESH = 2000; // 2000ms tolerance for network jitter
+    if (since < THRESH) {
+      // The server's totalSeconds is considered up-to-date — don't add local elapsed.
       return base;
     }
   }
 
   // Fallback: compute elapsed locally from startTimestamp
   if (member.isRunning && member.startTimestamp) {
-    const elapsed =
-      Math.floor((Date.now() - new Date(member.startTimestamp).getTime()) / 1000) || 0;
+    const elapsed = Math.floor((Date.now() - new Date(member.startTimestamp).getTime()) / 1000) || 0;
     return base + elapsed;
   }
 
   return base;
 };
+
 
 
   const sorted = [...members].sort(
