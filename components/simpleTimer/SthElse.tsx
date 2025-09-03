@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Pagination,
   PaginationContent,
@@ -22,6 +22,7 @@ import {
 import Image from "next/image";
 import { useSwipeable } from "react-swipeable";
 import { groupsWithUserNameAndRole } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Props {
   groups: groupsWithUserNameAndRole[];
@@ -30,19 +31,71 @@ interface Props {
 }
 
 export function SthElse({ groups, userId, userName }: Props) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 1;
-  const pageCount = Math.ceil(groups.length / itemsPerPage);
+  const pageCount = Math.max(1, Math.ceil(groups.length / itemsPerPage));
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Initialize page from URL ?page= or fallback to localStorage
+  useEffect(() => {
+    let initial = 1;
+    try {
+      const q = searchParams?.get("page");
+      const parsed = q ? parseInt(q, 10) : NaN;
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= pageCount) {
+        initial = parsed;
+      } else {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("sthelse:page") : null;
+        const s = stored ? parseInt(stored, 10) : NaN;
+        if (!isNaN(s) && s >= 1 && s <= pageCount) initial = s;
+      }
+    } catch  {
+      /* ignore */
+    }
+    setCurrentPage(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [/* run once on mount and whenever pageCount changes */ pageCount]);
+
+  // Whenever groups change and currentPage is out of range, clamp it to last page
+  useEffect(() => {
+    if (currentPage > pageCount) {
+      goTo(pageCount);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups.length, pageCount]);
 
   const currentGroup = useMemo(() => {
     const idx = (currentPage - 1) * itemsPerPage;
     return groups[idx];
   }, [currentPage, groups]);
 
+  const updateUrlAndStorage = (page: number) => {
+    try {
+      // Update URL ?page=... (keeps path)
+      const url = new URL(window.location.href);
+      url.searchParams.set("page", String(page));
+      // router.push preserves client-side navigation
+      router.push(url.pathname + url.search);
+    } catch  {
+      // ignore if window not available for some reason
+    }
+
+    try {
+      localStorage.setItem("sthelse:page", String(page));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
   const goTo = (page: number) => {
-    if (page < 1 || page > pageCount) return;
+    if (page < 1) page = 1;
+    if (page > pageCount) page = pageCount;
     setCurrentPage(page);
+    updateUrlAndStorage(page);
   };
 
   const handlers = useSwipeable({
@@ -50,7 +103,6 @@ export function SthElse({ groups, userId, userName }: Props) {
     onSwipedRight: () => goTo(currentPage - 1),
     trackTouch: true,
     trackMouse: false,
-    // touchEventOptions: { passive: false }, // 👈 replaces preventDefaultTouchmoveEvent
   });
 
   return (
@@ -60,7 +112,7 @@ export function SthElse({ groups, userId, userName }: Props) {
     >
       {currentGroup ? (
         <div className="mb-6 sm:mb-8">
-          {/* 👇 Animated Group Name */}
+          {/* Animated Group Name */}
           <AnimatePresence mode="wait">
             <motion.h2
               key={currentGroup.id + "-title"}
@@ -87,15 +139,13 @@ export function SthElse({ groups, userId, userName }: Props) {
                   )}
                 </div>
                 <span className="bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-transparent bg-clip-text break-words">
-                  <Link href={`groups/${currentGroup.id}`}>
-                    {currentGroup.name}
-                  </Link>
+                  <Link href={`groups/${currentGroup.id}`}>{currentGroup.name}</Link>
                 </span>
               </div>
             </motion.h2>
           </AnimatePresence>
 
-          {/* 👇 Animated Leaderboard */}
+          {/* Animated Leaderboard */}
           <AnimatePresence mode="wait">
             <motion.div
               key={currentGroup.id + "-board"}
@@ -103,7 +153,7 @@ export function SthElse({ groups, userId, userName }: Props) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
-              layout="position" // Optional smoother effect
+              layout="position"
             >
               <NewLeaderboard
                 uuserId={userId}
@@ -116,9 +166,7 @@ export function SthElse({ groups, userId, userName }: Props) {
           </AnimatePresence>
         </div>
       ) : (
-        <p className="text-white/70 text-sm sm:text-base">
-          No group on this page.
-        </p>
+        <p className="text-white/70 text-sm sm:text-base">No group on this page.</p>
       )}
 
       {/* Pagination UI (unchanged) */}
@@ -130,7 +178,6 @@ export function SthElse({ groups, userId, userName }: Props) {
             WebkitOverflowScrolling: "touch",
           }}
         >
-          {/* Hide on mobile */}
           <PaginationItem className="hidden sm:block">
             <PaginationPrevious
               href="#"
@@ -143,19 +190,13 @@ export function SthElse({ groups, userId, userName }: Props) {
           </PaginationItem>
 
           {groups.map((group, idx) => (
-            <PaginationItem
-              key={group.id}
-              style={{ scrollSnapAlign: "start" }}
-              className="flex-shrink-0"
-            >
+            <PaginationItem key={group.id} style={{ scrollSnapAlign: "start" }} className="flex-shrink-0">
               <PaginationLink
                 title={group.name}
                 href="#"
                 isActive={currentPage === idx + 1}
                 className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  currentPage === idx + 1
-                    ? "bg-indigo-500 text-white font-semibold"
-                    : "bg-white/10 text-white hover:bg-white/20"
+                  currentPage === idx + 1 ? "bg-indigo-500 text-white font-semibold" : "bg-white/10 text-white hover:bg-white/20"
                 }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -171,7 +212,6 @@ export function SthElse({ groups, userId, userName }: Props) {
             </PaginationItem>
           ))}
 
-          {/* Dialog trigger remains visible */}
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <PaginationItem className="flex-shrink-0">
@@ -209,7 +249,6 @@ export function SthElse({ groups, userId, userName }: Props) {
             </DialogContent>
           </Dialog>
 
-          {/* Hide on mobile */}
           <PaginationItem className="hidden sm:block">
             <PaginationNext
               href="#"
