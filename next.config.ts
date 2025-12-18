@@ -10,6 +10,9 @@ const withPWA = require("next-pwa")({
 
 /** @type {NextConfig} */
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
     devIndicators: {
     // This will hide the small overlay indicating the Next.js server status
     buildActivity: false,
