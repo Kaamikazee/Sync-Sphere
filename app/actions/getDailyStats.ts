@@ -39,8 +39,8 @@ export async function getDailyStats(userId: string, date: string) {
   const session = await checkIfUserCompleteOnboarding("/dashboard");
   const user = session.user;
 
-  const timezone = user.timezone ?? "Asia/Kolkata";
-  const resetHour = user.resetHour ?? 0;
+  const timezone = user?.timezone ?? "Asia/Kolkata";
+  const resetHour = user?.resetHour ?? 0;
 
   const baseDate = date ? new Date(date) : new Date();
   const { startUtc: startUTC, endUtc: endUTC } = getUserDayRange(
