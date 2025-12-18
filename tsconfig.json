@@ -13,15 +13,23 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/**/*.d.ts", "server.js", "app/api/group/get/group_details/[group_id]/route.js", "app/api/group/get/subscribers/[group_id]/route.js", "app/dashboard/groups/[group_id]/announcement/[announcement_id]/page.tsx", "lib/NotifyReceipents.js", "prisma/approveThingSchema.pris"],
-  "exclude": ["node_modules", ".next"]
+  "include": [
+    "next-env.d.ts",
+    "app/**/*",
+    "components/**/*",
+    "lib/**/*",
+    "types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "prisma",
+    "scripts",
+    "**/*.config.*"
+  ]
 }
