@@ -79,7 +79,7 @@ export default function PomodoroContainer({
   );
 
   return (
-    <div className="flex flex-col items-center justify-start pt-10 bg-gradient-to-br from-blue-800 to-indigo-900 p-6 mt-5">
+    <div className="flex flex-col items-center justify-start pt-10 bg-linear-to-br from-blue-800 to-indigo-900 p-6 mt-5">
       <div className="flex items-center justify-between w-full max-w-4xl mb-6">
         <h1 className="text-4xl font-extrabold text-white uppercase tracking-wider drop-shadow-lg">
           🔥 POMODORO CLOCK
