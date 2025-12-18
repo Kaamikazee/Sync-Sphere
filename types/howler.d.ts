@@ -1,6 +1,6 @@
 declare module "howler" {
   export interface HowlOptions {
-    src: string[];
+    src: string[] | string;
     volume?: number;
     loop?: boolean;
     preload?: boolean;
