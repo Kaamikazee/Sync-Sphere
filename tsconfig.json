@@ -30,6 +30,7 @@
     ".next",
     "prisma",
     "scripts",
-    "**/*.config.*"
+    "**/*.config.*",
+    "prisma/seed.ts"
   ]
 }
