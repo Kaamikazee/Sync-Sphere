@@ -10,14 +10,26 @@ export const POST = async (request: Request) => {
   const user = session?.user;
   const userId = user?.id;
 
-  if (!user) {
+  if (!userId) {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
+
+  console.log("🔥 STOP ROUTE HIT", {
+    at: new Date().toISOString(),
+    userId,
+  });
 
   const timezone = user.timezone ?? "Asia/Kolkata";
   const resetHour = user.resetHour ?? 0;
 
-  const body: unknown = await request.json();
+  // body is optional now
+  let body: unknown = {};
+  try {
+    body = await request.json();
+  } catch (err) {
+    console.log(err);
+  }
+
   const result = z
     .object({
       segmentId: z.string().optional(),
@@ -30,21 +42,34 @@ export const POST = async (request: Request) => {
 
   const providedSegmentId = result.data.segmentId;
 
-  // Prefer authoritative RunningTimer row
-  const running = await db.runningTimer.findUnique({ where: { userId } });
+  // authoritative running row
+  const running = await db.runningTimer.findUnique({
+    where: { userId },
+  });
 
-  // Resolve segment to finalize
   let segment = null;
 
-  if (running && running.segmentId) {
-    segment = await db.timerSegment.findUnique({ where: { id: running.segmentId } });
+  if (running?.segmentId) {
+    segment = await db.timerSegment.findUnique({
+      where: { id: running.segmentId },
+      include: {
+        focusArea: { select: { name: true } },
+      },
+    });
   } else if (providedSegmentId) {
-    segment = await db.timerSegment.findUnique({ where: { id: providedSegmentId } });
+    segment = await db.timerSegment.findUnique({
+      where: { id: providedSegmentId },
+      include: {
+        focusArea: { select: { name: true } },
+      },
+    });
   } else {
-    // fallback: find the most recent open focus segment
     segment = await db.timerSegment.findFirst({
       where: { userId, end: null, type: "FOCUS" },
       orderBy: { start: "desc" },
+      include: {
+        focusArea: { select: { name: true } },
+      },
     });
   }
 
@@ -55,28 +80,28 @@ export const POST = async (request: Request) => {
     );
   }
 
-  // IMPORTANT: enforce that only FOCUS segments can be stopped here
   if (segment.type !== "FOCUS") {
     return NextResponse.json("ERRORS.NOT_FOCUS_SEGMENT", { status: 400 });
   }
 
-  // Determine actual start time: prefer running.startTimestamp (authoritative), else segment.start
   const startTimestamp = running?.startTimestamp ?? segment.start;
   const now = new Date();
-  const duration = Math.floor((now.getTime() - new Date(startTimestamp).getTime()) / 1000);
+  const duration = Math.floor(
+    (now.getTime() - new Date(startTimestamp).getTime()) / 1000
+  );
 
   try {
-    // Split seconds by user-day boundaries
-    const perDay = splitSecondsByUserDay(new Date(startTimestamp), now, timezone, resetHour);
+    const perDay = splitSecondsByUserDay(
+      new Date(startTimestamp),
+      now,
+      timezone,
+      resetHour
+    );
 
-    // Build transaction ops
-    // 1) finalize focus segment
-    // 2) create auto-start BREAK segment
-    // 3) upsert per-day dailyTotal increments
-    // 4) delete runningTimer row if present
     // eslint-disable-next-line
     const txOps: any[] = [];
 
+    // finalize focus
     txOps.push(
       db.timerSegment.update({
         where: { id: segment.id },
@@ -87,27 +112,26 @@ export const POST = async (request: Request) => {
       })
     );
 
+    // auto break
     txOps.push(
       db.timerSegment.create({
         data: {
-          userId: userId!,
+          userId,
           type: "BREAK",
           start: now,
         },
       })
     );
 
+    // daily totals
     for (const { date, seconds } of perDay) {
       txOps.push(
         db.dailyTotal.upsert({
           where: {
-            userId_date: {
-              userId: userId!,
-              date,
-            },
+            userId_date: { userId, date },
           },
           create: {
-            userId: userId!,
+            userId,
             date,
             totalSeconds: seconds,
             isRunning: false,
@@ -122,19 +146,32 @@ export const POST = async (request: Request) => {
       );
     }
 
-    if (running) {
-      txOps.push(db.runningTimer.delete({ where: { userId } }));
-    }
+    // safe delete
+    txOps.push(
+      db.runningTimer.deleteMany({
+        where: { userId },
+      })
+    );
 
-    const txResults = await db.$transaction(txOps);
-    const createdBreak = txResults[1];
+    await db.$transaction(txOps);
 
     return NextResponse.json(
-      { status: "OK", breakSegmentId: createdBreak.id, duration, perDay },
+      {
+        status: "OK",
+        duration,
+        perDay,
+        stoppedSegment: {
+          id: segment.id,
+          focusAreaId: segment.focusAreaId,
+          focusAreaName: segment.focusArea?.name ?? null,
+          start: segment.start,
+          end: now,
+        },
+      },
       { status: 200 }
     );
   } catch (err) {
-    console.error("Timer stop error (runningTimer):", err);
+    console.error("Timer stop error:", err);
     return NextResponse.json("ERRORS.DB_ERROR", { status: 500 });
   }
 };

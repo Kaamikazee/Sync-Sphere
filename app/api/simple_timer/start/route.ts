@@ -1,4 +1,5 @@
 // app/api/timer/start/route.ts
+
 import { getAuthSession } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserDayRange } from "@/utils/IsToday";
@@ -13,6 +14,11 @@ export const POST = async (request: Request) => {
   if (!user) {
     return NextResponse.json("ERRORS.NO_USER_ID", { status: 400 });
   }
+
+  console.log("🔥 START ROUTE HIT", {
+  at: new Date().toISOString(),
+  userId,
+});
 
   // Ensure timezone & resetHour exist (fallbacks if missing)
   const timezone = user.timezone ?? "Asia/Kolkata";

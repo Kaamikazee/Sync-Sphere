@@ -12,7 +12,7 @@ import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { SthElse } from "./SthElse";
 import { BreakTimerWidget } from "./BreakTimerWidget";
 import PomodoroContainer from "../dashboard/pomodoro/PomodoroContainer";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
@@ -20,6 +20,8 @@ import { SessionTimerWidget } from "./SessionTimerWidget";
 import { normalizeToStartOfDay } from "@/utils/normalizeDate";
 import { getSocket } from "@/lib/socket";
 import { groupsWithUserNameAndRole } from "@/lib/api";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 // import { normalizeToStartOfDayIST } from "@/utils/normalizeDate";
 
 interface Props {
@@ -46,7 +48,7 @@ export const SimpleTimerContainer = ({
   // todos,
   groups,
   pomodoroSettings,
-  userName
+  userName,
 }: Props) => {
   const socket = getSocket();
   const today = normalizeToStartOfDay(new Date());
@@ -55,6 +57,7 @@ export const SimpleTimerContainer = ({
   const [open, setOpen] = useState(false);
   const isToday = date.getTime() === today.getTime();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   function formatUserDate(date: Date) {
     return date.toLocaleDateString("en-IN", {
@@ -140,30 +143,38 @@ export const SimpleTimerContainer = ({
   };
 
   useEffect(() => {
-    if (totalSeconds && typeof totalSeconds === "number") {
-      setTime(totalSeconds);
-      baselineRef.current = totalSeconds;
-    }
-  }, [totalSeconds]);
+  if (!isToday) {
+    setTime(totalSeconds ?? 0);
+    baselineRef.current = totalSeconds ?? 0;
+    return;
+  }
+
+  if (typeof totalSeconds === "number") {
+    setTime(totalSeconds);
+    baselineRef.current = totalSeconds;
+  }
+}, [totalSeconds, isToday]);
+
 
   useEffect(() => {
     setRunning(isRunning);
   }, [isRunning, setRunning]);
 
   useEffect(() => {
-  if (!running || startTime === null) return;
+    // 🔒 Timer should tick ONLY for today
+    if (!isToday) return;
+    if (!running || startTime === null) return;
 
-  const updateTime = () => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    setTime(baselineRef.current + elapsed);
-  };
+    const updateTime = () => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setTime(baselineRef.current + elapsed);
+    };
 
-  updateTime(); // 🔹 update immediately on start
-  const interval = setInterval(updateTime, 1000);
+    updateTime(); // immediate sync
+    const interval = setInterval(updateTime, 1000);
 
-  return () => clearInterval(interval);
-}, [running, startTime]);
-
+    return () => clearInterval(interval);
+  }, [running, startTime, isToday]);
 
   useEffect(() => {
     if (isRunning) {
@@ -179,72 +190,77 @@ export const SimpleTimerContainer = ({
   }, [isRunning, totalSeconds, startTimeStamp]);
 
   // Join room and reconcile updates from server
-// Replace the existing "Join room and reconcile updates from server" useEffect with this:
+  // Replace the existing "Join room and reconcile updates from server" useEffect with this:
 
-useEffect(() => {
-  if (!socket || !userId) return;
-
-  // join the user room
-  socket.emit("joinUserRoom", { userId });
-
-  const onUpdate = (payload: {
-    userId?: string; // might be present for group broadcasts
-    isRunning: boolean;
-    activeFocusAreaId: string | null;
-    totalSeconds: number | null;
-    startTime: number | null;
-  }) => {
-    // If the server included a userId and it does NOT match this client, ignore it.
-    // If server did NOT include userId (legacy/per-user emit), assume it's for this socket.
-    if (payload.userId && String(payload.userId) !== String(userId)) {
-      // Not for us — ignore
-      return;
-    }
-
-    // At this point the payload is either explicitly for this user or was sent to the user's room.
-    useRunningStore.getState().setRunning(!!payload.isRunning);
-    useRunningStore.getState().setActiveFocusAreaId(payload.activeFocusAreaId ?? null);
-
-    // Only overwrite time when server provides an authoritative numeric value
-    if (typeof payload.totalSeconds === "number" && !Number.isNaN(payload.totalSeconds)) {
-      baselineRef.current = payload.totalSeconds;
-      setTime(payload.totalSeconds);
-    } else if (payload.startTime) {
-      // server told us the timer started; set startTime but keep the current baseline/time
-      setStartTime(payload.startTime);
-      // ensure baselineRef is in sync with the currently-displayed time so the interval will add correctly
-      baselineRef.current = timeRef.current;
-    }
-
-    // if server explicitly cleared startTime (stop), reflect that
-    if (!payload.isRunning) {
-      setStartTime(null);
-    }
-  };
-
-  socket.on("timer:updated", onUpdate);
-  return () => {
-    socket.off("timer:updated", onUpdate);
-  };
-}, [socket, userId]);
-
-
-
-   useEffect(() => {
+  useEffect(() => {
     if (!socket || !userId) return;
-    if (!running) return;
 
-    const tick = () => {
-      // send latest value from ref
-      socket.emit("tick", { userId, currentTotalSeconds: timeRef.current });
+    // join the user room
+    socket.emit("joinUserRoom", { userId });
+
+    const onUpdate = (payload: {
+      userId?: string; // might be present for group broadcasts
+      isRunning: boolean;
+      activeFocusAreaId: string | null;
+      totalSeconds: number | null;
+      startTime: number | null;
+    }) => {
+      // If the server included a userId and it does NOT match this client, ignore it.
+      // If server did NOT include userId (legacy/per-user emit), assume it's for this socket.
+      if (payload.userId && String(payload.userId) !== String(userId)) {
+        // Not for us — ignore
+        return;
+      }
+
+      // At this point the payload is either explicitly for this user or was sent to the user's room.
+      useRunningStore.getState().setRunning(!!payload.isRunning);
+      useRunningStore
+        .getState()
+        .setActiveFocusAreaId(payload.activeFocusAreaId ?? null);
+
+      // Only overwrite time when server provides an authoritative numeric value
+      if (
+        typeof payload.totalSeconds === "number" &&
+        !Number.isNaN(payload.totalSeconds)
+      ) {
+        baselineRef.current = payload.totalSeconds;
+        setTime(payload.totalSeconds);
+      } else if (payload.startTime && payload.isRunning) {
+        // server told us the timer started; set startTime but keep the current baseline/time
+        setStartTime(payload.startTime);
+        // ensure baselineRef is in sync with the currently-displayed time so the interval will add correctly
+        baselineRef.current = timeRef.current;
+      }
+
+      // if server explicitly cleared startTime (stop), reflect that
+      if (!payload.isRunning) {
+        setStartTime(null);
+        if (typeof payload.totalSeconds === "number") {
+          baselineRef.current = payload.totalSeconds;
+          setTime(payload.totalSeconds);
+        }
+      }
     };
 
-    // send immediately then every second
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [socket, userId, running]); // no `time` in deps — we use timeRef
-  
+    socket.on("timer:updated", onUpdate);
+    return () => {
+      socket.off("timer:updated", onUpdate);
+    };
+  }, [socket, userId]);
+
+  useEffect(() => {
+  if (!socket || !userId) return;
+  if (!running || !isToday) return;
+
+  const tick = () => {
+    socket.emit("tick", { userId, currentTotalSeconds: timeRef.current });
+  };
+
+  tick(); // immediate
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);
+}, [socket, userId, running, isToday]);
+// no `time` in deps — we use timeRef
 
   const handleStart = (focusId?: string) => {
     const now = Date.now();
@@ -254,7 +270,6 @@ useEffect(() => {
     setRunning(true);
     setActiveFocusAreaId(focusId ?? null);
     setTime(baselineRef.current + Math.floor((Date.now() - now) / 1000));
-
 
     // emit focusId to socket
     socket?.emit("start-timer", {
@@ -273,12 +288,35 @@ useEffect(() => {
     });
   };
 
-  const handleStop = () => {
+  const { mutate: stop } = useMutation({
+  mutationFn: async () => {
+    const res = await axios.post("/api/simple_timer/stop");
+    return res.data;
+  },
+  onSuccess: (data) => {
+    const name =
+      data.stoppedSegment?.focusAreaName ?? "Focus session";
+
+    toast.success(
+      `${name} logged ${formatHMS(data.duration)}`
+    );
+
+    queryClient.invalidateQueries({
+      queryKey: ["focusAreaTotals"],
+    });
+
+    router.refresh();
+  },
+});
+
+
+  const handleStop = async () => {
     setRunning(false);
     setActiveFocusAreaId(null);
     setTimeSpent(timeRef.current);
     baselineRef.current = timeRef.current;
 
+    stop();
     socket?.emit("stop-timer", { userId, totalSeconds: timeRef.current });
 
     // optimistic store update
@@ -486,7 +524,11 @@ useEffect(() => {
         <aside className="w-full">
           <div className="p-4 h-full">
             <div className="relative sm:bg-white/10 sm:border sm:border-white/20 sm:backdrop-blur-md shadow-sm sm:rounded-2xl sm:shadow-lg sm:p-6 p-3 sm:hover:shadow-2xl transition-all duration-300">
-              <SthElseMemo groups={groups} userId={userId} userName={userName}/>
+              <SthElseMemo
+                groups={groups}
+                userId={userId}
+                userName={userName}
+              />
             </div>
           </div>
         </aside>
